@@ -8,13 +8,13 @@
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": "5150",
   "domain": "openvibe.exchange",
-  "contracts": "openvibe-contracts v0.229.0",
+  "contracts": "openvibe-contracts v0.235.0",
   "sdk": "openvibe-sdk v0.70.0",
-  "shared": "openvibe-shared v4.31.0",
+  "shared": "openvibe-shared v4.36.1",
   "packages": [
-    "openvibe-contracts v0.229.0",
+    "openvibe-contracts v0.235.0",
     "openvibe-sdk v0.70.0",
-    "openvibe-shared v4.31.0"
+    "openvibe-shared v4.36.1"
   ],
   "summary": "OpenVibe.Exchange is the OpenVibe marketplace for what people make: agents, MCP tools, templates, design themes and kits, game assets and creator services. v1 is free and swap only — there is no price, no Billing and no money — and every listing carries a permission passport (reads, writes, spends, contacts) taken from its public manifest. Submitting a listing runs four conformance tests for its version and a draft is only publishable when they pass. A sandbox trial is a manifest/passport dry run (v1 does not execute a listing's code); a passed trial is consumed by the install, which keeps the exact passport snapshot. A revoke is one tap and idempotent. A free listing takes claims and a swap listing takes offers with what the other person gives; accepting closes it as given or swapped. Every public listing is one Search Fabric document queued in the service's outbox, with a tombstone on close or hide.",
   "works": [
@@ -65,5 +65,5 @@
     "first-proof seed"
   ],
   "deployment": "not deployed: the unit and nginx vhost are deploy/systemd/openvibe-exchange.service and deploy/nginx/openvibe.exchange.conf",
-  "updated": "2026-10-28"
+  "updated": "2026-10-29"
 }
