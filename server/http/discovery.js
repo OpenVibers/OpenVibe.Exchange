@@ -76,7 +76,7 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Elsewhere', links: [
                     { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, staff roles and the grants a passport names' },
                     { title: 'OpenVibe.Run', url: 'https://openvibe.run', note: 'the sandbox that will execute a listing\'s tests' },
-                    { title: 'OpenVibe.Search', url: 'https://openvibe.search', note: 'where public listings are indexed' },
+                    { title: 'OpenVibe.Search', url: 'https://search.openvibe.network', note: 'where public listings are indexed' },
                     { title: 'OpenVibe.Rent', url: 'https://openvibe.rent', note: 'the listings engine and local safety rules Exchange borrows' },
                 ] },
             ],
