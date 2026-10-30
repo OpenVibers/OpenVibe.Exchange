@@ -7,6 +7,7 @@
 const assert = require('assert');
 const crypto = require('crypto');
 const { boot, check, done } = require('./helpers/boot');
+const cookieJar = (res) => res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
 const { sanitizeNext } = require('../server/auth/sso');
 
 (async () => {
@@ -21,49 +22,55 @@ const { sanitizeNext } = require('../server/auth/sso');
         assert.strictEqual(loc.searchParams.get('client_id'), 'exchange');
         assert.strictEqual(loc.searchParams.get('code_challenge_method'), 'S256');
         assert.match(loc.searchParams.get('code_challenge'), /^[A-Za-z0-9_-]{43}$/);
-        assert.match(loc.searchParams.get('state'), /^[0-9a-f]{32}$/);
-        assert.match(r.headers.get('set-cookie'), /exchange_oauth=.*Path=\/auth.*HttpOnly/i);
+        assert.match(loc.searchParams.get('state'), /^[A-Za-z0-9_-]{32}$/);
+        assert.match(r.headers.get('set-cookie'), /ov_oauth_state=.*Path=\/auth.*HttpOnly/i);
     });
 
     await check('callback exchanges the code with the matching verifier and sets httpOnly session cookies', async () => {
         const login = await t.get('/auth/login?next=/listings');
         const loc = new URL(login.headers.get('location'));
-        const flowCookie = login.headers.get('set-cookie').split(';')[0];
+        const flowCookie = cookieJar(login);
         const code = t.network.issueCode(user, loc.searchParams.get('code_challenge'));
         const r = await t.get(`/auth/callback?code=${code}&state=${loc.searchParams.get('state')}`, { cookie: flowCookie });
         assert.strictEqual(r.status, 302, r.text);
         assert.strictEqual(r.headers.get('location'), '/listings');
         const set = r.headers.get('set-cookie');
-        assert.match(set, /exchange_at=[^;]+;.*HttpOnly/i);
-        assert.match(set, /exchange_rt=[^;]+;.*HttpOnly/i);
-        assert.match(set, /exchange_oauth=;/);
-        const at = set.match(/exchange_at=([^;]+)/)[1];
-        const me = await t.get('/auth/me', { cookie: `exchange_at=${at}` });
+        assert.match(set, /ov_token=[^;]+;.*HttpOnly/i);
+        assert.match(set, /ov_refresh=[^;]+;.*HttpOnly/i);
+        assert.match(set, /ov_oauth_state=;/);
+        const at = set.match(/ov_token=([^;]+)/)[1];
+        const me = await t.get('/auth/me', { cookie: `ov_token=${at}` });
         assert.strictEqual(me.json().user.username, 'kim');
         assert.ok(!me.text.includes(at), '/auth/me never returns the token');
     });
 
-    await check('a wrong state, a verifier that does not match, or no flow cookie is refused', async () => {
+    await check('a wrong state, a verifier that does not match, or no flow cookie starts the sign-in once more', async () => {
         const login = await t.get('/auth/login');
         const loc = new URL(login.headers.get('location'));
-        const flowCookie = login.headers.get('set-cookie').split(';')[0];
+        const flowCookie = cookieJar(login);
         const code = t.network.issueCode(user, loc.searchParams.get('code_challenge'));
-        assert.strictEqual((await t.get(`/auth/callback?code=${code}&state=${'0'.repeat(32)}`, { cookie: flowCookie })).status, 400);
+        const bad = await t.get('/auth/callback?code=' + code + '&state=' + '0'.repeat(32), { cookie: flowCookie });
+        assert.strictEqual(bad.status, 302, 'the SDK recovers by itself once');
+        assert.match(bad.headers.get('location'), /^\/auth\/login/);
+        const retry = bad.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+        assert.match(retry, /ov_oauth_retry=1/);
+        const again = await t.get('/auth/callback?code=' + code + '&state=' + '0'.repeat(32), { cookie: flowCookie + '; ' + retry });
+        assert.strictEqual(again.status, 400);
+        assert.match(again.text, /Try again/);
         const other = t.network.issueCode(user, crypto.createHash('sha256').update('another-verifier').digest('base64url'));
-        assert.strictEqual((await t.get(`/auth/callback?code=${other}&state=${loc.searchParams.get('state')}`, { cookie: flowCookie })).status, 400);
-        assert.strictEqual((await t.get(`/auth/callback?code=${code}&state=${loc.searchParams.get('state')}`)).status, 400);
+        assert.strictEqual((await t.get('/auth/callback?code=' + other + '&state=' + loc.searchParams.get('state'), { cookie: flowCookie })).status, 302);
+        assert.strictEqual((await t.get('/auth/callback?code=' + code + '&state=' + loc.searchParams.get('state'))).status, 302);
     });
-
     await check('next= only accepts same-site paths', async () => {
+        const opts = { baseUrl: 'https://openvibe.exchange', networkUrl: 'https://openvibe.network' };
+        assert.strictEqual(sanitizeNext('/listings?x=1', opts), '/listings?x=1');
+        assert.strictEqual(sanitizeNext('https://openvibe.exchange/x?y=1', opts), 'https://openvibe.exchange/x?y=1');
+        for (const v of ['//evil.com', '/\\evil.com', 'https://evil.com/x', '/\t/evil.com', 'javascript:alert(1)', 'https://openvibe.exchange.evil.com/x']) {
+            assert.strictEqual(sanitizeNext(v, opts), '/', v);
+        }
         const r = await t.get('/auth/login?next=//evil.example/x');
-        const flow = decodeURIComponent(r.headers.get('set-cookie').match(/exchange_oauth=([^;]+)/)[1]);
-        assert.strictEqual(JSON.parse(flow).next, '/');
-        const config = { baseUrl: 'https://openvibe.exchange' };
-        assert.strictEqual(sanitizeNext('/listings?x=1', config), '/listings?x=1');
-        assert.strictEqual(sanitizeNext('https://openvibe.exchange/listings/x?y=1', config), '/listings/x?y=1');
-        for (const v of ['//evil.com', '/\\evil.com', 'https://evil.com/x', '/\t/evil.com', 'javascript:alert(1)', 'https://openvibe.exchange.evil.com/x']) assert.strictEqual(sanitizeNext(v, config), '/', v);
+        assert.ok(/ov_oauth_next=;/.test(String(r.headers.get('set-cookie') || '')), 'a cross-site next is dropped');
     });
-
     await check('readiness is truthful: db required; JWKS, the OAuth client and Valkey optional', async () => {
         const r = await t.get('/api/ready');
         const b = r.json();
@@ -73,6 +80,8 @@ const { sanitizeNext } = require('../server/auth/sso');
         assert.strictEqual(b.checks.network_jwks.status, 'ok');
         assert.strictEqual(b.checks.network_jwks.required, false);
         assert.strictEqual(b.checks.oauth_client.status, 'ok');
+        assert.strictEqual(b.checks.sso_client.status, 'ok');
+        assert.strictEqual(b.checks.sso_client.required, true);
         assert.strictEqual(b.checks.oauth_client.required, false);
         assert.ok('valkey' in b.checks);
     });
@@ -112,11 +121,11 @@ const { sanitizeNext } = require('../server/auth/sso');
     await check('a FedCM assertion and an app token are not sessions', async () => {
         const now = Math.floor(Date.now() / 1000);
         const fedcm = t.network.signJwt({ iss: t.network.issuer(), sub: user.id, id: user.id, subject_id: user.subject, username: user.username, display_name: user.username, nonce: null, typ: 'fedcm', jti: 'x', aud: 'https://tenant.openvibe.host', iat: now, exp: now + 300 });
-        assert.strictEqual((await t.get('/auth/me', { cookie: `exchange_at=${fedcm}` })).status, 401);
-        const page = await t.get('/', { cookie: `exchange_at=${fedcm}` });
+        assert.strictEqual((await t.get('/auth/me', { cookie: `ov_token=${fedcm}` })).status, 401);
+        const page = await t.get('/', { cookie: `ov_token=${fedcm}` });
         assert.ok(!page.text.includes('Signed in as <strong>kim'));
         const app = t.network.signJwt({ iss: t.network.issuer(), sub: 'app:app_01JABCDEFGHJKMNPQRSTVWXYZ0', actor_type: 'app', aud: ['openvibe.network'], cap: ['x.y.z'], subject_id: user.subject, iat: now, exp: now + 300 });
-        assert.strictEqual((await t.get('/auth/me', { cookie: `exchange_at=${app}` })).status, 401);
+        assert.strictEqual((await t.get('/auth/me', { cookie: `ov_token=${app}` })).status, 401);
     });
 
     await check('/auth/me: a guest is signed out (200 { user: null }); a failing session cookie is 401', async () => {
@@ -124,7 +133,7 @@ const { sanitizeNext } = require('../server/auth/sso');
         assert.strictEqual(guest.status, 200);
         assert.deepStrictEqual(JSON.parse(guest.text), { user: null });
         assert.strictEqual(guest.headers.get('cache-control'), 'private, no-store');
-        assert.strictEqual((await t.get('/auth/me', { cookie: 'exchange_at=garbage' })).status, 401);
+        assert.strictEqual((await t.get('/auth/me', { cookie: 'ov_token=garbage' })).status, 401);
         assert.strictEqual((await t.get('/auth/me', { cookie: 'exchange_rt=stale' })).status, 401);
         assert.strictEqual((await t.get('/auth/me', { as: user })).status, 200);
     });
@@ -142,6 +151,17 @@ const { sanitizeNext } = require('../server/auth/sso');
         assert.match(String(same.headers.get('set-cookie') || ''), /exchange_at=;/);
     });
 
+    await check('/auth/health says whether the Network accepts this client', async () => {
+        const r = await t.get('/auth/health');
+        assert.strictEqual(r.status, 200);
+        assert.deepStrictEqual(r.json(), { ok: true, client: 'ok' });
+    });
+    await check('the old cookie is still the session, so nobody is signed out by the move', async () => {
+        const at = t.network.userToken(user);
+        const me = await t.get('/auth/me', { cookie: 'exchange_at=' + at });
+        assert.strictEqual(me.status, 200);
+        assert.strictEqual(me.json().user.username, 'kim');
+    });
     await t.close();
     done();
 })();
