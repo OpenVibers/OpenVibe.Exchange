@@ -10,8 +10,10 @@ const http = require('http');
 const { ids } = require('openvibe-contracts');
 const { boot, check, done } = require('./helpers/boot');
 const fixtures = require('./helpers/fixtures');
-const { createNetworkSender } = require('openvibe-sdk/account-data');
+const { createNetworkSender, uncovered } = require('openvibe-sdk/account-data');
 const { signDeliveryHeaders } = require('openvibe-sdk/events');
+const { TABLES } = require('../server/identity/account-data');
+const { testDb } = require('./helpers/db');
 
 const A = ids.newId('user');
 const B = ids.newId('user');
@@ -42,6 +44,17 @@ async function startNetworkStub() {
 }
 
 (async () => {
+    await check('every table that names a person is covered or exempted with a reason', async () => {
+        const d = await testDb();
+        try {
+            const missing = await uncovered(d.db, {
+                tables: TABLES,
+                exempt: {account_data_events: 'the ledger of requests itself: which export and deletion exchange applied'},
+            });
+            assert.deepStrictEqual(missing, [], `a table with a person column is neither covered nor exempted: ${missing.join(', ')}`);
+        } finally { await d.close(); }
+    });
+
     const stub = await startNetworkStub();
     const sender = createNetworkSender({ networkInternalUrl: stub.url, clientId: 'exchange', clientSecret: 'exchange-secret' });
     const t = await boot({ env: { EXCHANGE_EVENTS_SECRET: SECRET }, accountSend: sender });
