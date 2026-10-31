@@ -11,7 +11,9 @@
  *   /api/health, /api/ready, /release.json, /metrics       (loopback only)
  *   /internal/events                                       account export/deletion (loopback only)
  *
- * There are no jobs in v1: sandbox trials run on request and expire by timestamp. The Search relay is not wired.
+ * Sandbox trials run on request and expire by timestamp; the Search relay is not wired. The only background job is
+ * the first-party catalogue refresh (server/jobs/first-party.js), started by server/index.js and off under
+ * EXCHANGE_DRILL.
  */
 const path = require('path');
 const express = require('express');
@@ -35,6 +37,7 @@ const { raw } = require('./render/html');
 const accountDataLib = require('./identity/account-data');
 const { createStore } = require('./store');
 const { createSearchIndex } = require('./search');
+const { createFirstParty } = require('./jobs/first-party');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -58,6 +61,7 @@ async function createApp(opts = {}) {
 
     const search = createSearchIndex({ config, s });
     const entries = createStore(s, { search, config });
+    const firstParty = createFirstParty({ config, s, entries, fetchImpl, log, now: s.now });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -66,7 +70,7 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, search, entries, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, search, entries, firstParty, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');

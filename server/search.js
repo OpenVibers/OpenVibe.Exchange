@@ -36,6 +36,7 @@ function documentOf(listing, { baseUrl = 'https://openvibe.exchange' } = {}) {
         writes.length ? `Writes: ${writes.join(', ')}` : '',
         contacts.length ? `Contacts: ${contacts.join(', ')}` : '',
         `Licence: ${listing.license} · version ${listing.version} · ${listing.mode}`,
+        listing.home_url ? `Home: ${listing.home_url}` : '',
     ].filter(Boolean).join('\n').slice(0, 48_000);
     return {
         owner: OWNER,
@@ -53,6 +54,7 @@ function documentOf(listing, { baseUrl = 'https://openvibe.exchange' } = {}) {
             mode: listing.mode,
             license: listing.license,
             creator: listing.creator,
+            official: Boolean(listing.official),
             can_read: reads,
             can_write: writes,
             can_contact: contacts,

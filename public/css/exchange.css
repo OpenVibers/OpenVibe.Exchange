@@ -58,7 +58,7 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .ex-filters a { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); font-size: .86rem; font-weight: 700; text-decoration: none; color: var(--text-secondary, #96a7c2); }
 .ex-filters a[aria-current] { background: var(--room-fill); color: var(--room-on); border-color: transparent; }
 .ex-inline { margin: 0; display: inline; }
-.ex-ok, .ex-status-active, .ex-verified { color: var(--success-text, #22c55e); font-weight: 800; }
+.ex-ok, .ex-status-active, .ex-verified, .ex-official { color: var(--success-text, #22c55e); font-weight: 800; }
 .ex-status-revoked, .ex-unverified { color: var(--text-muted, #7386a3); font-weight: 800; }
 .ex-status, .ex-kind, .ex-mode, .ex-license, .ex-version { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: 999px; font-size: .75rem; font-weight: 800; background: color-mix(in srgb, var(--text-muted, #7386a3) 14%, transparent); color: var(--text-secondary, #96a7c2); }
 .ex-kind, .ex-mode { background: color-mix(in srgb, var(--room-accent) 16%, transparent); color: var(--room-strong); }
@@ -106,6 +106,12 @@ html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.
 .ex-passport-stamp { position: absolute; right: 16px; top: -12px; padding: 4px 12px; border-radius: 8px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--room-on); background: var(--room-fill); rotate: 4deg; }
 .ex-none { color: var(--text-muted, #7386a3); font-style: italic; }
 .ex-manifest { margin: 0; padding: 14px; border-radius: 12px; background: var(--bg-primary, #0a0f1c); border: 1px solid var(--border, #1f2d47); font: 500 .84rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
+
+.ex-file-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.ex-file-list li { min-width: 0; }
+.ex-file-list a { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 11px 13px; border-radius: 12px; background: var(--bg-card, #0f1729); border: 1px solid var(--border, #1f2d47); text-decoration: none; }
+.ex-file-list b { font-weight: 700; overflow-wrap: anywhere; }
+.ex-file-list span { font: 600 .76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted, #7386a3); }
 
 /* Checks and conformance tests */
 .ex-checks, .ex-tests { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

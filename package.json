@@ -8,6 +8,7 @@
     "start": "node server/index.js",
     "dev": "NODE_ENV=development node server/index.js",
     "seed:proof": "node scripts/seed-proof.js",
+    "seed:first-party": "node scripts/seed-first-party.js",
     "test": "node test/run.js",
     "test:pg": "EXCHANGE_TEST_STORE=pg node test/run.js"
   },
