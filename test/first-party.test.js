@@ -13,9 +13,17 @@ const THEMES = {
         {
             id: 'vibe', name: 'Vibe', slug: 'vibe', mode: 'dark',
             description: 'The default OpenVibe theme.', is_builtin: 1,
-            variables: { '--bg-primary': '#0a0f1c' }, owner_email: 'designer@example.test', api_key: 'should_never_be_listed',
+            variables: {
+                '--bg-primary': '#0a0f1c', '--bg-secondary': '#101828', '--bg-card': '#131c2e',
+                '--text-primary': '#e6edf7', '--text-secondary': '#96a7c2', '--accent': '#3b82f6', '--border': '#1f2d47',
+            },
+            preview_colors: { bg: '#0A0F1C', accent: '#3B82F6', text: '#E6EDF7' },
+            owner_email: 'designer@example.test', api_key: 'should_never_be_listed',
         },
-        { id: 'paper', name: 'Paper', slug: 'paper', mode: 'light', description: 'A quiet light theme.', is_builtin: true, variables: {} },
+        {
+            id: 'paper', name: 'Paper', slug: 'paper', mode: 'light', description: 'A quiet light theme.', is_builtin: true,
+            variables: { '--bg-primary': '#fffbeb', '--bg-card': '#fffdf3', '--text-primary': '#1f1f1f', '--accent': '#644ac9', '--text-secondary': 'warm grey', '--border': '#e3dab8' },
+        },
         { id: 'made-by-a-person', name: 'Mine', slug: 'mine', mode: 'dark', description: 'A community theme.', is_builtin: 0, variables: {} },
     ],
 };
@@ -92,6 +100,9 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
                 { format: 'css', label: 'CSS variables', url: 'https://openvibe.design/api/v1/tokens/vibe?format=css' },
                 { format: 'json', label: 'Design tokens', url: 'https://openvibe.design/api/v1/tokens/vibe?format=json' },
             ], 'the theme carries its token files');
+            assert.deepStrictEqual(theme.palette, ['#0a0f1c', '#131c2e', '#e6edf7', '#3b82f6', '#96a7c2', '#1f2d47'], 'six preview colours, in order');
+            const paper = rows.find((r) => r.slug === 'paper-theme');
+            assert.deepStrictEqual(paper.palette, ['#fffbeb', '#fffdf3', '#1f1f1f', '#644ac9', '#e3dab8'], 'only valid hex, up to six');
             assert.ok(!rows.some((r) => r.home_url.includes('?format=')), 'no token file is a listing of its own');
             assert.strictEqual(await t.ctx.s.db.value("SELECT COUNT(*)::int AS n FROM exchange_listings WHERE source = 'design.tokens'"), 0);
 
@@ -106,6 +117,20 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             assert.ok(rows.some((r) => r.home_url === 'https://openvibe.live/obs/scene/ending/openvibe'));
             assert.ok(rows.some((r) => r.home_url === 'https://openvibe.live/obs/alerts/openvibe?demo=1'));
             assert.ok(!rows.some((r) => r.home_url.includes('/mine')), 'a community theme is not relisted as first-party');
+        });
+
+        await check('the palette is in the API and drawn on the card and the listing page', async () => {
+            const api = await t.get('/api/v1/listings?limit=50');
+            const theme = api.json().listings.find((r) => r.slug === 'vibe-theme');
+            assert.deepStrictEqual(theme.palette, ['#0a0f1c', '#131c2e', '#e6edf7', '#3b82f6', '#96a7c2', '#1f2d47']);
+            const page = await t.get('/listings/vibe-theme');
+            assert.strictEqual(page.status, 200, page.text);
+            assert.match(page.text, /class="ex-palette"/);
+            for (const colour of theme.palette) assert.ok(page.text.includes(`<i style="background:${colour}"></i>`), colour);
+            const card = await t.get('/listings?kind=theme');
+            assert.strictEqual(card.status, 200, card.text);
+            assert.match(card.text, /<i style="background:#0a0f1c"><\/i>/);
+            assert.match(card.text, /<i style="background:#3b82f6"><\/i>/);
         });
 
         await check('a second pass changes nothing and creates no duplicate', async () => {
@@ -220,6 +245,24 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             assert.ok(!/designer@example\.test/.test(dump), 'no source email');
             assert.ok(!/should_never_be_listed/.test(dump), 'no source credential');
             assert.ok(!/owner_email/.test(dump));
+        });
+
+        await check('only validated hex colours reach the pages and the API', async () => {
+            await t.ctx.s.db.exec('UPDATE exchange_listings SET palette = $1::jsonb WHERE id = $2', [
+                JSON.stringify(['#0a0f1c', '#GGGGGG', 'javascript:alert(1)', '#AABBCC', '#123456', '#654321', '#999999', '#ABCDEF', '#000000']),
+                themeId,
+            ]);
+            const page = await t.get('/listings/vibe-theme');
+            assert.strictEqual(page.status, 200, page.text);
+            assert.match(page.text, /<i style="background:#0a0f1c"><\/i>/);
+            assert.match(page.text, /<i style="background:#aabbcc"><\/i>/);
+            assert.ok(!page.text.includes('#GGGGGG'), 'a non-hex value is dropped');
+            assert.ok(!page.text.includes('javascript:'), 'no style may carry a url or script');
+            assert.ok(!page.text.includes('background:#000000'), 'a seventh colour is dropped');
+            const api = (await t.get('/api/v1/listings/vibe-theme')).json();
+            assert.deepStrictEqual(api.palette, ['#0a0f1c', '#aabbcc', '#123456', '#654321', '#999999', '#abcdef']);
+            const cards = await t.get('/listings?kind=theme');
+            assert.ok(!cards.text.includes('#GGGGGG') && !cards.text.includes('javascript:'), 'the card is safe too');
         });
 
         await check('the listing page links to the real home and says who listed it', async () => {

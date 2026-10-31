@@ -27,6 +27,9 @@ const LICENSE_RE = /^[A-Za-z0-9][A-Za-z0-9.+-]{1,63}$/;
 const SCOPE_RE = /^[a-z][a-z0-9_.:-]{1,63}$/;
 const CONTACT_RE = /^https:\/\/[^\s"'<>]{1,200}$/;
 const SECRET_VALUE_RE = /(?:secret|password|passwd|token|api[_-]?key|private[_-]?key|bearer)\s*[:=]|-----BEGIN [A-Z ]*PRIVATE KEY-----/i;
+/** A theme's preview palette: at most six plain hex colours, the only form a page may paint. */
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+const MAX_PALETTE = 6;
 
 const iso = (v) => (v == null ? null : (v instanceof Date ? v.toISOString() : String(v)));
 const refusal = (status, code, message, field) => ({ ok: false, status, code, message, ...(field ? { field } : {}) });
@@ -65,6 +68,26 @@ function wireFiles(v) {
         .map((f) => ({ format: String(f.format).slice(0, 40), label: String(f.label || f.format).slice(0, 80), url: String(f.url).slice(0, 300) }));
 }
 
+/**
+ * The preview palette a listing paints: up to six #rrggbb values, in order, duplicates dropped. Anything the
+ * source said that is not a plain hex colour (a name, a gradient, a url) never leaves this function.
+ */
+function wirePalette(v) {
+    const list = json(v, []);
+    if (!Array.isArray(list)) return [];
+    const out = [];
+    for (const entry of list) {
+        if (typeof entry !== 'string') continue;
+        const hex = entry.trim();
+        if (!HEX_RE.test(hex)) continue;
+        const colour = hex.toLowerCase();
+        if (out.includes(colour)) continue;
+        out.push(colour);
+        if (out.length === MAX_PALETTE) break;
+    }
+    return out;
+}
+
 function wireTest(row) {
     if (!row) return null;
     return { id: Number(row.id), name: row.name, status: row.status, detail: row.detail == null ? null : row.detail, ran_at: iso(row.ran_at) };
@@ -90,6 +113,7 @@ function wireListing(row, { tests = null, includeOwner = false, summaryTests = f
         passport: wirePassport(row.passport),
         manifest: wireManifest(row.manifest),
         files: wireFiles(row.files),
+        palette: wirePalette(row.palette),
         home_url: row.home_url == null ? null : row.home_url,
         official: Boolean(row.official),
         listed_at: iso(row.listed_at),
@@ -301,7 +325,8 @@ function firstPartyChanged(row, v, creator) {
         || manifest.entry !== v.manifest.entry
         || (manifest.runtime || '') !== (v.manifest.runtime || '')
         || JSON.stringify(passport) !== JSON.stringify(v.passport)
-        || JSON.stringify(wireFiles(row.files)) !== JSON.stringify(v.files);
+        || JSON.stringify(wireFiles(row.files)) !== JSON.stringify(v.files)
+        || JSON.stringify(wirePalette(row.palette)) !== JSON.stringify(v.palette);
 }
 
 /** The four conformance tests run for every version. A listing is not public until every one passed. */
@@ -700,13 +725,13 @@ function createStore(s, { search, config }) {
      * can never stand in for a person; source/source_id is its idempotency key. A person's row never enters this
      * path, and a staff-hidden row is left hidden rather than resurrected.
      */
-    async function upsertFirstParty({ source, sourceId, body, creator = 'OpenVibe' }, t = null) {
+    async function upsertFirstParty({ source, sourceId, body, creator = 'OpenVibe', palette = [] }, t = null) {
         const src = cleanText(source, 80);
         const sid = cleanText(sourceId, 160);
         if (!src || !sid) return refusal(400, 'exchange.invalid', 'a first-party listing needs a source and a source id');
         const checked = normalizeListing(body);
         if (!checked.ok) return checked;
-        const v = checked.value;
+        const v = { ...checked.value, palette: wirePalette(palette) };
         const run = async (tx) => {
             const nowIso = new Date(s.now()).toISOString();
             const creatorName = cleanText(creator, 80) || 'OpenVibe';
@@ -716,11 +741,11 @@ function createStore(s, { search, config }) {
                 const slug = await uniqueSlug(slugify(v.title), tx);
                 row = await tx.maybe(
                     `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, files, version,
-                        creator, owner, status, manifest, passport, revision, official, source, source_id, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, NULL, 'draft', $15::jsonb, $16::jsonb, 1, true, $17, $18, $19::timestamptz, $19::timestamptz)
+                        creator, owner, status, manifest, passport, revision, official, source, source_id, created_at, updated_at, palette)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, NULL, 'draft', $15::jsonb, $16::jsonb, 1, true, $17, $18, $19::timestamptz, $19::timestamptz, $20::jsonb)
                      RETURNING *`,
                     [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
-                        JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), src, sid, nowIso],
+                        JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), src, sid, nowIso, JSON.stringify(v.palette)],
                 );
                 await ensureTests(tx, row.id, v);
                 const listed = await tx.maybe(
@@ -743,10 +768,10 @@ function createStore(s, { search, config }) {
                    license = $8, license_url = $9, home_url = $10, files = $11::jsonb, version = $12, creator = $13,
                    manifest = $14::jsonb, passport = $15::jsonb, official = true, status = 'listed',
                    listed_at = COALESCE(listed_at, $16::timestamptz), closed_at = NULL, closed_reason = NULL,
-                   revision = revision + 1, updated_at = $16::timestamptz
+                   revision = revision + 1, updated_at = $16::timestamptz, palette = $17::jsonb
                  WHERE id = $1 RETURNING *`,
                 [row.id, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
-                    JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), nowIso],
+                    JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), nowIso, JSON.stringify(v.palette)],
             );
             await ensureTests(tx, row.id, v);
             await listingEvent(tx, row.id, row.status, 'listed', 'first-party refresh', 'service:exchange', nowIso);

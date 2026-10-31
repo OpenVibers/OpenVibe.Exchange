@@ -16,6 +16,9 @@ money anywhere in v1 — no price, no Billing, no Vibes, no cash — and a passp
 - **Listings with passports.** A listing names its kind, mode (`free` or `swap`), licence (SPDX), version and
   manifest. Its passport declares exactly what it can read, write, spend and contact. `spends` is always empty in v1,
   enforced by the form, the API and the table's check constraint.
+- **Theme colours.** A first-party theme listing keeps the preview palette Design imported: up to six `#rrggbb`
+  colours (background, surface, text, accent and two more), shown as small swatches on its card and page. Only a
+  valid hex colour ever reaches the style attribute.
 - **Conformance tests for this version.** Submitting a listing runs four tests — `manifest`, `passport`, `licence`,
   `no_money` — and stores one row per version. Only the owner can publish a draft, and only when every test passed.
 - **Try before install.** A sandbox trial is a manifest and passport dry run. It records its checks and gives a
@@ -38,7 +41,7 @@ money anywhere in v1 — no price, no Billing, no Vibes, no cash — and a passp
 
 | Table | Holds | Migration |
 |---|---|---|
-| `exchange_listings` | `exl_` + ULID, unique slug (`/listings/<slug>`), title, kind `agent\|mcp_tool\|template\|theme\|game_asset\|service`, mode `free\|swap`, summary/description/wants, SPDX licence + URL, version, public creator name, owner `usr_…`, status `draft\|listed\|hidden\|closed`, manifest jsonb, passport jsonb (spends must be `[]`), revision, listed/closed timestamps | `migrations/0001_initial.sql` |
+| `exchange_listings` | `exl_` + ULID, unique slug (`/listings/<slug>`), title, kind `agent\|mcp_tool\|template\|theme\|game_asset\|service`, mode `free\|swap`, summary/description/wants, SPDX licence + URL, version, public creator name, owner `usr_…`, status `draft\|listed\|hidden\|closed`, manifest jsonb, passport jsonb (spends must be `[]`), palette jsonb (at most six `#rrggbb` preview colours), revision, listed/closed timestamps | `migrations/0001_initial.sql`, `0004_theme_palette.sql` |
 | `exchange_listing_tests` | one conformance test row per (listing, version, name): `manifest\|passport\|licence\|no_money`, `passed\|failed`, detail, ran_at | `0001_initial.sql` |
 | `exchange_listing_events` | every status change: from, to, reason, who, when | `0001_initial.sql` |
 | `exchange_sandbox_trials` | `exs_` + ULID, listing, subject, version, `passed\|failed`, passport snapshot, checks jsonb, created/expires/consumed | `0001_initial.sql` |
@@ -90,7 +93,7 @@ JWKS. A write made with the session cookie must come from `https://openvibe.exch
 
 | Route | What it does |
 |---|---|
-| `GET /listings?limit=&cursor=&mode=&kind=&q=` | public listings, interleaved by kind, newest first inside each kind; opaque keyset cursor; `Cache-Control: public, max-age=60` |
+| `GET /listings?limit=&cursor=&mode=&kind=&q=` | public listings, interleaved by kind, newest first inside each kind; opaque keyset cursor; `Cache-Control: public, max-age=60`; each row carries its `palette` |
 | `GET /listings/:slug` | one listing with passport, manifest, licence, tests and counters; a draft/hidden/closed one is 404 unless it is yours or you are staff |
 | `GET /listings/:slug/passport` | the exact passport, manifest, licence, version and tests an installer accepts |
 | `GET /listings/:slug/tests` | the conformance tests for the version the listing names |
