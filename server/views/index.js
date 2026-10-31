@@ -92,10 +92,14 @@ function motif() {
 }
 
 function home({ listings = [], counts = {} } = {}) {
-    const live = `<section class="ex-section" id="ex-listings" aria-labelledby="ex-listings-h">
+    // Real first (the owner, 10-31: empty sections made the rooms look unfinished): Fresh listings shows only with listings
+    // in it; an empty market is one short "be the first" row after the scenes.
+    const live = listings.length ? `<section class="ex-section" id="ex-listings" aria-labelledby="ex-listings-h">
 <div class="ex-section-head"><h2 id="ex-listings-h">Fresh listings</h2><a class="ex-more" href="/listings">All listings${kit.icon('chevron')}</a></div>
-${listings.length ? `<ol class="ex-grid">${listings.slice(0, 8).map(card).join('')}</ol>` : empty('Nothing is listed yet. The first proof is a licensed template, tried in the sandbox, installed and revoked.')}
-</section>`;
+<ol class="ex-grid">${listings.slice(0, 8).map(card).join('')}</ol>
+</section>` : '';
+    const beFirst = listings.length ? '' : `<section class="ex-section ex-first" aria-labelledby="ex-first-h"><h2 id="ex-first-h">Be the first</h2>
+<ul class="ex-first-list"><li><b>List the first thing you made</b><span>A template, a theme, an agent or a tool, with the passport that says what it can touch. Free and swap only in v1.</span><a href="/submit">List something</a></li></ul></section>`;
     const room = sc.room({
         room: 'exchange',
         hero: {
@@ -141,8 +145,11 @@ ${listings.length ? `<ol class="ex-grid">${listings.slice(0, 8).map(card).join('
             ],
         },
     });
+    // What is real goes above the scenes; what is still missing goes after them.
     const at = room.indexOf('<section class="sc-room-scenes"');
-    return `<div class="ex-wrap ex-home" id="ex-home">${at < 0 ? room : room.slice(0, at) + live + room.slice(at)}</div>`;
+    const end = at < 0 ? -1 : room.indexOf('</section>', at) + '</section>'.length;
+    const page = at < 0 ? live + room + beFirst : room.slice(0, at) + live + room.slice(at, end) + beFirst + room.slice(end);
+    return `<div class="ex-wrap ex-home" id="ex-home">${page}</div>`;
 }
 
 function filtersBar(filters = {}) {

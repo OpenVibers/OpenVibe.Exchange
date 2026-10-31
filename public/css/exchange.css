@@ -128,3 +128,9 @@ html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.
 @media (max-width: 759px) { .sc-room-pic .ex-motif-item, .sc-room-pic .ex-motif-passport { display: none; } }
 @media (prefers-reduced-motion: reduce) { .ex-motif-arrows path, .ex-motif-passport { animation: none !important; } }
 html[data-ov-motion=reduced] .ex-motif-arrows path, html[data-ov-motion=reduced] .ex-motif-passport { animation: none !important; }
+
+/* Be the first (10-31): an empty market is one short row after the scenes, never an empty box up top. */
+.ex-first-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.ex-first-list li { display: grid; gap: 4px; padding: 14px 16px; border-radius: 16px; border: 1px dashed color-mix(in srgb, var(--room-accent) 45%, var(--border, #2c3d5c)); }
+.ex-first-list span { color: var(--text-secondary, #a8b3c4); font-size: 14px; line-height: 1.45; }
+.ex-first-list a { justify-self: start; margin-top: 4px; font-weight: 700; color: var(--room-strong, var(--room-accent)); }
