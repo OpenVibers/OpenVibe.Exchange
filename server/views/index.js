@@ -254,6 +254,12 @@ ${l.home_url ? `<div><dt>Home</dt><dd><a href="${esc(l.home_url)}" rel="noopener
 </dl>
 </section>
 
+${l.files && l.files.length ? `<section class="ex-files" id="ex-files" aria-labelledby="ex-files-h">
+<div class="ex-section-head"><h2 id="ex-files-h">Downloads</h2><span class="ex-count">${l.files.length} files</span></div>
+<p class="ex-fine">Every file is generated from the same tokens, so pick the platform you need; the format is on each file.</p>
+<ul class="ex-file-list">${l.files.map((f) => `<li><a href="${esc(f.url)}" rel="noopener" download><b>${esc(f.label)}</b><span>${esc(f.format)}</span></a></li>`).join('')}</ul>
+</section>` : ''}
+
 ${passport(l.passport)}
 ${testsBlock(tests)}
 ${sandbox}
@@ -397,7 +403,7 @@ function developersPage() {
 <header class="ex-page-h"><p class="ex-kicker">Developers</p><h1>The Exchange API</h1>
 <p class="ex-lede">JSON under <code>/api/v1</code>, with <code>application/problem+json</code> errors. A person is the <code>exchange_at</code> session cookie or a Network user token as a Bearer.</p></header>
 <section><h2>Read</h2><dl class="ex-eps">
-${ep('GET', '/api/v1/listings?limit=&cursor=&mode=&kind=&q=', 'Public listings, newest first, cursor-paged (at most 50).')}
+${ep('GET', '/api/v1/listings?limit=&cursor=&mode=&kind=&q=', 'Public listings, interleaved by kind, newest first inside each kind; cursor-paged (at most 50).')}
 ${ep('GET', '/api/v1/listings/:slug', 'One listing with its passport, manifest, licence, tests and counters. A draft/hidden/closed one is 404 unless it is yours or you are staff.')}
 ${ep('GET', '/api/v1/listings/:slug/passport', 'The exact passport and manifest an installer accepts.')}
 ${ep('GET', '/api/v1/listings/:slug/tests', 'The conformance tests for the version the listing names.')}

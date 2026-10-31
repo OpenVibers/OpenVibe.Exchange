@@ -90,7 +90,7 @@ JWKS. A write made with the session cookie must come from `https://openvibe.exch
 
 | Route | What it does |
 |---|---|
-| `GET /listings?limit=&cursor=&mode=&kind=&q=` | public listings, newest first; opaque keyset cursor; `Cache-Control: public, max-age=60` |
+| `GET /listings?limit=&cursor=&mode=&kind=&q=` | public listings, interleaved by kind, newest first inside each kind; opaque keyset cursor; `Cache-Control: public, max-age=60` |
 | `GET /listings/:slug` | one listing with passport, manifest, licence, tests and counters; a draft/hidden/closed one is 404 unless it is yours or you are staff |
 | `GET /listings/:slug/passport` | the exact passport, manifest, licence, version and tests an installer accepts |
 | `GET /listings/:slug/tests` | the conformance tests for the version the listing names |
@@ -160,10 +160,11 @@ each response's cacheability.
 listed, tried in the sandbox, installed with its passport and revoked. It is idempotent.
 
 `npm run seed:first-party` (and the boot job, every `EXCHANGE_FIRST_PARTY_INTERVAL_MS`) lists the free things the
-network makes: Design's built-in themes and their token files, the OBS scenes and alerts overlay on Live, and public
-Games worlds. Each carries its real home URL and is marked official with no person as owner; `source`/`source_id` is
-the idempotency key, so a restart or a changed source updates the same row. A source that stops answering never
-empties the catalogue; one that no longer lists an item retires it.
+network makes: Design's built-in themes, each with its token files as downloads on one listing, the OBS scenes and
+alerts overlay on Live, and public Games worlds. Each carries its real home URL and is marked official with no person
+as owner; `source`/`source_id` is the idempotency key, so a restart or a changed source updates the same row. A source
+that stops answering never empties the catalogue; one that no longer lists an item retires it. The list is
+interleaved by kind, so a page cannot be filled by one kind.
 
 ## Grants it will need
 

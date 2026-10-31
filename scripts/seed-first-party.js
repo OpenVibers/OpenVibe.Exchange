@@ -30,14 +30,13 @@ const { createFirstParty, SOURCES } = require('../server/jobs/first-party');
         const lines = [];
         for (const [source, result] of Object.entries(out.sources || {})) {
             if (result && result.themes) {
-                lines.push(`[seed] ${source}.themes: ${result.themes.ok ? 'ok' : 'failed'} imported=${result.themes.imported || 0} changed=${result.themes.changed || 0} retired=${result.themes.retired || 0}`);
-                lines.push(`[seed] ${source}.tokens: ${result.tokens.ok ? 'ok' : 'failed'} imported=${result.tokens.imported || 0} changed=${result.tokens.changed || 0} retired=${result.tokens.retired || 0}`);
+                lines.push(`[seed] ${source}.themes: ${result.themes.ok ? 'ok' : 'failed'} imported=${result.themes.imported || 0} changed=${result.themes.changed || 0} retired=${result.themes.retired || 0} removed_token_listings=${result.removed_tokens || 0}`);
             } else {
                 lines.push(`[seed] ${source}: ${result && result.ok ? 'ok' : 'failed'} imported=${(result && result.imported) || 0} changed=${(result && result.changed) || 0} retired=${(result && result.retired) || 0}${result && result.error ? ` error=${result.error}` : ''}`);
             }
         }
         for (const line of lines) console.log(line);
-        const ok = Object.values(out.sources || {}).every((r) => !r || r.ok !== false) && Object.values(out.sources || {}).every((r) => !r || r.themes === undefined || (r.themes.ok && r.tokens.ok));
+        const ok = Object.values(out.sources || {}).every((r) => !r || r.ok !== false) && Object.values(out.sources || {}).every((r) => !r || r.themes === undefined || r.themes.ok);
         process.exitCode = ok ? 0 : 1;
     } finally {
         await s.close();

@@ -70,6 +70,7 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
                 version: '1.0.0',
                 manifest: { name: title, entry: homeUrl.slice(0, 200), runtime: runtime || null },
                 passport: body.passport || contact(new URL(homeUrl).origin),
+                files: Array.isArray(body.files) ? body.files : [],
             },
         };
     }
@@ -79,11 +80,36 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
         const all = Array.isArray(themesBody.themes) ? themesBody.themes : [];
         // First-party means the built-in themes. A community theme belongs to the person who made it.
         const themes = all.filter((t) => t && t.slug && (t.is_builtin === 1 || t.is_builtin === true));
+
+        // One export list for every theme: the theme's own listing carries the files, not one listing per file.
+        let targets = [];
+        let targetsOk = false;
+        try {
+            const targetsBody = await getJson(`${base(config.firstParty.designUrl)}/api/v1/tokens`, { fetch });
+            targets = (Array.isArray(targetsBody.targets) ? targetsBody.targets : [])
+                .filter((t) => t && typeof t.id === 'string' && t.id)
+                .map((t) => ({ id: plain(t.id, 40), label: plain(t.label || t.id, 80), lang: plain(t.lang, 40) }));
+            targetsOk = true;
+        } catch (err) {
+            log.warn(`[OpenVibe.Exchange] Design token exports: ${(err && err.message) || err}`);
+        }
+        // A token endpoint that is briefly down must not wipe the downloads already on a theme listing.
+        const priorFiles = new Map();
+        if (!targetsOk) {
+            const rows = await s.db.many("SELECT source_id, files FROM exchange_listings WHERE source = 'design.theme'");
+            for (const row of rows) priorFiles.set(row.source_id, entries.wireListing(row).files);
+        }
+
         const themeRecords = [];
         for (const theme of themes) {
             const slug = plain(theme.slug, 80);
             const name = plain(theme.name || theme.slug, 90);
             const home = `${base(config.firstParty.designUrl)}/studio?theme=${encodeURIComponent(slug)}`;
+            const files = targetsOk ? targets.map((target) => ({
+                format: target.id,
+                label: target.label,
+                url: `${base(config.firstParty.designUrl)}/api/v1/tokens/${encodeURIComponent(slug)}?format=${encodeURIComponent(target.id)}`,
+            })) : (priorFiles.get(slug) || []);
             const rec = record({
                 source: 'design.theme',
                 sourceId: slug,
@@ -98,45 +124,12 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
                     license: DESIGN_LICENSE,
                     license_url: DESIGN_LICENSE_URL,
                     passport: contact('https://openvibe.design'),
+                    files,
                 },
             });
             if (rec) themeRecords.push(rec);
         }
-
-        let tokenRecords = [];
-        try {
-            const targetsBody = await getJson(`${base(config.firstParty.designUrl)}/api/v1/tokens`, { fetch });
-            const targets = Array.isArray(targetsBody.targets) ? targetsBody.targets : [];
-            for (const theme of themes) {
-                const slug = plain(theme.slug, 80);
-                const name = plain(theme.name || theme.slug, 80);
-                for (const target of targets) {
-                    if (!target || !target.id) continue;
-                    const home = `${base(config.firstParty.designUrl)}/api/v1/tokens/${encodeURIComponent(slug)}?format=${encodeURIComponent(target.id)}`;
-                    const label = plain(target.label || target.id, 40);
-                    const rec = record({
-                        source: 'design.tokens',
-                        sourceId: `${slug}:${target.id}`,
-                        creator: 'OpenVibe',
-                        homeUrl: home,
-                        runtime: plain(target.lang, 40) || 'text',
-                        body: {
-                            title: `${name} tokens — ${label}`,
-                            kind: 'template',
-                            summary: `The ${label} export of the ${name} theme, generated from the same tokens every OpenVibe site uses.`,
-                            description: `One file, free to download and keep. It is generated from the theme, so regenerating it is the way to update it.\n\n${home}`,
-                            license: DESIGN_LICENSE,
-                            license_url: DESIGN_LICENSE_URL,
-                            passport: contact('https://openvibe.design'),
-                        },
-                    });
-                    if (rec) tokenRecords.push(rec);
-                }
-            }
-        } catch (err) {
-            log.warn(`[OpenVibe.Exchange] Design token exports: ${(err && err.message) || err}`);
-        }
-        return { themeRecords, tokenRecords };
+        return { themeRecords };
     }
 
     function obsRecords() {
@@ -251,10 +244,13 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
             for (const source of sources) {
                 try {
                     if (source === 'design') {
-                        const { themeRecords, tokenRecords } = await designAll(fetch);
+                        const { themeRecords } = await designAll(fetch);
+                        // The old job made one listing per token file. They were never meant to be separate
+                        // listings, so remove exactly those official rows (a person's row is never touched).
+                        const removed = await entries.removeFirstPartySource('design.tokens');
                         out.design = {
                             themes: await apply('design.theme', themeRecords),
-                            tokens: await apply('design.tokens', tokenRecords),
+                            removed_tokens: removed.removed,
                         };
                     } else if (source === 'obs') {
                         out.obs = await apply('live.obs', obsRecords());

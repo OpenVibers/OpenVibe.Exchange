@@ -56,6 +56,15 @@ function wireManifest(v) {
     return { name: m.name || '', entry: m.entry || '', runtime: m.runtime || null };
 }
 
+/** The downloads a listing carries: { format, label, url } only, in the order the maker listed them. */
+function wireFiles(v) {
+    const list = json(v, []);
+    if (!Array.isArray(list)) return [];
+    return list
+        .filter((f) => f && typeof f === 'object' && typeof f.format === 'string' && typeof f.url === 'string')
+        .map((f) => ({ format: String(f.format).slice(0, 40), label: String(f.label || f.format).slice(0, 80), url: String(f.url).slice(0, 300) }));
+}
+
 function wireTest(row) {
     if (!row) return null;
     return { id: Number(row.id), name: row.name, status: row.status, detail: row.detail == null ? null : row.detail, ran_at: iso(row.ran_at) };
@@ -80,6 +89,7 @@ function wireListing(row, { tests = null, includeOwner = false, summaryTests = f
         revision: Number(row.revision) || 1,
         passport: wirePassport(row.passport),
         manifest: wireManifest(row.manifest),
+        files: wireFiles(row.files),
         home_url: row.home_url == null ? null : row.home_url,
         official: Boolean(row.official),
         listed_at: iso(row.listed_at),
@@ -206,10 +216,34 @@ function normalizeManifest(input, version) {
     return { ok: true, value: { name, entry, runtime: runtime || null, version } };
 }
 
+/** A listing's downloads: at most 20 { format, label, url } entries with unique formats. */
+function normalizeFiles(input) {
+    if (input == null) return { ok: true, value: [] };
+    if (!Array.isArray(input)) return refusal(400, 'exchange.invalid', 'files must be an array of downloads', 'files');
+    if (input.length > 20) return refusal(400, 'exchange.invalid', 'a listing may carry at most 20 download files', 'files');
+    const out = [];
+    const seen = new Set();
+    for (const entry of input) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return refusal(400, 'exchange.invalid', 'each file must be { format, label, url }', 'files');
+        const unknown = Object.keys(entry).filter((k) => !['format', 'label', 'url'].includes(k));
+        if (unknown.length) return refusal(400, 'exchange.invalid', `Unknown file field: ${unknown[0]}`, 'files');
+        const format = cleanText(entry.format, 40);
+        const label = cleanText(entry.label, 80);
+        const url = cleanText(entry.url, 300);
+        if (!/^[a-z0-9][a-z0-9._-]{0,39}$/.test(format)) return refusal(400, 'exchange.invalid', 'file.format must be a lower-case id such as css or tokens.json', 'files');
+        if (label.length < 1 || label.length > 80) return refusal(400, 'exchange.invalid', 'file.label must be 1 to 80 characters', 'files');
+        if (!/^https:\/\/[^\s"'<>]{1,300}$/.test(url)) return refusal(400, 'exchange.invalid', 'file.url must be an https URL', 'files');
+        if (seen.has(format)) return refusal(400, 'exchange.invalid', `Two files share the format ${format}`, 'files');
+        seen.add(format);
+        out.push({ format, label, url });
+    }
+    return { ok: true, value: out };
+}
+
 /** Validate a new listing body. Returns { ok, value } or a refusal; the page form and the API share it. */
 function normalizeListing(body) {
     const b = body && typeof body === 'object' ? body : {};
-    const allowed = ['title', 'kind', 'mode', 'summary', 'description', 'license', 'license_url', 'version', 'wants', 'manifest', 'passport', 'home_url'];
+    const allowed = ['title', 'kind', 'mode', 'summary', 'description', 'license', 'license_url', 'version', 'wants', 'manifest', 'passport', 'home_url', 'files'];
     const unknown = Object.keys(b).filter((k) => !allowed.includes(k));
     if (unknown.length) return refusal(400, 'exchange.invalid', `Unknown field: ${unknown[0]}`, unknown[0]);
     const title = cleanText(b.title, 120);
@@ -234,13 +268,15 @@ function normalizeListing(body) {
     if (!manifest.ok) return manifest;
     const passport = normalizePassport(b.passport);
     if (!passport.ok) return passport;
+    const files = normalizeFiles(b.files);
+    if (!files.ok) return files;
     const hit = refusals(title, summary, description, wants);
     if (hit) return hit;
     return {
         ok: true,
         value: {
             title, kind: b.kind, mode: b.mode, summary, description: description || null, license,
-            license_url: licenseUrl || null, home_url: homeUrl || null, version, wants: wants || null,
+            license_url: licenseUrl || null, home_url: homeUrl || null, files: files.value, version, wants: wants || null,
             manifest: manifest.value, passport: passport.value,
         },
     };
@@ -264,7 +300,8 @@ function firstPartyChanged(row, v, creator) {
         || manifest.name !== v.manifest.name
         || manifest.entry !== v.manifest.entry
         || (manifest.runtime || '') !== (v.manifest.runtime || '')
-        || JSON.stringify(passport) !== JSON.stringify(v.passport);
+        || JSON.stringify(passport) !== JSON.stringify(v.passport)
+        || JSON.stringify(wireFiles(row.files)) !== JSON.stringify(v.files);
 }
 
 /** The four conformance tests run for every version. A listing is not public until every one passed. */
@@ -337,12 +374,12 @@ function createStore(s, { search, config }) {
             const slug = await uniqueSlug(slugify(v.title), tx);
             const creatorName = cleanText(creator, 80) || 'a maker';
             const row = await tx.maybe(
-                `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, version,
+                `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, files, version,
                     creator, owner, status, manifest, passport, revision, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'draft', $15::jsonb, $16::jsonb, 1, now(), now())
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15, 'draft', $16::jsonb, $17::jsonb, 1, now(), now())
                  RETURNING *`,
-                [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url, v.version,
-                    creatorName, owner, JSON.stringify(v.manifest), JSON.stringify(v.passport)],
+                [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
+                    JSON.stringify(v.files), v.version, creatorName, owner, JSON.stringify(v.manifest), JSON.stringify(v.passport)],
             );
             const checks = checksFor(v);
             for (const c of checks) {
@@ -356,7 +393,10 @@ function createStore(s, { search, config }) {
         return t ? await run(t) : await s.tx(run);
     }
 
-    /** Public listings, newest first. cursor is an opaque (listed_at, id) keyset position. */
+    /**
+     * Public listings, interleaved by kind so one kind cannot fill a page, newest first inside each kind. The cursor
+     * is an opaque (kind_rank, listed_at, id) keyset position from the interleaved order.
+     */
     async function list({ limit = 20, cursor = null, mode = null, kind = null, q: text = null } = {}) {
         const n = Math.min(50, Math.max(1, Number(limit) || 20));
         const args = [];
@@ -372,18 +412,26 @@ function createStore(s, { search, config }) {
         if (cursor) {
             try {
                 const decoded = JSON.parse(Buffer.from(String(cursor), 'base64url').toString('utf8'));
-                if (typeof decoded.t === 'string' && typeof decoded.i === 'string' && !Number.isNaN(Date.parse(decoded.t))) pos = decoded;
+                if (Number.isInteger(decoded.r) && decoded.r > 0 && typeof decoded.t === 'string' && typeof decoded.i === 'string' && !Number.isNaN(Date.parse(decoded.t))) pos = decoded;
             } catch { /* refused below */ }
             if (!pos) return { error: 'cursor' };
-            args.push(pos.t, pos.i);
-            where += ` AND (listed_at, id) < ($${args.length - 1}::timestamptz, $${args.length})`;
+        }
+        let after = '';
+        if (pos) {
+            args.push(pos.r, pos.t, pos.i);
+            after = ` WHERE (kind_rank > $${args.length - 2} OR (kind_rank = $${args.length - 2} AND (listed_at, id) < ($${args.length - 1}::timestamptz, $${args.length})))`;
         }
         args.push(n + 1);
         const rows = await db.many(
-            `SELECT l.*,
-                    (SELECT COUNT(*)::int FROM exchange_listing_tests t WHERE t.listing_id = l.id AND t.version = l.version AND t.status = 'passed') AS test_count,
-                    (SELECT COUNT(*)::int FROM exchange_listing_tests t WHERE t.listing_id = l.id AND t.version = l.version AND t.status = 'failed') AS test_failed
-             FROM exchange_listings l WHERE ${where} ORDER BY listed_at DESC, id DESC LIMIT $${args.length}`,
+            `WITH ranked AS (
+                 SELECT l.*,
+                        ROW_NUMBER() OVER (PARTITION BY l.kind ORDER BY l.listed_at DESC, l.id DESC) AS kind_rank,
+                        (SELECT COUNT(*)::int FROM exchange_listing_tests t WHERE t.listing_id = l.id AND t.version = l.version AND t.status = 'passed') AS test_count,
+                        (SELECT COUNT(*)::int FROM exchange_listing_tests t WHERE t.listing_id = l.id AND t.version = l.version AND t.status = 'failed') AS test_failed
+                 FROM exchange_listings l WHERE ${where}
+             )
+             SELECT * FROM ranked${after}
+             ORDER BY kind_rank ASC, listed_at DESC, id DESC LIMIT $${args.length}`,
             args,
         );
         const hasMore = rows.length > n;
@@ -391,7 +439,9 @@ function createStore(s, { search, config }) {
         const last = page[page.length - 1];
         return {
             listings: page.map((r) => wireListing(r, { summaryTests: true })),
-            next_cursor: hasMore && last ? Buffer.from(JSON.stringify({ t: iso(last.listed_at), i: last.id })).toString('base64url') : null,
+            next_cursor: hasMore && last
+                ? Buffer.from(JSON.stringify({ r: Number(last.kind_rank), t: iso(last.listed_at), i: last.id })).toString('base64url')
+                : null,
         };
     }
 
@@ -665,12 +715,12 @@ function createStore(s, { search, config }) {
                 const id = s.newId('exl');
                 const slug = await uniqueSlug(slugify(v.title), tx);
                 row = await tx.maybe(
-                    `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, version,
+                    `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, files, version,
                         creator, owner, status, manifest, passport, revision, official, source, source_id, created_at, updated_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULL, 'draft', $14::jsonb, $15::jsonb, 1, true, $16, $17, $18::timestamptz, $18::timestamptz)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, NULL, 'draft', $15::jsonb, $16::jsonb, 1, true, $17, $18, $19::timestamptz, $19::timestamptz)
                      RETURNING *`,
-                    [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url, v.version,
-                        creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), src, sid, nowIso],
+                    [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
+                        JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), src, sid, nowIso],
                 );
                 await ensureTests(tx, row.id, v);
                 const listed = await tx.maybe(
@@ -690,12 +740,13 @@ function createStore(s, { search, config }) {
             }
             const updated = await tx.maybe(
                 `UPDATE exchange_listings SET title = $2, kind = $3, mode = $4, summary = $5, description = $6, wants = $7,
-                   license = $8, license_url = $9, home_url = $10, version = $11, creator = $12, manifest = $13::jsonb,
-                   passport = $14::jsonb, official = true, status = 'listed', listed_at = COALESCE(listed_at, $15::timestamptz),
-                   closed_at = NULL, closed_reason = NULL, revision = revision + 1, updated_at = $15::timestamptz
+                   license = $8, license_url = $9, home_url = $10, files = $11::jsonb, version = $12, creator = $13,
+                   manifest = $14::jsonb, passport = $15::jsonb, official = true, status = 'listed',
+                   listed_at = COALESCE(listed_at, $16::timestamptz), closed_at = NULL, closed_reason = NULL,
+                   revision = revision + 1, updated_at = $16::timestamptz
                  WHERE id = $1 RETURNING *`,
                 [row.id, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
-                    v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), nowIso],
+                    JSON.stringify(v.files), v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), nowIso],
             );
             await ensureTests(tx, row.id, v);
             await listingEvent(tx, row.id, row.status, 'listed', 'first-party refresh', 'service:exchange', nowIso);
@@ -729,6 +780,21 @@ function createStore(s, { search, config }) {
         });
     }
 
+    /**
+     * Remove every official listing a retired source created. The old one-per-token-file rows are deleted, with a
+     * Search tombstone first, because they were never meant to be separate listings; a person's row is never touched.
+     */
+    async function removeFirstPartySource(source) {
+        const src = cleanText(source, 80);
+        if (!src) return { removed: 0 };
+        return await s.tx(async (tx) => {
+            const rows = await tx.many('SELECT id, revision FROM exchange_listings WHERE source = $1 AND official = true', [src]);
+            for (const row of rows) await search.remove(tx, row.id, Number(row.revision) + 1);
+            await tx.exec('DELETE FROM exchange_listings WHERE source = $1 AND official = true', [src]);
+            return { removed: rows.length };
+        });
+    }
+
     async function ensureTests(tx, listingId, v) {
         for (const c of checksFor(v)) {
             await tx.exec(
@@ -756,7 +822,7 @@ function createStore(s, { search, config }) {
         sandbox, trialById,
         hasPassedTrial, activeInstall, install, installsFor, revoke,
         offer, offersFor, offersForListing, decideOffer,
-        seedListing, upsertFirstParty, retireFirstParty,
+        seedListing, upsertFirstParty, retireFirstParty, removeFirstPartySource,
         KINDS, MODES, STATUSES, CLOSED_REASONS, OFFER_KINDS, OFFER_STATUSES, SAFETY,
     };
 }

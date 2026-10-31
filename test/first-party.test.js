@@ -35,11 +35,14 @@ const WORLDS = {
     more: false,
 };
 
-function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGames = false } = {}) {
+function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGames = false, failTargets = false } = {}) {
     return async (url) => {
         const u = new URL(url);
         if (u.hostname === 'openvibe.design' && u.pathname === '/api/themes') return { ok: true, status: 200, json: async () => themes };
-        if (u.hostname === 'openvibe.design' && u.pathname === '/api/v1/tokens') return { ok: true, status: 200, json: async () => targets };
+        if (u.hostname === 'openvibe.design' && u.pathname === '/api/v1/tokens') {
+            if (failTargets) return { ok: false, status: 503, json: async () => ({}) };
+            return { ok: true, status: 200, json: async () => targets };
+        }
         if (u.hostname === 'openvibe.games' && u.pathname === '/api/worlds') {
             if (failGames) throw new Error('Games is restarting');
             return { ok: true, status: 200, json: async () => worlds };
@@ -54,20 +57,19 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
     try {
         const fetch = fakeFetch();
         let themeId = null;
-        let tokenId = null;
         let revision = null;
 
-        await check('a first pass lists Design themes, their token files, the OBS templates and a public world', async () => {
+        await check('a first pass lists each theme once, with its token files, plus the OBS templates and a public world', async () => {
             const out = await t.ctx.firstParty.runOnce({ sources: ['design', 'obs', 'games'], fetchImpl: fetch });
             assert.strictEqual(out.sources.design.themes.ok, true, JSON.stringify(out.sources.design));
             assert.strictEqual(out.sources.design.themes.imported, 2, 'only the two built-in themes');
-            assert.strictEqual(out.sources.design.tokens.imported, 4, 'two themes × two targets');
+            assert.strictEqual(out.sources.design.removed_tokens, 0);
             assert.strictEqual(out.sources.obs.imported, 4, 'three scenes and the alerts overlay');
             assert.strictEqual(out.sources.games.imported, 1);
 
             const list = await t.get('/api/v1/listings?limit=50');
             assert.strictEqual(list.status, 200, list.text);
-            assert.strictEqual(list.json().count, 11);
+            assert.strictEqual(list.json().count, 7);
             const rows = list.json().listings;
             for (const row of rows) {
                 assert.strictEqual(row.official, true, `${row.slug} is official`);
@@ -86,12 +88,12 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             assert.strictEqual(theme.home_url, 'https://openvibe.design/studio?theme=vibe');
             assert.strictEqual(theme.manifest.entry, theme.home_url);
             assert.strictEqual(theme.license, 'AGPL-3.0-only');
-
-            const token = rows.find((r) => r.home_url === 'https://openvibe.design/api/v1/tokens/vibe?format=css');
-            assert.ok(token, 'the Vibe CSS token file is listed');
-            tokenId = token.id;
-            assert.strictEqual(token.kind, 'template');
-            assert.strictEqual(token.home_url, 'https://openvibe.design/api/v1/tokens/vibe?format=css');
+            assert.deepStrictEqual(theme.files, [
+                { format: 'css', label: 'CSS variables', url: 'https://openvibe.design/api/v1/tokens/vibe?format=css' },
+                { format: 'json', label: 'Design tokens', url: 'https://openvibe.design/api/v1/tokens/vibe?format=json' },
+            ], 'the theme carries its token files');
+            assert.ok(!rows.some((r) => r.home_url.includes('?format=')), 'no token file is a listing of its own');
+            assert.strictEqual(await t.ctx.s.db.value("SELECT COUNT(*)::int AS n FROM exchange_listings WHERE source = 'design.tokens'"), 0);
 
             const world = rows.find((r) => r.slug === 'floating-islands');
             assert.ok(world, 'the public world is listed');
@@ -110,13 +112,43 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             const before = await t.ctx.s.db.value('SELECT COUNT(*)::int AS n FROM exchange_listings');
             const out = await t.ctx.firstParty.runOnce({ sources: ['design', 'obs', 'games'], fetchImpl: fetch });
             assert.strictEqual(out.sources.design.themes.imported, 2);
-            assert.strictEqual(out.sources.design.tokens.imported, 4);
+            assert.strictEqual(out.sources.design.removed_tokens, 0);
             assert.strictEqual(out.sources.games.imported, 1);
             assert.strictEqual(await t.ctx.s.db.value('SELECT COUNT(*)::int AS n FROM exchange_listings'), before);
             const dupes = await t.ctx.s.db.many('SELECT source, source_id, COUNT(*)::int AS n FROM exchange_listings WHERE source IS NOT NULL GROUP BY 1, 2 HAVING COUNT(*) > 1');
             assert.deepStrictEqual(dupes, []);
             const theme = await t.ctx.s.db.maybe('SELECT * FROM exchange_listings WHERE id = $1', [themeId]);
             assert.strictEqual(theme.revision, revision, 'an unchanged row is untouched');
+        });
+
+        await check('the old one-listing-per-token-file rows are removed, idempotently', async () => {
+            const legacy = await t.ctx.entries.upsertFirstParty({
+                source: 'design.tokens',
+                sourceId: 'vibe:css',
+                creator: 'OpenVibe',
+                body: {
+                    title: 'Vibe tokens — CSS variables', kind: 'template', mode: 'free',
+                    summary: 'An old per-file listing.', license: 'AGPL-3.0-only', version: '1.0.0',
+                    home_url: 'https://openvibe.design/api/v1/tokens/vibe?format=css',
+                    manifest: { name: 'Vibe CSS', entry: 'https://openvibe.design/api/v1/tokens/vibe?format=css', runtime: 'css' },
+                    passport: { reads: [], writes: [], spends: [], contacts: ['https://openvibe.design'] },
+                },
+            });
+            assert.strictEqual(legacy.ok, true, JSON.stringify(legacy));
+            const out = await t.ctx.firstParty.runOnce({ sources: ['design'], fetchImpl: fetch });
+            assert.strictEqual(out.sources.design.removed_tokens, 1);
+            assert.strictEqual(await t.ctx.s.db.value("SELECT COUNT(*)::int AS n FROM exchange_listings WHERE source = 'design.tokens'"), 0);
+            const again = await t.ctx.firstParty.runOnce({ sources: ['design'], fetchImpl: fetch });
+            assert.strictEqual(again.sources.design.removed_tokens, 0, 'a second run removes nothing');
+        });
+
+        await check('a token endpoint that is down leaves the theme downloads as they were', async () => {
+            const before = await t.ctx.s.db.maybe('SELECT * FROM exchange_listings WHERE id = $1', [themeId]);
+            const out = await t.ctx.firstParty.runOnce({ sources: ['design'], fetchImpl: fakeFetch({ failTargets: true }) });
+            assert.strictEqual(out.sources.design.themes.ok, true);
+            const after = await t.ctx.s.db.maybe('SELECT * FROM exchange_listings WHERE id = $1', [themeId]);
+            assert.deepStrictEqual(after.files, before.files);
+            assert.strictEqual(after.revision, before.revision, 'no needless rewrite');
         });
 
         await check('a changed theme updates the same listing and bumps its revision', async () => {
@@ -130,18 +162,15 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             assert.strictEqual(await t.ctx.s.db.value('SELECT COUNT(*)::int AS n FROM exchange_listings WHERE source = $1', ['design.theme']), 2);
         });
 
-        await check('a theme the source no longer lists is retired with its token files', async () => {
+        await check('a theme the source no longer lists is retired', async () => {
             const themes = { themes: [THEMES.themes[1]] };   // Paper only
             const out = await t.ctx.firstParty.runOnce({ sources: ['design'], fetchImpl: fakeFetch({ themes }) });
             assert.strictEqual(out.sources.design.themes.retired, 1);
-            assert.strictEqual(out.sources.design.tokens.retired, 2);
             const oldTheme = await t.ctx.s.db.maybe('SELECT * FROM exchange_listings WHERE id = $1', [themeId]);
             assert.strictEqual(oldTheme.status, 'closed');
             assert.strictEqual(oldTheme.closed_reason, 'withdrawn');
-            const oldToken = await t.ctx.s.db.maybe('SELECT * FROM exchange_listings WHERE id = $1', [tokenId]);
-            assert.strictEqual(oldToken.status, 'closed');
             const list = await t.get('/api/v1/listings?limit=50');
-            assert.ok(!list.json().listings.some((r) => r.id === themeId || r.id === tokenId));
+            assert.ok(!list.json().listings.some((r) => r.id === themeId));
         });
 
         await check('a retired item that comes back is relisted under the same row', async () => {
@@ -159,6 +188,19 @@ function fakeFetch({ themes = THEMES, targets = TARGETS, worlds = WORLDS, failGa
             assert.strictEqual(out.sources.games.ok, false);
             assert.match(out.sources.games.error, /restarting/);
             assert.strictEqual(await t.ctx.s.db.value("SELECT COUNT(*)::int AS n FROM exchange_listings WHERE source = 'games.world' AND status = 'listed'"), before);
+        });
+
+        await check('the first page is interleaved by kind, and the theme page shows its downloads', async () => {
+            const page = await t.get('/api/v1/listings?limit=4');
+            assert.strictEqual(page.status, 200, page.text);
+            const kinds = new Set(page.json().listings.map((r) => r.kind));
+            assert.ok(kinds.size >= 2, `one kind must not fill the first page: ${[...kinds].join(', ')}`);
+
+            const html = await t.get('/listings/vibe-theme');
+            assert.strictEqual(html.status, 200, html.text);
+            assert.match(html.text, /Downloads/);
+            assert.match(html.text, /https:\/\/openvibe\.design\/api\/v1\/tokens\/vibe\?format=css/);
+            assert.match(html.text, /https:\/\/openvibe\.design\/api\/v1\/tokens\/vibe\?format=json/);
         });
 
         await check('a person\'s listing is never made official, and the official rows have no owner', async () => {

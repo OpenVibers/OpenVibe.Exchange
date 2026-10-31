@@ -107,6 +107,12 @@ html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.
 .ex-none { color: var(--text-muted, #7386a3); font-style: italic; }
 .ex-manifest { margin: 0; padding: 14px; border-radius: 12px; background: var(--bg-primary, #0a0f1c); border: 1px solid var(--border, #1f2d47); font: 500 .84rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
 
+.ex-file-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.ex-file-list li { min-width: 0; }
+.ex-file-list a { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 11px 13px; border-radius: 12px; background: var(--bg-card, #0f1729); border: 1px solid var(--border, #1f2d47); text-decoration: none; }
+.ex-file-list b { font-weight: 700; overflow-wrap: anywhere; }
+.ex-file-list span { font: 600 .76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted, #7386a3); }
+
 /* Checks and conformance tests */
 .ex-checks, .ex-tests { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ex-check, .ex-test { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 9px 12px; border-radius: 10px; background: var(--bg-card, #0f1729); border: 1px solid var(--border, #1f2d47); font-size: .88rem; }
