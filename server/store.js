@@ -80,6 +80,8 @@ function wireListing(row, { tests = null, includeOwner = false, summaryTests = f
         revision: Number(row.revision) || 1,
         passport: wirePassport(row.passport),
         manifest: wireManifest(row.manifest),
+        home_url: row.home_url == null ? null : row.home_url,
+        official: Boolean(row.official),
         listed_at: iso(row.listed_at),
         closed_at: iso(row.closed_at),
         closed_reason: row.closed_reason == null ? null : row.closed_reason,
@@ -207,7 +209,7 @@ function normalizeManifest(input, version) {
 /** Validate a new listing body. Returns { ok, value } or a refusal; the page form and the API share it. */
 function normalizeListing(body) {
     const b = body && typeof body === 'object' ? body : {};
-    const allowed = ['title', 'kind', 'mode', 'summary', 'description', 'license', 'license_url', 'version', 'wants', 'manifest', 'passport'];
+    const allowed = ['title', 'kind', 'mode', 'summary', 'description', 'license', 'license_url', 'version', 'wants', 'manifest', 'passport', 'home_url'];
     const unknown = Object.keys(b).filter((k) => !allowed.includes(k));
     if (unknown.length) return refusal(400, 'exchange.invalid', `Unknown field: ${unknown[0]}`, unknown[0]);
     const title = cleanText(b.title, 120);
@@ -221,6 +223,8 @@ function normalizeListing(body) {
     if (!LICENSE_RE.test(license)) return refusal(400, 'exchange.invalid', 'license must be an SPDX identifier such as CC0-1.0, MIT or AGPL-3.0-only', 'license');
     const licenseUrl = cleanText(b.license_url, 300);
     if (licenseUrl && !/^https:\/\/[^\s"'<>]{1,300}$/.test(licenseUrl)) return refusal(400, 'exchange.invalid', 'license_url must be an https URL', 'license_url');
+    const homeUrl = cleanText(b.home_url, 300);
+    if (homeUrl && !/^https:\/\/[^\s"'<>]{1,300}$/.test(homeUrl)) return refusal(400, 'exchange.invalid', 'home_url must be an https URL', 'home_url');
     const version = cleanText(b.version, 32);
     if (!VERSION_RE.test(version)) return refusal(400, 'exchange.invalid', 'version must be a semantic version such as 1.0.0', 'version');
     const wants = cleanText(b.wants, 300);
@@ -236,9 +240,31 @@ function normalizeListing(body) {
         ok: true,
         value: {
             title, kind: b.kind, mode: b.mode, summary, description: description || null, license,
-            license_url: licenseUrl || null, version, wants: wants || null, manifest: manifest.value, passport: passport.value,
+            license_url: licenseUrl || null, home_url: homeUrl || null, version, wants: wants || null,
+            manifest: manifest.value, passport: passport.value,
         },
     };
+}
+
+/** Does a first-party row still say the same thing as the source? */
+function firstPartyChanged(row, v, creator) {
+    const manifest = wireManifest(row.manifest);
+    const passport = wirePassport(row.passport);
+    return row.title !== v.title
+        || row.kind !== v.kind
+        || row.mode !== v.mode
+        || (row.summary || '') !== (v.summary || '')
+        || (row.description || '') !== (v.description || '')
+        || (row.wants || '') !== (v.wants || '')
+        || row.license !== v.license
+        || (row.license_url || '') !== (v.license_url || '')
+        || (row.home_url || '') !== (v.home_url || '')
+        || row.version !== v.version
+        || (row.creator || '') !== creator
+        || manifest.name !== v.manifest.name
+        || manifest.entry !== v.manifest.entry
+        || (manifest.runtime || '') !== (v.manifest.runtime || '')
+        || JSON.stringify(passport) !== JSON.stringify(v.passport);
 }
 
 /** The four conformance tests run for every version. A listing is not public until every one passed. */
@@ -311,11 +337,11 @@ function createStore(s, { search, config }) {
             const slug = await uniqueSlug(slugify(v.title), tx);
             const creatorName = cleanText(creator, 80) || 'a maker';
             const row = await tx.maybe(
-                `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, version,
+                `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, version,
                     creator, owner, status, manifest, passport, revision, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'draft', $14::jsonb, $15::jsonb, 1, now(), now())
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'draft', $15::jsonb, $16::jsonb, 1, now(), now())
                  RETURNING *`,
-                [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.version,
+                [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url, v.version,
                     creatorName, owner, JSON.stringify(v.manifest), JSON.stringify(v.passport)],
             );
             const checks = checksFor(v);
@@ -619,6 +645,108 @@ function createStore(s, { search, config }) {
         return await createListing({ owner, creator, body });
     }
 
+    /**
+     * One first-party listing, refreshed in place. It is owned by the network (owner NULL) and marked official, so it
+     * can never stand in for a person; source/source_id is its idempotency key. A person's row never enters this
+     * path, and a staff-hidden row is left hidden rather than resurrected.
+     */
+    async function upsertFirstParty({ source, sourceId, body, creator = 'OpenVibe' }, t = null) {
+        const src = cleanText(source, 80);
+        const sid = cleanText(sourceId, 160);
+        if (!src || !sid) return refusal(400, 'exchange.invalid', 'a first-party listing needs a source and a source id');
+        const checked = normalizeListing(body);
+        if (!checked.ok) return checked;
+        const v = checked.value;
+        const run = async (tx) => {
+            const nowIso = new Date(s.now()).toISOString();
+            const creatorName = cleanText(creator, 80) || 'OpenVibe';
+            let row = await tx.maybe('SELECT * FROM exchange_listings WHERE source = $1 AND source_id = $2', [src, sid]);
+            if (!row) {
+                const id = s.newId('exl');
+                const slug = await uniqueSlug(slugify(v.title), tx);
+                row = await tx.maybe(
+                    `INSERT INTO exchange_listings (id, slug, title, kind, mode, summary, description, wants, license, license_url, home_url, version,
+                        creator, owner, status, manifest, passport, revision, official, source, source_id, created_at, updated_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULL, 'draft', $14::jsonb, $15::jsonb, 1, true, $16, $17, $18::timestamptz, $18::timestamptz)
+                     RETURNING *`,
+                    [id, slug, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url, v.version,
+                        creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), src, sid, nowIso],
+                );
+                await ensureTests(tx, row.id, v);
+                const listed = await tx.maybe(
+                    `UPDATE exchange_listings SET status = 'listed', listed_at = $2::timestamptz, revision = revision + 1, updated_at = $2::timestamptz
+                     WHERE id = $1 RETURNING *`,
+                    [row.id, nowIso],
+                );
+                await listingEvent(tx, row.id, null, 'listed', 'first-party seed', 'service:exchange', nowIso);
+                await search.sync(tx, wireListing(listed));
+                return { ok: true, created: true, listing: wireListing(listed, { tests: await testsFor(listed.id, listed.version, tx), includeOwner: true }) };
+            }
+            if (row.status === 'hidden') {
+                return { ok: true, created: false, unchanged: true, skipped: 'hidden', listing: wireListing(row, { tests: await testsFor(row.id, row.version, tx), includeOwner: true }) };
+            }
+            if (row.status === 'listed' && !firstPartyChanged(row, v, creatorName)) {
+                return { ok: true, created: false, unchanged: true, listing: wireListing(row, { tests: await testsFor(row.id, row.version, tx), includeOwner: true }) };
+            }
+            const updated = await tx.maybe(
+                `UPDATE exchange_listings SET title = $2, kind = $3, mode = $4, summary = $5, description = $6, wants = $7,
+                   license = $8, license_url = $9, home_url = $10, version = $11, creator = $12, manifest = $13::jsonb,
+                   passport = $14::jsonb, official = true, status = 'listed', listed_at = COALESCE(listed_at, $15::timestamptz),
+                   closed_at = NULL, closed_reason = NULL, revision = revision + 1, updated_at = $15::timestamptz
+                 WHERE id = $1 RETURNING *`,
+                [row.id, v.title, v.kind, v.mode, v.summary, v.description, v.wants, v.license, v.license_url, v.home_url,
+                    v.version, creatorName, JSON.stringify(v.manifest), JSON.stringify(v.passport), nowIso],
+            );
+            await ensureTests(tx, row.id, v);
+            await listingEvent(tx, row.id, row.status, 'listed', 'first-party refresh', 'service:exchange', nowIso);
+            await search.sync(tx, wireListing(updated));
+            return { ok: true, created: false, unchanged: false, listing: wireListing(updated, { tests: await testsFor(updated.id, updated.version, tx), includeOwner: true }) };
+        };
+        return t ? await run(t) : await s.tx(run);
+    }
+
+    /** Retire first-party listings a successful read no longer lists. A hidden row is already out of the catalogue. */
+    async function retireFirstParty({ source, seen = [], now = null }) {
+        const src = cleanText(source, 80);
+        if (!src) return { retired: 0 };
+        const nowIso = new Date(now == null ? s.now() : now).toISOString();
+        return await s.tx(async (tx) => {
+            const rows = await tx.many(
+                `SELECT * FROM exchange_listings
+                 WHERE source = $1 AND official = true AND status = 'listed' AND NOT (source_id = ANY($2::text[]))`,
+                [src, seen],
+            );
+            for (const row of rows) {
+                const updated = await tx.maybe(
+                    `UPDATE exchange_listings SET status = 'closed', closed_reason = 'withdrawn', closed_at = $2::timestamptz,
+                       revision = revision + 1, updated_at = $2::timestamptz WHERE id = $1 RETURNING *`,
+                    [row.id, nowIso],
+                );
+                await listingEvent(tx, row.id, row.status, 'closed', 'first-party refresh: the source no longer lists it', 'service:exchange', nowIso);
+                await search.sync(tx, wireListing(updated));
+            }
+            return { retired: rows.length };
+        });
+    }
+
+    async function ensureTests(tx, listingId, v) {
+        for (const c of checksFor(v)) {
+            await tx.exec(
+                `INSERT INTO exchange_listing_tests (listing_id, version, name, status, detail, ran_at)
+                 VALUES ($1, $2, $3, $4, $5, now())
+                 ON CONFLICT (listing_id, version, name) DO UPDATE SET status = EXCLUDED.status, detail = EXCLUDED.detail, ran_at = now()`,
+                [listingId, v.version, c.name, c.status, c.detail],
+            );
+        }
+    }
+
+    async function listingEvent(tx, listingId, from, to, reason, changedBy, at) {
+        await tx.exec(
+            'INSERT INTO exchange_listing_events (listing_id, from_status, to_status, reason, changed_by, changed_at) VALUES ($1, $2, $3, $4, $5, $6::timestamptz)',
+            [listingId, from, to, reason, changedBy, at],
+        );
+    }
+
     return {
         wireListing, wireTrial, wireInstall, wireOffer, wirePassport, wireTest,
         normalizeListing, normalizePassport, normalizeManifest, checksFor,
@@ -628,7 +756,7 @@ function createStore(s, { search, config }) {
         sandbox, trialById,
         hasPassedTrial, activeInstall, install, installsFor, revoke,
         offer, offersFor, offersForListing, decideOffer,
-        seedListing,
+        seedListing, upsertFirstParty, retireFirstParty,
         KINDS, MODES, STATUSES, CLOSED_REASONS, OFFER_KINDS, OFFER_STATUSES, SAFETY,
     };
 }

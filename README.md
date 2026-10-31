@@ -159,6 +159,12 @@ each response's cacheability.
 `npm run seed:proof` creates the first proof through the same store functions as the API: a CC0-1.0 Website template
 listed, tried in the sandbox, installed with its passport and revoked. It is idempotent.
 
+`npm run seed:first-party` (and the boot job, every `EXCHANGE_FIRST_PARTY_INTERVAL_MS`) lists the free things the
+network makes: Design's built-in themes and their token files, the OBS scenes and alerts overlay on Live, and public
+Games worlds. Each carries its real home URL and is marked official with no person as owner; `source`/`source_id` is
+the idempotency key, so a restart or a changed source updates the same row. A source that stops answering never
+empties the catalogue; one that no longer lists an item retires it.
+
 ## Grants it will need
 
 v1 is written so each of these is a single call site; none is used today. They are external grants on other

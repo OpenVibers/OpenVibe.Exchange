@@ -234,7 +234,7 @@ ${offerList(offers, { owner: true })}
 <p class="ex-kicker">${kindLabel(l.kind)} · ${modeBadge(l.mode)}${statusBadge(l.status)}${staff ? ' · <span class="ex-staff">staff view</span>' : ''}</p>
 <h1>${esc(l.title)}</h1>
 <p class="ex-lede">${esc(l.summary)}</p>
-<p class="ex-byline">by <span class="ex-creator">${esc(l.creator)}</span> · version <span class="ex-version">${esc(l.version)}</span> · <span class="ex-license">${esc(l.license)}</span>${l.license_url ? ` · <a href="${esc(l.license_url)}" rel="nofollow noopener">the licence</a>` : ''}</p>
+<p class="ex-byline">by <span class="ex-creator">${esc(l.creator)}</span> · version <span class="ex-version">${esc(l.version)}</span> · <span class="ex-license">${esc(l.license)}</span>${l.license_url ? ` · <a href="${esc(l.license_url)}" rel="nofollow noopener">the licence</a>` : ''}${l.official ? ' · <span class="ex-official">listed by OpenVibe</span>' : ''}</p>
 </header>
 
 ${notice ? `<p class="ex-note" role="status">${esc(notice)}</p>` : ''}
@@ -250,6 +250,7 @@ ${l.mode === 'swap' && l.wants ? `<p class="ex-wants"><b>Wants in return:</b> ${
 <div><dt>Mode</dt><dd>${esc(MODE_LABEL[l.mode] || l.mode)}</dd></div>
 <div><dt>Listed</dt><dd>${l.listed_at ? time(l.listed_at) : 'not yet'}</dd></div>
 <div><dt>Revision</dt><dd>${Number(l.revision) || 1}</dd></div>
+${l.home_url ? `<div><dt>Home</dt><dd><a href="${esc(l.home_url)}" rel="noopener">${esc(l.home_url)}</a></dd></div>` : ''}
 </dl>
 </section>
 

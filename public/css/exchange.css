@@ -58,7 +58,7 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .ex-filters a { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); font-size: .86rem; font-weight: 700; text-decoration: none; color: var(--text-secondary, #96a7c2); }
 .ex-filters a[aria-current] { background: var(--room-fill); color: var(--room-on); border-color: transparent; }
 .ex-inline { margin: 0; display: inline; }
-.ex-ok, .ex-status-active, .ex-verified { color: var(--success-text, #22c55e); font-weight: 800; }
+.ex-ok, .ex-status-active, .ex-verified, .ex-official { color: var(--success-text, #22c55e); font-weight: 800; }
 .ex-status-revoked, .ex-unverified { color: var(--text-muted, #7386a3); font-weight: 800; }
 .ex-status, .ex-kind, .ex-mode, .ex-license, .ex-version { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: 999px; font-size: .75rem; font-weight: 800; background: color-mix(in srgb, var(--text-muted, #7386a3) 14%, transparent); color: var(--text-secondary, #96a7c2); }
 .ex-kind, .ex-mode { background: color-mix(in srgb, var(--room-accent) 16%, transparent); color: var(--room-strong); }
