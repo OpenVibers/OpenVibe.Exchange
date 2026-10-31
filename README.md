@@ -30,9 +30,8 @@ money anywhere in v1 — no price, no Billing, no Vibes, no cash — and a passp
 - **Safety.** A fixed prohibited-items list (weapons, illegal drugs, malware/stolen access, sexual services or
   content, forged documents, live animals, money) is applied to every listing and offer. The safety page carries the
   local-swap rules.
-- **No AI.** v1 writes no model-generated text and holds no AI capability. `server/text/no-looks.js` is the shared
-  `noLooks` helper (the same rule as Live, Community, MediaHub and Meme) for the day a generated summary or sandbox
-  line is added; a maker's own words are never rewritten.
+- **No AI.** v1 writes no model-generated text and holds no AI capability. AI text may describe people when it
+  arrives (owner, 2026-10-31); only sex acts and porn stay gated. A maker's own words are never rewritten.
 
 ## Owns
 
@@ -181,7 +180,7 @@ No paid provider and no AI capability is used. No secret is stored in the databa
 
 `test/` boots the app on a temporary PGlite database with an in-process mock of OpenVibe.Network. The suite covers
 migration and constraints, the API and validation, sandbox/install/revoke, free/swap offers, server-rendered pages
-and cache headers, SSO/PKCE and readiness, the Search document, account export/deletion, noLooks and the safety list,
+and cache headers, SSO/PKCE and readiness, the Search document, account export/deletion and the safety list,
 and the first proof.
 
 ```sh
@@ -197,6 +196,6 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.235.0
-- openvibe-sdk: v0.74.0
+- openvibe-sdk: v0.77.0
 - openvibe-shared: v4.55.0
 <!-- versions:end -->
