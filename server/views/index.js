@@ -33,6 +33,17 @@ const kindLabel = (k) => esc(KIND_LABEL[k] || k);
 const modeBadge = (m) => `<span class="ex-mode ex-mode-${esc(m)}">${esc(MODE_LABEL[m] || m)}</span>`;
 const statusBadge = (s) => `<span class="ex-status ex-status-${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
 
+/** A palette a page may paint: only plain #rrggbb, at most six, and nothing else ever reaches the style attribute. */
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+function swatches(palette, { label = 'Preview palette' } = {}) {
+    const colours = (Array.isArray(palette) ? palette : [])
+        .filter((colour) => typeof colour === 'string' && HEX_RE.test(colour))
+        .slice(0, 6)
+        .map((colour) => colour.toLowerCase());
+    if (!colours.length) return '';
+    return `<span class="ex-palette" role="img" aria-label="${esc(label)}">${colours.map((colour) => `<i style="background:${colour}"></i>`).join('')}</span>`;
+}
+
 function verifiedBadge(listing) {
     if (!listing || !listing.tests) return '';
     if (listing.tests.verified) return `<span class="ex-verified" title="Every conformance test for this version passed">✓ tests pass</span>`;
@@ -45,6 +56,7 @@ function card(l) {
 <span class="ex-listing-top">${modeBadge(l.mode)}<span class="ex-kind">${kindLabel(l.kind)}</span>${verifiedBadge(l)}</span>
 <span class="ex-listing-title">${esc(l.title)}</span>
 <span class="ex-listing-summary">${esc(l.summary)}</span>
+${swatches(l.palette, { label: `${l.title} preview palette` })}
 <span class="ex-listing-meta"><span class="ex-creator">${esc(l.creator)}</span> · <span class="ex-license">${esc(l.license)}</span> · <span class="ex-version">v${esc(l.version)}</span></span>
 </a></li>`;
 }
@@ -234,6 +246,7 @@ ${offerList(offers, { owner: true })}
 <p class="ex-kicker">${kindLabel(l.kind)} · ${modeBadge(l.mode)}${statusBadge(l.status)}${staff ? ' · <span class="ex-staff">staff view</span>' : ''}</p>
 <h1>${esc(l.title)}</h1>
 <p class="ex-lede">${esc(l.summary)}</p>
+${swatches(l.palette, { label: `${l.title} preview palette` })}
 <p class="ex-byline">by <span class="ex-creator">${esc(l.creator)}</span> · version <span class="ex-version">${esc(l.version)}</span> · <span class="ex-license">${esc(l.license)}</span>${l.license_url ? ` · <a href="${esc(l.license_url)}" rel="nofollow noopener">the licence</a>` : ''}${l.official ? ' · <span class="ex-official">listed by OpenVibe</span>' : ''}</p>
 </header>
 

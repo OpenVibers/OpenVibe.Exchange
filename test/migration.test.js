@@ -23,6 +23,16 @@ const { boot, check, done } = require('./helpers/boot');
             for (const forbidden of ['price', 'price_vibes', 'currency', 'billing_intent_id', 'amount']) assert.ok(!cols.includes(forbidden), forbidden);
             assert.ok(cols.includes('passport'));
             assert.ok(cols.includes('manifest'));
+            assert.ok(cols.includes('palette'), 'a listing carries its preview palette');
+        });
+
+        await check('a palette must be an array', async () => {
+            const db = t.ctx.s.db;
+            const at = new Date().toISOString();
+            const lid = `exl_${ids.ulid()}`;
+            await db.exec(`INSERT INTO exchange_listings (id, slug, title, mode, summary, license, version, creator, kind, status, listed_at, manifest, passport)
+                VALUES ($1, 'palette-shape', 'Palette shape', 'free', 'A summary', 'CC0-1.0', '1.0.0', 'A maker', 'theme', 'listed', $2, '{"name":"x","entry":"y"}'::jsonb, '{"reads":[],"writes":[],"spends":[],"contacts":[]}'::jsonb)`, [lid, at]);
+            await assert.rejects(db.exec("UPDATE exchange_listings SET palette = '{}'::jsonb WHERE slug = 'palette-shape'"), /exchange_listings_palette/);
         });
 
         await check('a listing refuses an unknown kind and a spend in its passport', async () => {

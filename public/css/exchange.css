@@ -140,3 +140,7 @@ html[data-ov-motion=reduced] .ex-motif-arrows path, html[data-ov-motion=reduced]
 .ex-first-list li { display: grid; gap: 4px; padding: 14px 16px; border-radius: 16px; border: 1px dashed color-mix(in srgb, var(--room-accent) 45%, var(--border, #2c3d5c)); }
 .ex-first-list span { color: var(--text-secondary, #a8b3c4); font-size: 14px; line-height: 1.45; }
 .ex-first-list a { justify-self: start; margin-top: 4px; font-weight: 700; color: var(--room-strong, var(--room-accent)); }
+
+/* A theme's preview palette: up to six small swatches, plain <i> elements; the session restyles them. */
+.ex-palette { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ex-palette i { display: inline-block; width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border, #1f2d47); }

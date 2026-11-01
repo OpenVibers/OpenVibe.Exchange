@@ -26,6 +26,37 @@ const MAX_DESCRIPTION = 4000;
 const plain = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 const base = (url) => String(url || '').replace(/\/+$/, '');
 
+/** A theme's preview palette: background, surface, text, accent, then up to two more the theme names. */
+const HEX = /^#[0-9a-f]{6}$/i;
+function paletteOf(theme) {
+    const vars = theme && theme.variables && typeof theme.variables === 'object' && !Array.isArray(theme.variables) ? theme.variables : {};
+    const preview = theme && theme.preview_colors;
+    const list = Array.isArray(preview) ? preview : [];
+    const named = preview && typeof preview === 'object' && !Array.isArray(preview) ? preview : {};
+    const pick = (...values) => values.find((v) => typeof v === 'string' && HEX.test(v.trim()));
+    const extras = Array.isArray(preview)
+        ? list.slice(3)
+        : Object.entries(named).filter(([key]) => !['bg', 'surface', 'text', 'accent'].includes(key)).map(([, value]) => value);
+    const candidates = [
+        pick(named.bg, list[0], vars['--bg-primary']),
+        pick(named.surface, vars['--bg-card'], vars['--bg-secondary']),
+        pick(named.text, list[2], vars['--text-primary']),
+        pick(named.accent, list[1], vars['--accent']),
+        ...extras.map((value) => pick(value)),
+        pick(vars['--text-secondary']),
+        pick(vars['--border']),
+    ];
+    const out = [];
+    for (const candidate of candidates) {
+        if (!candidate) continue;
+        const colour = candidate.trim().toLowerCase();
+        if (out.includes(colour)) continue;
+        out.push(colour);
+        if (out.length === 6) break;
+    }
+    return out;
+}
+
 function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, log = console, now = s.now }) {
     const stats = { last: null, running: false, started: false };
     let timer = null;
@@ -50,7 +81,7 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
         return { reads: [], writes: [], spends: [], contacts: [origin] };
     }
 
-    function record({ source, sourceId, creator, body, homeUrl, runtime }) {
+    function record({ source, sourceId, creator, body, homeUrl, runtime, palette = [] }) {
         const title = plain(body.title, MAX_TITLE);
         const summary = plain(body.summary, MAX_SUMMARY);
         if (!source || !sourceId || title.length < 3 || summary.length < 3 || !/^https:\/\//.test(homeUrl || '')) return null;
@@ -58,6 +89,7 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
             source,
             sourceId,
             creator: plain(creator, 80) || 'OpenVibe',
+            palette,
             body: {
                 title,
                 kind: body.kind,
@@ -116,6 +148,7 @@ function createFirstParty({ config, s, entries, fetchImpl = globalThis.fetch, lo
                 creator: 'OpenVibe',
                 homeUrl: home,
                 runtime: 'web',
+                palette: paletteOf(theme),
                 body: {
                     title: `${name} theme`,
                     kind: 'theme',
