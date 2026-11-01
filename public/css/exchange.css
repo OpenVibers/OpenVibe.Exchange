@@ -72,7 +72,7 @@ html.ov-motion .ex-motif-arrows path { stroke-dasharray: 500; animation: ex-loop
 .ex-motif-item { position: absolute; padding: 9px 14px; border-radius: 12px; font-size: .86rem; font-weight: 800; background: var(--bg-card, #0f1729); border: 1px solid color-mix(in srgb, var(--room-accent) 45%, var(--border, #1f2d47)); color: var(--text-primary, #e6edf7); box-shadow: 0 8px 22px rgba(0, 0, 0, .22); }
 .ex-motif-item-a { left: 4%; top: 18%; } .ex-motif-item-b { right: 4%; top: 18%; }
 .ex-motif-passport { position: absolute; left: 50%; bottom: 8%; translate: -50% 0; display: grid; justify-items: center; padding: 10px 18px; border-radius: 14px; background: var(--room-fill); color: var(--room-on); rotate: -4deg; box-shadow: 0 10px 26px rgba(0, 0, 0, .28); }
-.ex-motif-passport small { font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.ex-motif-passport small { font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .95; }
 .ex-motif-passport b { font-size: 1.3rem; letter-spacing: .06em; text-transform: uppercase; }
 html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.3,1.4) 1.2s both; }
 @keyframes ex-stamp { from { opacity: 0; scale: 1.6; } }
