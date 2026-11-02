@@ -44,7 +44,7 @@ function createPageRoutes(ctx) {
     r.get('/', async (req, res) => {
         const [list, counts] = await Promise.all([entries.list({ limit: 8 }), entries.counts()]);
         return page(req, res, {
-            index: true, cache: PUBLIC_CACHE,
+            index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: null,
             description: 'OpenVibe.Exchange: trade what people make. Free and swap listings for agents, MCP tools, templates, themes, game assets and creator services, each with a permission passport, a sandbox and one-tap revocation.',
             jsonLd: homeJsonLd(config),
@@ -62,7 +62,7 @@ function createPageRoutes(ctx) {
             cursor: typeof req.query.cursor === 'string' && req.query.cursor ? req.query.cursor : null,
         });
         return page(req, res, {
-            index: true, cache: PUBLIC_CACHE,
+            index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: 'All listings',
             description: 'Every public free and swap listing on OpenVibe.Exchange: agents, MCP tools, templates, themes, game assets and creator services, each with a permission passport.',
             body: raw(views.listingsPage({ listings: out.listings || [], nextCursor: out.next_cursor || null, filters: { q, mode: mode || '', kind: kind || '' } })),
@@ -95,6 +95,7 @@ function createPageRoutes(ctx) {
         });
         return page(req, res, {
             index: row.status === 'listed',
+            agentLayer: row.status === 'listed',
             cache: row.status === 'listed' ? PUBLIC_CACHE : null,
             title: listing.title,
             description: (listing.summary || `${listing.title} on OpenVibe.Exchange`).slice(0, 160),
@@ -250,14 +251,14 @@ function createPageRoutes(ctx) {
 
     // ── Static pages ─────────────────────────────────────────
     r.get('/safety', (req, res) => page(req, res, {
-        index: true, cache: PUBLIC_CACHE,
+        index: true, cache: PUBLIC_CACHE, agentLayer: true,
         title: 'Free and swap safety',
         description: 'OpenVibe.Exchange v1 has no money: free and swap only. Read the passport, meet safely, and revoke any time.',
         body: raw(views.safetyPage()),
     }));
 
     r.get('/developers', (req, res) => page(req, res, {
-        index: true, cache: PUBLIC_CACHE,
+        index: true, cache: PUBLIC_CACHE, agentLayer: true,
         title: 'The OpenVibe.Exchange API',
         description: 'The JSON API, the permission passport, the sandbox, installs and the Search document.',
         jsonLd: [seo.jsonLd.webPage({ name: 'The OpenVibe.Exchange API', url: `${base()}/developers`, description: 'The JSON API, the passport, the sandbox, installs and the Search document.', siteUrl: base() })],
