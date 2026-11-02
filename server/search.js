@@ -28,9 +28,9 @@ function documentOf(listing, { baseUrl = 'https://openvibe.exchange' } = {}) {
     const reads = Array.isArray(p.reads) ? p.reads : [];
     const writes = Array.isArray(p.writes) ? p.writes : [];
     const contacts = Array.isArray(p.contacts) ? p.contacts : [];
+    // Search's snippet reads the summary and the body together: the body leaves out the title and summary it would
+    // repeat ("hot pink neon on …" twice in one result, 2026-11-02).
     const body = [
-        listing.title,
-        listing.summary || '',
         listing.description || '',
         listing.wants ? `Wanted in return: ${listing.wants}` : '',
         reads.length ? `Reads: ${reads.join(', ')}` : '',
