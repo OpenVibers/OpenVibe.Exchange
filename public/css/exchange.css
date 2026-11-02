@@ -58,7 +58,7 @@ html, body { margin: 0; background: var(--bg-primary, #0a0f1c); color: var(--tex
 .ex-filters a { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border, #1f2d47); font-size: .86rem; font-weight: 700; text-decoration: none; color: var(--text-secondary, #96a7c2); }
 .ex-filters a[aria-current] { background: var(--room-fill); color: var(--room-on); border-color: transparent; }
 .ex-inline { margin: 0; display: inline; }
-.ex-ok, .ex-status-active, .ex-verified { color: var(--success-text, #22c55e); font-weight: 800; }
+.ex-ok, .ex-status-active, .ex-verified, .ex-official { color: var(--success-text, #22c55e); font-weight: 800; }
 .ex-status-revoked, .ex-unverified { color: var(--text-muted, #7386a3); font-weight: 800; }
 .ex-status, .ex-kind, .ex-mode, .ex-license, .ex-version { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: 999px; font-size: .75rem; font-weight: 800; background: color-mix(in srgb, var(--text-muted, #7386a3) 14%, transparent); color: var(--text-secondary, #96a7c2); }
 .ex-kind, .ex-mode { background: color-mix(in srgb, var(--room-accent) 16%, transparent); color: var(--room-strong); }
@@ -72,7 +72,7 @@ html.ov-motion .ex-motif-arrows path { stroke-dasharray: 500; animation: ex-loop
 .ex-motif-item { position: absolute; padding: 9px 14px; border-radius: 12px; font-size: .86rem; font-weight: 800; background: var(--bg-card, #0f1729); border: 1px solid color-mix(in srgb, var(--room-accent) 45%, var(--border, #1f2d47)); color: var(--text-primary, #e6edf7); box-shadow: 0 8px 22px rgba(0, 0, 0, .22); }
 .ex-motif-item-a { left: 4%; top: 18%; } .ex-motif-item-b { right: 4%; top: 18%; }
 .ex-motif-passport { position: absolute; left: 50%; bottom: 8%; translate: -50% 0; display: grid; justify-items: center; padding: 10px 18px; border-radius: 14px; background: var(--room-fill); color: var(--room-on); rotate: -4deg; box-shadow: 0 10px 26px rgba(0, 0, 0, .28); }
-.ex-motif-passport small { font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+.ex-motif-passport small { font-size: .68rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; opacity: .95; }
 .ex-motif-passport b { font-size: 1.3rem; letter-spacing: .06em; text-transform: uppercase; }
 html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.3,1.4) 1.2s both; }
 @keyframes ex-stamp { from { opacity: 0; scale: 1.6; } }
@@ -107,6 +107,12 @@ html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.
 .ex-none { color: var(--text-muted, #7386a3); font-style: italic; }
 .ex-manifest { margin: 0; padding: 14px; border-radius: 12px; background: var(--bg-primary, #0a0f1c); border: 1px solid var(--border, #1f2d47); font: 500 .84rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
 
+.ex-file-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.ex-file-list li { min-width: 0; }
+.ex-file-list a { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 11px 13px; border-radius: 12px; background: var(--bg-card, #0f1729); border: 1px solid var(--border, #1f2d47); text-decoration: none; }
+.ex-file-list b { font-weight: 700; overflow-wrap: anywhere; }
+.ex-file-list span { font: 600 .76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-muted, #7386a3); }
+
 /* Checks and conformance tests */
 .ex-checks, .ex-tests { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ex-check, .ex-test { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 9px 12px; border-radius: 10px; background: var(--bg-card, #0f1729); border: 1px solid var(--border, #1f2d47); font-size: .88rem; }
@@ -128,3 +134,28 @@ html.ov-motion .ex-motif-passport { animation: ex-stamp .5s cubic-bezier(.2,.9,.
 @media (max-width: 759px) { .sc-room-pic .ex-motif-item, .sc-room-pic .ex-motif-passport { display: none; } }
 @media (prefers-reduced-motion: reduce) { .ex-motif-arrows path, .ex-motif-passport { animation: none !important; } }
 html[data-ov-motion=reduced] .ex-motif-arrows path, html[data-ov-motion=reduced] .ex-motif-passport { animation: none !important; }
+
+/* Be the first (10-31): an empty market is one short row after the scenes, never an empty box up top. */
+.ex-first-list { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.ex-first-list li { display: grid; gap: 4px; padding: 14px 16px; border-radius: 16px; border: 1px dashed color-mix(in srgb, var(--room-accent) 45%, var(--border, #2c3d5c)); }
+.ex-first-list span { color: var(--text-secondary, #a8b3c4); font-size: 14px; line-height: 1.45; }
+.ex-first-list a { justify-self: start; margin-top: 4px; font-weight: 700; color: var(--room-strong, var(--room-accent)); }
+
+/* A theme's preview palette: up to six small swatches, plain <i> elements; the session restyles them. */
+.ex-palette { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ex-palette i { display: inline-block; width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border, #1f2d47); }
+
+/* Tables on a phone (phone sweep, 2026-11-01): a table of three columns or more whose cells name their column (data-label) shows each row as a card, the first
+   cell its title and every other cell named by its column (html.js gives each cell its data-label). Narrower tables
+   stay tables. Nothing is left out and nothing scrolls sideways. */
+@media (max-width: 640px) {
+    .table-wrap:has(> table thead th:nth-child(3)):has(> table td[data-label]) { overflow: visible; }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) { display: block; }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) tbody { display: grid; gap: 10px; }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) tr { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border, #1f2d47); border-radius: 14px; background: var(--bg-card, var(--bg-secondary, #101828)); }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td:first-child { font-weight: 700; color: var(--text-primary, #e6edf7); }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
+    .table-wrap > table:has(thead th:nth-child(3)):has(td[data-label]) td:empty { display: none; }
+}

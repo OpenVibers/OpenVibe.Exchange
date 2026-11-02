@@ -67,6 +67,17 @@ function load(env = process.env) {
             ttlMinutes: Math.min(240, Math.max(5, int(env.EXCHANGE_SANDBOX_TTL_MINUTES, 60))),
             perDay: Math.min(100, Math.max(1, int(env.EXCHANGE_SANDBOX_PER_DAY, 20))),
         },
+
+        // The first-party catalogue (server/jobs/first-party.js): Design's built-in themes and token files, Live's OBS
+        // scenes and alerts, and Games' public worlds. Off under EXCHANGE_DRILL and when EXCHANGE_FIRST_PARTY=0.
+        firstParty: {
+            enabled: env.EXCHANGE_FIRST_PARTY !== '0' && env.EXCHANGE_FIRST_PARTY !== 'false',
+            intervalMs: Math.max(60_000, int(env.EXCHANGE_FIRST_PARTY_INTERVAL_MS, 6 * 60 * 60_000)),
+            timeoutMs: Math.max(500, int(env.EXCHANGE_FIRST_PARTY_TIMEOUT_MS, 8000)),
+            designUrl: trim(env.OV_DESIGN_URL || 'https://openvibe.design'),
+            liveUrl: trim(env.OV_LIVE_URL || 'https://openvibe.live'),
+            gamesUrl: trim(env.OV_GAMES_URL || 'https://openvibe.games'),
+        },
     };
 }
 

@@ -33,6 +33,17 @@ const kindLabel = (k) => esc(KIND_LABEL[k] || k);
 const modeBadge = (m) => `<span class="ex-mode ex-mode-${esc(m)}">${esc(MODE_LABEL[m] || m)}</span>`;
 const statusBadge = (s) => `<span class="ex-status ex-status-${esc(s)}">${esc(STATUS_LABEL[s] || s)}</span>`;
 
+/** A palette a page may paint: only plain #rrggbb, at most six, and nothing else ever reaches the style attribute. */
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+function swatches(palette, { label = 'Preview palette' } = {}) {
+    const colours = (Array.isArray(palette) ? palette : [])
+        .filter((colour) => typeof colour === 'string' && HEX_RE.test(colour))
+        .slice(0, 6)
+        .map((colour) => colour.toLowerCase());
+    if (!colours.length) return '';
+    return `<span class="ex-palette" role="img" aria-label="${esc(label)}">${colours.map((colour) => `<i style="background:${colour}"></i>`).join('')}</span>`;
+}
+
 function verifiedBadge(listing) {
     if (!listing || !listing.tests) return '';
     if (listing.tests.verified) return `<span class="ex-verified" title="Every conformance test for this version passed">✓ tests pass</span>`;
@@ -45,6 +56,7 @@ function card(l) {
 <span class="ex-listing-top">${modeBadge(l.mode)}<span class="ex-kind">${kindLabel(l.kind)}</span>${verifiedBadge(l)}</span>
 <span class="ex-listing-title">${esc(l.title)}</span>
 <span class="ex-listing-summary">${esc(l.summary)}</span>
+${swatches(l.palette, { label: `${l.title} preview palette` })}
 <span class="ex-listing-meta"><span class="ex-creator">${esc(l.creator)}</span> · <span class="ex-license">${esc(l.license)}</span> · <span class="ex-version">v${esc(l.version)}</span></span>
 </a></li>`;
 }
@@ -92,10 +104,14 @@ function motif() {
 }
 
 function home({ listings = [], counts = {} } = {}) {
-    const live = `<section class="ex-section" id="ex-listings" aria-labelledby="ex-listings-h">
+    // Real first (the owner, 10-31: empty sections made the rooms look unfinished): Fresh listings shows only with listings
+    // in it; an empty market is one short "be the first" row after the scenes.
+    const live = listings.length ? `<section class="ex-section" id="ex-listings" aria-labelledby="ex-listings-h">
 <div class="ex-section-head"><h2 id="ex-listings-h">Fresh listings</h2><a class="ex-more" href="/listings">All listings${kit.icon('chevron')}</a></div>
-${listings.length ? `<ol class="ex-grid">${listings.slice(0, 8).map(card).join('')}</ol>` : empty('Nothing is listed yet. The first proof is a licensed template, tried in the sandbox, installed and revoked.')}
-</section>`;
+<ol class="ex-grid">${listings.slice(0, 8).map(card).join('')}</ol>
+</section>` : '';
+    const beFirst = listings.length ? '' : `<section class="ex-section ex-first" aria-labelledby="ex-first-h"><h2 id="ex-first-h">Be the first</h2>
+<ul class="ex-first-list"><li><b>List the first thing you made</b><span>A template, a theme, an agent or a tool, with the passport that says what it can touch. Free and swap only in v1.</span><a href="/submit">List something</a></li></ul></section>`;
     const room = sc.room({
         room: 'exchange',
         hero: {
@@ -141,8 +157,11 @@ ${listings.length ? `<ol class="ex-grid">${listings.slice(0, 8).map(card).join('
             ],
         },
     });
+    // What is real goes above the scenes; what is still missing goes after them.
     const at = room.indexOf('<section class="sc-room-scenes"');
-    return `<div class="ex-wrap ex-home" id="ex-home">${at < 0 ? room : room.slice(0, at) + live + room.slice(at)}</div>`;
+    const end = at < 0 ? -1 : room.indexOf('</section>', at) + '</section>'.length;
+    const page = at < 0 ? live + room + beFirst : room.slice(0, at) + live + room.slice(at, end) + beFirst + room.slice(end);
+    return `<div class="ex-wrap ex-home" id="ex-home">${page}</div>`;
 }
 
 function filtersBar(filters = {}) {
@@ -227,7 +246,8 @@ ${offerList(offers, { owner: true })}
 <p class="ex-kicker">${kindLabel(l.kind)} · ${modeBadge(l.mode)}${statusBadge(l.status)}${staff ? ' · <span class="ex-staff">staff view</span>' : ''}</p>
 <h1>${esc(l.title)}</h1>
 <p class="ex-lede">${esc(l.summary)}</p>
-<p class="ex-byline">by <span class="ex-creator">${esc(l.creator)}</span> · version <span class="ex-version">${esc(l.version)}</span> · <span class="ex-license">${esc(l.license)}</span>${l.license_url ? ` · <a href="${esc(l.license_url)}" rel="nofollow noopener">the licence</a>` : ''}</p>
+${swatches(l.palette, { label: `${l.title} preview palette` })}
+<p class="ex-byline">by <span class="ex-creator">${esc(l.creator)}</span> · version <span class="ex-version">${esc(l.version)}</span> · <span class="ex-license">${esc(l.license)}</span>${l.license_url ? ` · <a href="${esc(l.license_url)}" rel="nofollow noopener">the licence</a>` : ''}${l.official ? ' · <span class="ex-official">listed by OpenVibe</span>' : ''}</p>
 </header>
 
 ${notice ? `<p class="ex-note" role="status">${esc(notice)}</p>` : ''}
@@ -243,8 +263,15 @@ ${l.mode === 'swap' && l.wants ? `<p class="ex-wants"><b>Wants in return:</b> ${
 <div><dt>Mode</dt><dd>${esc(MODE_LABEL[l.mode] || l.mode)}</dd></div>
 <div><dt>Listed</dt><dd>${l.listed_at ? time(l.listed_at) : 'not yet'}</dd></div>
 <div><dt>Revision</dt><dd>${Number(l.revision) || 1}</dd></div>
+${l.home_url ? `<div><dt>Home</dt><dd><a href="${esc(l.home_url)}" rel="noopener">${esc(l.home_url)}</a></dd></div>` : ''}
 </dl>
 </section>
+
+${l.files && l.files.length ? `<section class="ex-files" id="ex-files" aria-labelledby="ex-files-h">
+<div class="ex-section-head"><h2 id="ex-files-h">Downloads</h2><span class="ex-count">${l.files.length} files</span></div>
+<p class="ex-fine">Every file is generated from the same tokens, so pick the platform you need; the format is on each file.</p>
+<ul class="ex-file-list">${l.files.map((f) => `<li><a href="${esc(f.url)}" rel="noopener" download><b>${esc(f.label)}</b><span>${esc(f.format)}</span></a></li>`).join('')}</ul>
+</section>` : ''}
 
 ${passport(l.passport)}
 ${testsBlock(tests)}
@@ -389,7 +416,7 @@ function developersPage() {
 <header class="ex-page-h"><p class="ex-kicker">Developers</p><h1>The Exchange API</h1>
 <p class="ex-lede">JSON under <code>/api/v1</code>, with <code>application/problem+json</code> errors. A person is the <code>exchange_at</code> session cookie or a Network user token as a Bearer.</p></header>
 <section><h2>Read</h2><dl class="ex-eps">
-${ep('GET', '/api/v1/listings?limit=&cursor=&mode=&kind=&q=', 'Public listings, newest first, cursor-paged (at most 50).')}
+${ep('GET', '/api/v1/listings?limit=&cursor=&mode=&kind=&q=', 'Public listings, interleaved by kind, newest first inside each kind; cursor-paged (at most 50).')}
 ${ep('GET', '/api/v1/listings/:slug', 'One listing with its passport, manifest, licence, tests and counters. A draft/hidden/closed one is 404 unless it is yours or you are staff.')}
 ${ep('GET', '/api/v1/listings/:slug/passport', 'The exact passport and manifest an installer accepts.')}
 ${ep('GET', '/api/v1/listings/:slug/tests', 'The conformance tests for the version the listing names.')}
