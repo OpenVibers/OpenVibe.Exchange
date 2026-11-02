@@ -2,6 +2,12 @@
 
 What changed in OpenVibe.Exchange, newest first.
 
+## Unreleased
+
+- **Theme palettes.** A Design theme's listing keeps the preview palette from Design's public API (background,
+  surface, text, accent and up to two more), in a new `palette` array on the API; the card and the listing page draw
+  it as small swatches. Only `#rrggbb` values are stored and painted; a second refresh leaves the row untouched.
+
 ## 0.1.0 — 2026-10-28
 
 The first version: trade what people make, free and swap only.

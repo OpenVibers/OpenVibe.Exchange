@@ -3,7 +3,7 @@
 /**
  * /api/v1 — OpenVibe.Exchange's JSON API.
  *
- *   GET    /listings?limit=&cursor=&mode=&kind=&q=   public listings, newest first, cursor-paged
+ *   GET    /listings?limit=&cursor=&mode=&kind=&q=   public listings, interleaved by kind, newest first inside each kind; cursor-paged
  *   GET    /listings/:slug                          one listing with its passport, tests and licence
  *   GET    /listings/:slug/passport                 the exact passport and manifest an installer accepts
  *   GET    /listings/:slug/tests                    the conformance tests for this version

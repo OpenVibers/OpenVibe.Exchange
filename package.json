@@ -8,6 +8,7 @@
     "start": "node server/index.js",
     "dev": "NODE_ENV=development node server/index.js",
     "seed:proof": "node scripts/seed-proof.js",
+    "seed:first-party": "node scripts/seed-first-party.js",
     "test": "node test/run.js",
     "test:pg": "EXCHANGE_TEST_STORE=pg node test/run.js"
   },
@@ -24,8 +25,8 @@
     "helmet": "^8.1.0",
     "iovalkey": "^0.4.0",
     "openvibe-contracts": "https://codeload.github.com/OpenVibers/OpenVibe.Contracts/tar.gz/refs/tags/v0.235.0",
-    "openvibe-sdk": "https://codeload.github.com/OpenVibers/OpenVibe.SDK/tar.gz/refs/tags/v0.70.0",
-    "openvibe-shared": "https://codeload.github.com/OpenVibers/OpenVibe.Shared/tar.gz/refs/tags/v4.34.0",
+    "openvibe-sdk": "https://codeload.github.com/OpenVibers/OpenVibe.SDK/tar.gz/refs/tags/v0.74.0",
+    "openvibe-shared": "https://codeload.github.com/OpenVibers/OpenVibe.Shared/tar.gz/refs/tags/v4.91.0",
     "pg": "^8.23.0"
   },
   "engines": {
