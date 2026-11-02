@@ -7,8 +7,9 @@
  * revision. The document carries the maker's copy, the passport's declared permissions and the licence, so Search
  * can filter free/swap and kinds without reading the listing page.
  *
- * No service grant is needed to queue the rows: they wait in the outbox until OpenVibe.Search's document writer is
- * configured for `exchange` (README, "Grants it will need"). The relay is deliberately not part of v1.
+ * No service grant is needed to queue the rows. openvibe-publishing/search-relay (server/app.js) delivers them to
+ * Search's owner API with this service's token (search.document.write), a few seconds after each change
+ * (onQueued) and every minute; without EXCHANGE_SEARCH_URL they wait.
  */
 const { ids } = require('openvibe-contracts');
 
@@ -67,7 +68,7 @@ function documentOf(listing, { baseUrl = 'https://openvibe.exchange' } = {}) {
     };
 }
 
-function createSearchIndex({ config, s, baseUrl = config.baseUrl }) {
+function createSearchIndex({ config, s, baseUrl = config.baseUrl, onQueued = null }) {
     const nowIso = () => new Date(s.now()).toISOString();
 
     async function enqueue(topic, payload, t = null) {
@@ -78,6 +79,7 @@ function createSearchIndex({ config, s, baseUrl = config.baseUrl }) {
              VALUES ($1, $2, $3::jsonb, $4::timestamptz, $4::timestamptz)`,
             [eventId, topic, JSON.stringify(payload), nowIso()],
         );
+        if (onQueued) onQueued();
         return eventId;
     }
 

@@ -61,6 +61,10 @@ function load(env = process.env) {
             scope: env.EXCHANGE_EVENTS_SCOPE || 'events.event.publish',
         },
 
+        // OpenVibe.Search's owner API: the documents queued in exchange_outbox are delivered there (server/app.js,
+        // openvibe-publishing/search-relay) with this service's token (search.document.write). Unset: they wait.
+        search: { url: trim(env.EXCHANGE_SEARCH_URL || '') },
+
         // The sandbox: a manifest dry run, not a code execution. A passed trial is good for this many minutes and
         // is required before an install; a person gets at most this many trials a day.
         sandbox: {

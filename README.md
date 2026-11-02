@@ -60,8 +60,9 @@ v1 cannot represent one.
   asks for `global_mod` or above. A passport is enforced by Network grants in the plan; v1 cannot create one (see
   "Grants it will need").
 - **The sandbox runtime** — OpenVibe.Run. v1's sandbox is a dry run; a real execution needs a Run capability.
-- **Search** — OpenVibe.Search. Exchange produces `search.index-document@1` documents in its own outbox; the relay
-  is not wired because `exchange` has no `search.document.write` grant yet.
+- **Search** — OpenVibe.Search. Exchange produces `search.index-document@1` documents in its own outbox, and
+  `openvibe-publishing/search-relay` delivers them to Search's owner API with the `search.document.write` grant
+  (`EXCHANGE_SEARCH_URL`; unset, they wait).
 - **Billing, transfers, cashouts** — OpenVibe.Billing. Not used at all in v1.
 - **The listings engine and local safety rules** — OpenVibe.Rent. Exchange borrows the shape of the rules (no street
   addresses, a fixed prohibited list, staff hide) but has its own table; it does not call Rent.
@@ -149,8 +150,8 @@ This is deliberately honest: v1 does not run a listing's code. A real sandbox ne
 
 Each public listing is one `search.index-document@1` (owner `exchange`, type `listing`, canonical page
 `/listings/<slug>`) queued in `exchange_outbox` in the same transaction as the listing change. A draft writes
-nothing; closing or hiding writes a tombstone. The outbox waits for `search.document.write`; the relay is not part of
-v1.
+nothing; closing or hiding writes a tombstone. `openvibe-publishing/search-relay` (v1.5.0) sends the rows to Search's owner
+API a few seconds after the change and every minute, oldest first, superseding a listing's older rows.
 
 ## Deploy
 
@@ -179,7 +180,7 @@ services, requested from the main session (this service registers no capability 
 | `network.grants.write` | OpenVibe.Network | create the developer-app grant from the passport snapshot at install | **proposed**; not in contracts v0.229.0 yet |
 | `network.grants.revoke` | OpenVibe.Network | revoke that grant everywhere at one-tap revoke | **proposed**; not in contracts v0.229.0 yet |
 | `run.sandbox.execute` | OpenVibe.Run | execute a listing's entry point in a real sandbox and run its own tests | **proposed**; Run has no sandbox today. Existing `run.job.submit` could back it if Run adds a sandbox job class |
-| `search.document.write` | OpenVibe.Search | relay the `exchange_outbox` documents | existing capability, not granted |
+| `search.document.write` | OpenVibe.Search | relay the `exchange_outbox` documents | granted |
 | `network.account.export.contribute` | OpenVibe.Network | push a person's listings/installs/trials/offers export | existing capability, not granted |
 | `network.account.deletion.confirm` | OpenVibe.Network | confirm the erasure and counts | existing capability, not granted |
 | `events.subscription.manage` | OpenVibe.Events | create the two account subscriptions | existing scope, client credentials |

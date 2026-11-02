@@ -26,7 +26,7 @@
     "Free claims and swap offers with a required give on swaps; the owner accepts/declines, the sender withdraws; accepting closes the listing and tombstones it",
     "A fixed prohibited-items and no-money filter on every listing and offer",
     "The API: public cursor-paged listings, detail, passport, tests, owner drafts, sandbox, install, installs, offers and staff hide",
-    "Search Fabric documents (owner exchange, type listing, /listings/<slug>) in exchange_outbox, with a tombstone when closed or hidden",
+    "Search Fabric documents (owner exchange, type listing, /listings/<slug>) in exchange_outbox, with a tombstone when closed or hidden, delivered to Search's owner API by openvibe-publishing/search-relay",
     "Sign-in with OpenVibe.Network (PKCE S256, exchange_at/exchange_rt/exchange_oauth), staff role global_mod+",
     "Account export and deletion over listings, installs, sandbox trials and offers; a deleted listing is anonymised, closed and tombstoned",
     "Server-rendered pages with stable ex- ids/classes, cache headers, discovery artifacts, deploy files and the first-proof seed"
@@ -34,7 +34,6 @@
   "notYet": [
     "The Network grant write/revoke: v1 keeps the install as an Exchange record; network.grants.write and network.grants.revoke are proposed and not in contracts v0.229.0",
     "A real sandbox: v1 is a manifest/passport dry run; executing a listing needs OpenVibe.Run and a run.sandbox.execute capability",
-    "The Search document relay: documents wait in exchange_outbox until Network grants exchange search.document.write",
     "Paid listings through Billing (v2): no intent, transfer, cashout, entitlement or usage call exists in v1",
     "Reviews and mutual reviews; the listing page shows no reviews yet",
     "A user report form and moderation queue beyond the fixed filter and staff hide",
