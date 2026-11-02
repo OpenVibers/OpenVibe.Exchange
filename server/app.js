@@ -37,6 +37,7 @@ const { raw } = require('./render/html');
 const accountDataLib = require('./identity/account-data');
 const { createStore } = require('./store');
 const { createSearchIndex } = require('./search');
+const { createSearchRelay } = require('openvibe-publishing/search-relay');
 const { createFirstParty } = require('./jobs/first-party');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 
@@ -59,7 +60,16 @@ async function createApp(opts = {}) {
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
 
-    const search = createSearchIndex({ config, s });
+    // The queued Search documents (exchange_outbox) go to OpenVibe.Search's owner API with this service's token;
+    // off without EXCHANGE_SEARCH_URL or the client secret. Started by server/index.js, never under EXCHANGE_DRILL.
+    const searchRelay = createSearchRelay({
+        db: s.db, table: 'exchange_outbox', owner: 'exchange', searchUrl: config.search.url, fetchImpl, now: s.now, log,
+        auth: config.search.url && config.oauth.clientSecret ? contracts.serviceAuth.createTokenClient({
+            tokenUrl: `${config.networkInternalUrl}/oauth/token`, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
+            audience: 'openvibe.search', scope: 'search.document.write', fetchImpl,
+        }) : null,
+    });
+    const search = createSearchIndex({ config, s, onQueued: () => searchRelay.kick() });
     const entries = createStore(s, { search, config });
     const firstParty = createFirstParty({ config, s, entries, fetchImpl, log, now: s.now });
 
@@ -70,7 +80,7 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, search, entries, firstParty, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, search, searchRelay, entries, firstParty, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');
