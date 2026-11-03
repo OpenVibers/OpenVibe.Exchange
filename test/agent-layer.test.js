@@ -22,7 +22,7 @@ const fixtures = require('./helpers/fixtures');
             assert.strictEqual(m.api, 'https://openvibe.exchange/api/v1');
             assert.strictEqual(m.docs, 'https://openvibe.exchange/developers');
             assert.deepStrictEqual(m.policy.auth, ['none', 'Network OIDC']);
-            assert.strictEqual(m.openapi, undefined);
+            assert.strictEqual(m.openapi, 'https://openvibe.exchange/openapi.json', 'the API document it serves (SEO-3)');
             assert.strictEqual(m.mcp, undefined);
         });
 
