@@ -61,6 +61,8 @@ function createDiscoveryRoutes(ctx) {
             name: SITE_NAME,
             summary: 'OpenVibe.Exchange is the OpenVibe marketplace for what people make: agents, MCP tools, templates (Website, Report, Space), design themes and kits, game assets and creator services. Every public listing shows a permission passport (exactly what it can read, write, spend or contact), its licence, the conformance tests for that version, and a sandbox. A passed sandbox trial is required before an install; a revoke removes the installation in one tap. v1 is free and swap only: there is no money and a passport may not declare a spend.',
             details: 'GET /api/v1/listings lists public listings; GET /api/v1/listings/:slug adds the passport, manifest, licence, tests and counters; GET /api/v1/listings/:slug/passport is the exact passport an installer accepts. The sandbox is a manifest dry run in v1: Exchange does not execute a listing\'s code. Every public listing is one search.index-document@1 (owner exchange, type listing) queued in exchange_outbox and delivered to OpenVibe.Search within a minute.',
+            markdown: true,
+            base: site,
             sections: [
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Exchange', url: abs('/'), note: 'free and swap listings' },
@@ -68,18 +70,16 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Safety rules', url: abs('/safety') },
                     { title: 'The API', url: abs('/developers') },
                 ] },
-                { title: 'Machine-readable', links: [
-                    { title: 'Public listings (JSON)', url: abs('/api/v1/listings') },
-                    { title: 'Sitemap', url: abs('/sitemap.xml') },
-                    { title: 'Full text for language models', url: abs('/llms-full.txt') },
-                    { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                ] },
-                { title: 'Elsewhere', links: [
-                    { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, staff roles and the grants a passport names' },
-                    { title: 'OpenVibe.Run', url: 'https://openvibe.run', note: 'the sandbox that will execute a listing\'s tests' },
-                    { title: 'OpenVibe.Search', url: 'https://search.openvibe.network', note: 'where public listings are indexed' },
-                    { title: 'OpenVibe.Rent', url: 'https://openvibe.rent', note: 'the listings engine and local safety rules Exchange borrows' },
-                ] },
+            ],
+            optional: [
+                { title: 'Public listings (JSON)', url: abs('/api/v1/listings') },
+                { title: 'Sitemap', url: abs('/sitemap.xml') },
+                { title: 'Full text for language models', url: abs('/llms-full.txt') },
+                { title: 'Release metadata (JSON)', url: abs('/release.json') },
+                { title: 'OpenVibe.Network', url: 'https://openvibe.network', note: 'accounts, staff roles and the grants a passport names' },
+                { title: 'OpenVibe.Run', url: 'https://openvibe.run', note: 'the sandbox that will execute a listing\'s tests' },
+                { title: 'OpenVibe.Search', url: 'https://search.openvibe.network', note: 'where public listings are indexed' },
+                { title: 'OpenVibe.Rent', url: 'https://openvibe.rent', note: 'the listings engine and local safety rules Exchange borrows' },
             ],
         }));
     });

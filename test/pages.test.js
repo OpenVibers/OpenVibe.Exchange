@@ -163,6 +163,8 @@ function jsonLd(html) {
             const llms = await t.get('/llms.txt');
             assert.strictEqual(llms.status, 200);
             assert.ok(llms.text.includes('OpenVibe.Exchange'));
+            assert.ok(llms.text.includes('\n## Optional\n'));
+            assert.ok(llms.text.includes('(https://openvibe.exchange/index.md)'));
             const full = await t.get('/llms-full.txt');
             assert.ok(full.text.includes(listing.slug));
         });
