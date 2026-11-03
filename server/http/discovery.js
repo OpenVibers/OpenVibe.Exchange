@@ -69,10 +69,10 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'All listings', url: abs('/listings') },
                     { title: 'Safety rules', url: abs('/safety') },
                     { title: 'The API', url: abs('/developers') },
+                    { title: 'Public listings (JSON)', url: abs('/api/v1/listings') },
                 ] },
             ],
             optional: [
-                { title: 'Public listings (JSON)', url: abs('/api/v1/listings') },
                 { title: 'Sitemap', url: abs('/sitemap.xml') },
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
