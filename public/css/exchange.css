@@ -14,7 +14,7 @@
 .ex-narrow { max-width: 760px; }
 .ex-page { padding-top: 10px; }
 .ex-muted { color: var(--ovk-muted); }
-.ex-prose a, .ex-list a, .ex-more a, .ex-empty a, .ovk-empty a { color: var(--ovk-accent); text-underline-offset: 2px; }
+.ex-prose a:not(.ovk-btn), .ex-list a:not(.ovk-btn), .ex-more a:not(.ovk-btn), .ex-empty a:not(.ovk-btn), .ovk-empty a:not(.ovk-btn) { color: var(--ovk-accent); text-underline-offset: 2px; }
 
 /* A sticky head inside the column still spans the window; its title sits on the content line. */
 .ex-page > .ovk-head {
