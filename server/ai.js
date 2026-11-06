@@ -51,7 +51,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     async function catalog() {
         if (catalogHit.value && now() - catalogHit.at < CATALOG_MS) return catalogHit.value;
         try {
-            const body = await get('/api/v1/exchange/catalog', 'catalog');
+            const body = withDisplayNames(await get('/api/v1/exchange/catalog', 'catalog'));
             catalogHit = { at: now(), value: body };
             return body;
         } catch (err) {
@@ -151,4 +151,20 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     return { catalog, usage, chat, configured: Boolean(tokens) };
 }
 
-module.exports = { createAi };
+/**
+ * OpenAI's models arrive named by their API ids ("gpt-5-nano") while every other family has a display name
+ * ("DeepSeek V4 Pro"). Say them the way OpenAI does ("GPT-5 nano", "GPT-4.1 mini", "GPT-4o mini"); the id stays the id.
+ */
+function displayName(name) {
+    const m = /^gpt-([0-9][0-9a-z.]*)((?:-[a-z0-9]+)*)$/i.exec(String(name || ''));
+    if (!m) return name;
+    const rest = m[2] ? ' ' + m[2].slice(1).split('-').join(' ') : '';
+    return `GPT-${m[1]}${rest}`;
+}
+
+function withDisplayNames(body) {
+    if (!body || !Array.isArray(body.models)) return body;
+    return { ...body, models: body.models.map((m) => (m && typeof m.name === 'string' ? { ...m, name: displayName(m.name) } : m)) };
+}
+
+module.exports = { createAi, displayName };

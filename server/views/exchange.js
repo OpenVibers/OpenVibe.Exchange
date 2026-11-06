@@ -109,7 +109,8 @@ function panel({ title, note = '', id, body, cls = '' }) {
 function modelRow(m, { withTry = true } = {}) {
     const best = cheapest(m);
     const bits = [];
-    if (best) bits.push(providerLabel(best), inOut(best.price), ms(best.speed.p50_ms), pct(best.uptime));
+    // A stat not measured yet is left out, never printed as a dash ("– · –" read as noise in a row).
+    if (best) bits.push(providerLabel(best), inOut(best.price), ...(best.speed && best.speed.p50_ms != null ? [ms(best.speed.p50_ms)] : []), ...(best.uptime != null ? [`${pct(best.uptime)} up`] : []));
     else if (m.offers[0]) bits.push(providerLabel(m.offers[0]), 'free capacity');
     if (best && best.refusal_rate != null) bits.push(`refuses ${pct(best.refusal_rate)}`);
     const pv = privacyOf(best || m.offers[0]);
