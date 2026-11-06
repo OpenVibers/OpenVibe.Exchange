@@ -48,8 +48,8 @@ async function startNetwork() {
 
     const problem = (json, status, code, detail) => json(status, { type: `https://openvibe.network/problems/${code}`, title: 'Error', status, code, detail, error: detail, request_id: `req_${crypto.randomBytes(6).toString('hex')}` }, { 'Content-Type': 'application/problem+json' });
 
-    function addUser(username, { role = 'user' } = {}) {
-        const u = { id: nextUserId++, subject: ids.newId('user'), username, display_name: username, role };
+    function addUser(username, { role = 'user', adult = false } = {}) {
+        const u = { id: nextUserId++, subject: ids.newId('user'), username, display_name: username, role, adult };
         st.users.set(u.id, u); st.byUsername.set(username, u);
         return u;
     }
@@ -118,6 +118,27 @@ async function startNetwork() {
             return json(200, { items: [], next_cursor: null });
         }
 
+        // Network's account flag (Network PR #587, server/identity/adult.js): the confirmation sits on the
+        // account row. A person confirms it on their own account; a service may read it with their token.
+        if (url.pathname === '/api/v1/me/adult' && req.method === 'GET') {
+            const u = userFrom(req);
+            if (u === 'expired') return problem(json, 401, 'auth.expired', 'expired');
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            return json(200, { adult: Boolean(u.adult), confirmed_at: u.adult ? '2026-11-06T00:00:00.000Z' : null });
+        }
+        if (url.pathname === '/api/v1/me/adult' && req.method === 'PUT') {
+            const u = userFrom(req);
+            if (u === 'expired') return problem(json, 401, 'auth.expired', 'expired');
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            u.adult = true;
+            return json(200, { adult: true, confirmed_at: '2026-11-06T00:00:00.000Z', confirmation_version: 1 });
+        }
+        if (url.pathname === '/internal/identity/adult' && req.method === 'GET') {
+            const subject = url.searchParams.get('subject_id') || '';
+            const u = [...st.users.values()].find((x) => x.subject === subject);
+            if (!u) return problem(json, 404, 'identity.subject_not_found', 'no subject for that id');
+            return json(200, { subject_id: subject, adult: Boolean(u.adult), confirmed_at: u.adult ? '2026-11-06T00:00:00.000Z' : null });
+        }
         if (url.pathname === '/internal/identity/resolve-batch' && req.method === 'POST') return json(200, { results: {} });
         if (url.pathname === '/internal/notifications/push' && req.method === 'POST') return json(200, { ok: true });
 
@@ -127,7 +148,7 @@ async function startNetwork() {
 
     return {
         url: srv.url, publicPem, privatePem, state: st, requests: st.requests, tokenRequests: st.tokenRequests,
-        addUser, userToken, signJwt: (claims) => signJwt(claims, privatePem), issuer: () => issuer,
+        addUser, userToken, user: (u) => st.users.get(u && u.id ? u.id : u), signJwt: (claims) => signJwt(claims, privatePem), issuer: () => issuer,
         issueCode(user, challenge) { const code = `code_${crypto.randomBytes(8).toString('hex')}`; st.codes.set(code, { user, challenge }); return code; },
         setDown(v) { st.down = v; },
         close: srv.close,

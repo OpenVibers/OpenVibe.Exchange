@@ -280,7 +280,7 @@ body.ex-app .ovf { display: none; }
 .ex-btn-primary { background: var(--ovk-accent); border-color: var(--ovk-accent); color: var(--ovk-on-accent, #fff); font-weight: 600; }
 .ex-gallery-tags { margin: 0 0 16px; }
 .ex-taglist { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
-.ex-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--ovk-line); background: var(--ovk-panel); color: inherit; font-size: .82rem; text-decoration: none; }
+.ex-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--ovk-line); background: var(--ovk-panel); color: inherit; font-size: .82rem; text-decoration: none; }
 .ex-chip.is-on { border-color: var(--ovk-accent); color: var(--ovk-accent); }
 .ex-chip-18 { border-color: var(--ovk-accent); color: var(--ovk-accent); font-weight: 700; }
 .ex-chip-n { color: var(--ovk-muted); font-size: .75rem; }
@@ -309,6 +309,8 @@ body.ex-app .ovf { display: none; }
 .ex-companion-section h2 { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ovk-muted); margin: 0 0 6px; }
 .ex-companion-section p { margin: 0; line-height: 1.6; }
 .ex-companion-model, .ex-companion-meta { font-size: .85rem; color: var(--ovk-muted); }
+/* The export links act as buttons, so they get a finger-sized target at every width. */
+.ex-companion-export { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 4px; }
 .ex-form { display: grid; gap: 6px; margin: 16px 0 26px; }
 .ex-form .ex-label { margin-top: 10px; font-size: .85rem; font-weight: 600; }
 .ex-form input[type=text], .ex-form textarea, .ex-form select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ovk-line); background: var(--ovk-panel); color: inherit; font-size: .92rem; min-height: 44px; font-family: inherit; }
@@ -323,3 +325,17 @@ body.ex-app .ovf { display: none; }
 .ex-branch { font-size: .78rem; color: var(--ovk-accent); text-decoration: none; }
 .ex-saw-context { margin: 0; padding-left: 18px; font-size: .82rem; line-height: 1.5; }
 .ex-saw-system { white-space: pre-wrap; font-size: .78rem; line-height: 1.5; background: var(--ovk-panel); border: 1px solid var(--ovk-line); border-radius: 10px; padding: 10px; max-height: 260px; overflow: auto; }
+
+/* The companions' chat rides openvibe-shared's thread UI. On a phone the shared pieces are a touch short of
+   a finger (36-42px); this page raises them to 44px without touching the shared package. */
+.ex-companion-chat .ovk-sidebar-action,
+.ex-companion-chat .ovk-sidebar-item,
+.ex-companion-chat .ovt-btn,
+.ex-companion-chat .ovk-sidebar-find input,
+.ex-companion-chat .ov-sel,
+.ex-companion-chat .ovt-composer textarea,
+.ex-companion-chat .ovt-settings-body input,
+.ex-companion-chat .ovt-settings-body select { min-height: 44px; }
+.ex-companion-chat .ov-sel-native { min-height: 44px; }
+.ex-companion-chat .ovt-send { min-height: 44px; min-width: 44px; }
+.ex-companion-chat .ov-sel-native { position: absolute; opacity: 0; height: 44px; }

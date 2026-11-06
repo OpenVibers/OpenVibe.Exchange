@@ -96,8 +96,8 @@ function characterPage({ card, tags = [], viewer = null, mine = false, problem =
         + section('Example dialogue', card.example_dialogue)
         + (card.model ? '<p class="ex-companion-model">Works best on <b>' + esc(card.model) + '</b>. You can pick any model or preset when you talk.</p>' : '')
         + '<p class="ex-companion-meta">' + remixes + ' remix' + (remixes === 1 ? '' : 'es')
-        + ' · <a href="/companions/' + esc(card.id) + '/export?format=json">Export JSON</a>'
-        + ' · <a href="/companions/' + esc(card.id) + '/export?format=png">Export PNG</a></p>'
+        + ' · <a class="ex-companion-export" href="/companions/' + esc(card.id) + '/export?format=json">Export JSON</a>'
+        + ' · <a class="ex-companion-export" href="/companions/' + esc(card.id) + '/export?format=png">Export PNG</a></p>'
         + '</article></div>';
 }
 

@@ -32,6 +32,7 @@ const { createOpenApi } = require('./openapi');
 const { createChatStore, createAdultStore } = require('./chat/store');
 const { createCharacterStore, createCompanionChatStore } = require('./companions/store');
 const { createSharing } = require('./companions/sharing');
+const { createAdultAccount } = require('./companions/adult');
 const { createPageRoutes } = require('./http/pages');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
@@ -71,6 +72,8 @@ async function createApp(opts = {}) {
     const characters = createCharacterStore(s);
     const companionChats = createCompanionChatStore(s);
     const sharing = createSharing({ db: s.db, config, fetchImpl, log });
+    // The 18+ confirmation, read from the account on Network (Network PR #587).
+    const adultAccount = createAdultAccount({ config, fetchImpl, log, now: s.now });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -80,7 +83,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, characters, companionChats, sharing, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, adultAccount, characters, companionChats, sharing, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');

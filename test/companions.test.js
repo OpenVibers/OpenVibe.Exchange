@@ -157,6 +157,61 @@ const FORM = {
             assert.ok(gallery.text.includes('After hours two'), 'a confirmed person sees 18+ cards on the gallery');
         });
 
+        await check("the 18+ confirmation is read from the person's account on Network", async () => {
+            // Network owns the confirmation (Network PR #587): the flag sits on the account row, and Exchange
+            // reads it with the person's own session token. A person confirmed there, and confirmed nowhere
+            // else, may open an 18+ card.
+            const confirmed = t.network.addUser('carol', { adult: true });
+            const made = await t.get('/companions/new', { as: alice, form: { ...FORM, name: 'After hours three', rating: 'adult', age: '24' } });
+            assert.strictEqual(made.status, 303, made.text);
+            const url = made.headers.get('location');
+            const id = (await t.ctx.characters.listByOwner(alice.subject)).find((c) => c.name === 'After hours three').id;
+            const shared = await t.get('/companions/' + id + '/share', { as: alice, form: { audience: 'public' } });
+            assert.strictEqual(shared.status, 303);
+            const guest = await t.get(url);
+            assert.strictEqual(guest.status, 403);
+            const other = await t.get(url, { as: bob });
+            assert.strictEqual(other.status, 403, 'an account without the confirmation may not');
+            const seen = await t.get(url, { as: confirmed });
+            assert.strictEqual(seen.status, 200, seen.text);
+            assert.ok(seen.text.includes('After hours three'));
+            const gallery = await t.get('/companions', { as: confirmed });
+            assert.ok(gallery.text.includes('After hours three'), 'a confirmed person sees 18+ cards on the gallery');
+        });
+
+        await check('an unreadable 18+ flag is never a yes', async () => {
+            // The flag fails closed: if Network cannot answer, nobody is confirmed by it.
+            const stranger = t.network.addUser('dave');
+            const made = await t.get('/companions/new', { as: alice, form: { ...FORM, name: 'After hours four', rating: 'adult', age: '24' } });
+            const url = made.headers.get('location');
+            const seen = await t.get(url, { as: stranger });
+            assert.strictEqual(seen.status, 403);
+        });
+
+        await check('confirming on /uncensored records the 18+ flag on the account', async () => {
+            // The confirmation belongs to the account (Network PR #587). The page writes it there, and the
+            // account's answer is what the companions read.
+            const erin = t.network.addUser('erin');
+            const confirm = await t.get('/uncensored/confirm', { as: erin, form: { adult: 'yes' } });
+            assert.strictEqual(confirm.status, 303);
+            assert.ok(t.network.user(erin).adult, 'the account carries the confirmation');
+            const made = await t.get('/companions/new', { as: alice, form: { ...FORM, name: 'After hours five', rating: 'adult', age: '24' } });
+            const url = made.headers.get('location');
+            const id = (await t.ctx.characters.listByOwner(alice.subject)).find((c) => c.name === 'After hours five').id;
+            await t.get('/companions/' + id + '/share', { as: alice, form: { audience: 'public' } });
+            const seen = await t.get(url, { as: erin });
+            assert.strictEqual(seen.status, 200, seen.text);
+        });
+
+        await check('the adults’ tier says what changed, and what the floor does to characters', async () => {
+            const page = await t.get('/uncensored');
+            assert.strictEqual(page.status, 200, page.text);
+            assert.ok(page.text.includes('What changed'), 'the dated changelog is there');
+            assert.ok(page.text.includes('2026-11-06'));
+            assert.ok(page.text.includes('The floor on characters and chats'));
+            assert.ok(page.text.includes('refused at save'));
+        });
+
         await check('the card exports as V3 JSON, and imports back', async () => {
             const out = await t.get('/companions/' + cardId + '/export?format=json', { as: alice });
             assert.strictEqual(out.status, 200, out.text);

@@ -35,7 +35,7 @@ const handleOf = (name) => String(name || 'someone').toLowerCase().replace(/[^a-
 const tagsOf = (s) => String(s || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 5);
 
 function createCompanionRoutes(ctx) {
-    const { config, ai, adult, characters, companionChats, sharing, log } = ctx;
+    const { config, ai, adult, adultAccount, characters, companionChats, sharing, log } = ctx;
     const r = asyncRouter();
     // A card may arrive as a file (a PNG with the card inside, or plain JSON).
     const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -53,7 +53,29 @@ function createCompanionRoutes(ctx) {
         title, index: false,
         body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'person', title, text, action: { href: '/auth/login?next=' + encodeURIComponent(next || req.originalUrl), label: 'Sign in with OpenVibe' } }) + '</div>'),
     }, 401);
-    const isAdult = async (req) => (signedIn(req) ? await adult.confirmed(owner(req)) : false);
+    /**
+     * The 18+ gate: has this person confirmed, on their account, that they are 18 or older?
+     *
+     * Network owns the confirmation (Network PR #587): the flag sits on the account row, and OpenVibe.AI reads
+     * the same flag for the uncensored tier. Network grants Exchange no identity.subject.resolve, so the read
+     * goes out with the person's own session token - the token this site already holds - against Network's
+     * GET /api/v1/me/adult. Exchange's own row (exchange_adult_confirmations, what /uncensored writes) still
+     * counts, so a person who confirmed here before Network shipped the flag keeps their access.
+     *
+     * Both fail closed: an unreadable flag is never a yes.
+     */
+    const isAdult = async (req) => {
+        if (!signedIn(req)) return false;
+        if (adultAccount) {
+            try {
+                const token = (req.token || (req.viewer && req.viewer.token) || null);
+                if (await adultAccount.adultFor(owner(req), token)) return true;
+            } catch (err) {
+                log.warn('[Companions] the 18+ confirmation could not be read:', err.message);
+            }
+        }
+        return await adult.confirmed(owner(req));
+    };
 
     /** The card's fields, out of a form body or an imported card. */
     function cardOf(body, imported = null) {
