@@ -102,7 +102,7 @@ ${problem ? kit.notice({ kind: 'error', text: problem }) : ''}
 <div class="ex-arena-vote-row">
 <button type="submit" name="outcome" value="left" class="ovk-btn ovk-btn--primary">A is better</button>
 <button type="submit" name="outcome" value="right" class="ovk-btn ovk-btn--primary">B is better</button>
-<button type="submit" name="outcome" value="tie" class="ovk-btn ovk-btn--quiet">A tie</button>
+<button type="submit" name="outcome" value="tie" class="ovk-btn ovk-btn--quiet">It’s a tie</button>
 <button type="submit" name="outcome" value="both_bad" class="ovk-btn ovk-btn--ghost">Both bad</button>
 </div></fieldset>
 <p class="ex-muted">One vote per person. It becomes a Bench judgement under “${esc(labelOf(round.category))}”, and the names are revealed right after.</p>
@@ -170,7 +170,7 @@ function rankingsPage({ catalog, usage, board, category, sort, categories }) {
     const boardNote = board.unavailable
         ? 'The Bench board is not reachable right now.'
         : board.rows && board.rows.length
-            ? `Elo from ${count((board.rows || []).reduce((n, r) => n + (Number(r.games) || 0), 0) / 2)} votes.`
+            ? `Elo from ${count(Math.round((board.rows || []).reduce((n, r) => n + (Number(r.games) || 0), 0) / 2))} votes.`
             : 'No votes in this category yet.';
 
     const products = (usage.by_product || []).slice(0, 12);
@@ -206,17 +206,16 @@ ${panel({ title: labelOf(category), note: boardNote, id: 'board', body: tableRow
             { key: 'value', label: 'Elo per $/M out', num: true },
         ],
         rows: tableRows, label: `Rankings for ${labelOf(category)}`,
-        caption: 'Rating: Bench Elo, 1000 is the starting point. Value: rating points above 1000 per dollar of output per million tokens; a dash means the model’s price is not published.',
     }) : kit.empty({ icon: 'spark', title: 'No votes here yet', text: category === 'all' ? 'The first Arena vote will open this board.' : `No one has voted on a ${labelOf(category).toLowerCase()} prompt yet. <a href="/arena">Ask one</a>.` }) })}
 ${panel({ title: 'Products and apps', note: 'Which models OpenVibe’s products and public apps run, from AI’s own aggregate usage. No prompt and no person.', id: 'products', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : (productRows.length ? kit.table({
         columns: [{ key: 'product', label: 'Requester', primary: true, html: true }, { key: 'models', label: 'Models', html: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens', hide: 'sm' }],
-        rows: productRows, label: 'Models by requester', caption: `The last ${usage.days || 30} days. A requester is a service or an app, never a person.`,
+        rows: productRows, label: 'Models by requester', caption: `The last ${usage.days || 30} days`,
     }) : kit.empty({ icon: 'code', title: 'No product has called the router yet', text: 'When one does, its models and requests show here.' })) })}
 ${panel({ title: 'How to read it', id: 'how', body: `<ul class="ex-list">
 <li><strong>Rating</strong> is Bench Elo from blind Arena votes. 1000 is where a model starts; a model with fewer than 10 games is provisional.</li>
 <li><strong>Price</strong> is the cheapest live offer’s price per million tokens, in and out, from OpenVibe.AI’s catalogue.</li>
 <li><strong>Speed and uptime</strong> are measured from real requests over the last seven days; an offer with no traffic shows a dash.</li>
-<li><strong>Value</strong> is rating points above 1000 per dollar of output. It rewards a model that wins and costs little; it never turns a dear model into a bargain.</li>
+<li><strong>Value</strong> is rating points above 1000 per dollar of output. It rewards a model that wins and costs little; it never turns a dear model into a bargain. A model whose price is not published shows a dash.</li>
 <li><strong>Categories</strong> come from the prompt’s classification in the Arena: code, writing, chat, reasoning, translation and analysis.</li>
 </ul>` })}
 </div>`;
