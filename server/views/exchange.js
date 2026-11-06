@@ -98,13 +98,17 @@ function answerPrivacy(result) {
     return { label: name, kind, facts: facts.join(' · ') || (d.known === false ? 'the offer declared no policy' : '') };
 }
 
-const freeTier = (o) => Boolean(o && o.free_tier === true);
+// Free to try now: AI's free_now (a free-tier offer whose provider can answer); free_tier alone on an older AI.
+const freeTier = (o) => Boolean(o && (o.free_now !== undefined ? o.free_now === true : o.free_tier === true));
+// A free-tier offer whose provider cannot answer right now (out of credit, or down): said, never promised.
+const freePaused = (o) => Boolean(o && o.free_tier === true && o.free_now === false);
+const FREE_PAUSED = 'Free messages are paused right now: the free model\u2019s provider is out of credit. Your own key or Balance still works.';
 
 function badgesOf(m, best) {
     const out = [
         m.uncensored ? kit.badge('18+', 'bad') : '',
         m.community ? kit.badge('Community', 'accent') : '',
-        (m.offers || []).some(freeTier) ? kit.badge('Free to try') : '',
+        (m.offers || []).some(freeTier) ? kit.badge('Free to try') : ((m.offers || []).some(freePaused) ? kit.badge('Free paused') : ''),
         m.capabilities && m.capabilities.tools ? kit.badge('Tools') : '',
     ];
     const p = privacyOf(best);
@@ -158,7 +162,8 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
     if (models.length) stats.push([models.length, 'models']);
     if (providerCount(models)) stats.push([providerCount(models), 'providers']);
     if (bestPrice) stats.push([money(bestPrice.price.in), 'cheapest in, per million']);
-    if (config) stats.push([config.chat.perDay, 'messages free every day']);
+    // The free allowance is a stat only while some free model can answer it.
+    if (config && catalog.free_available !== false) stats.push([config.chat.perDay, 'messages free every day']);
     if (usage.today && usage.today.requests >= 1000) stats.push([count(usage.today.requests), 'requests today']);
 
     return `<div class="ex-wrap ex-home">
@@ -280,7 +285,7 @@ ${panel({ title: '', body: modelList(models, { empty: 'No model matches that sea
 function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false }) {
     const offers = model.offers || [];
     const best = cheapest(model);
-    const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : ''].join('');
+    const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : (offers.some(freePaused) ? kit.badge('Free paused') : '')].join('');
     const stats = [
         best ? [money(best.price.in), 'cheapest in, per M'] : null,
         best ? [money(best.price.out), 'cheapest out, per M'] : null,
@@ -301,7 +306,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
     const rows = offers.map((o) => {
         const p = privacyOf(o);
         return {
-            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}${freeTier(o) ? ` ${kit.badge('Free to try')}` : ''}`,
+            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             uptime: o.uptime == null ? '–' : pct(o.uptime),
@@ -385,8 +390,9 @@ function tryBox(model, viewer, { result, problem, text, adult }) {
     if (!canTry) {
         return `<div class="ex-signin">${kit.button({ href: `/auth/login?next=${encodeURIComponent(hrefOf(model))}`, label: 'Sign in to try it' })}<span class="ex-muted">Free daily allowance, no card.</span></div>`;
     }
+    const paused = (model.offers || []).some(freePaused) && !(model.offers || []).some(freeTier);
     return `<form class="ovk-form ex-try" method="post" action="${hrefOf(model)}/try">
-${problem ? kit.notice({ kind: 'error', text: problem }) : ''}
+${problem ? kit.notice({ kind: 'error', text: problem }) : ''}${paused ? kit.notice({ kind: 'info', text: FREE_PAUSED }) : ''}
 <label class="ex-label" for="try-text">Try ${esc(model.name)}</label>
 <textarea id="try-text" name="text" rows="4" maxlength="4000" required placeholder="Ask it anything. The answer is one run on your own allowance.${model.uncensored ? ' The floor applies.' : ''}">${esc(text)}</textarea>
 <div class="ex-try-row">${kit.button({ label: 'Send', type: 'submit' })}<span class="ex-muted">Free daily allowance; the run’s cost is shown with the answer.</span></div>

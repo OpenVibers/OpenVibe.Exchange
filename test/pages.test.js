@@ -168,6 +168,26 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             });
         } finally { await o.close(); }
 
+        // The free model's provider is out of credit: AI marks its free-tier offer not free now (free_now false) and
+        // says no chat model can serve the free allowance (free_available false). Nothing promises free capacity.
+        const pausedAi = createFakeAi();
+        pausedAi.catalogData.free_available = false;
+        for (const m of pausedAi.catalogData.models) for (const o of m.offers || []) if (o.free_tier) { o.free_now = false; o.status = 'exhausted'; }
+        const paused = await boot({ ai: pausedAi });
+        try {
+            await check('free paused: no Free to try, a plain note, and no free-messages stat', async () => {
+                const home = await paused.get('/');
+                assert.strictEqual(home.status, 200);
+                assert.ok(!home.text.includes('Free to try'), 'no offer is promised as free');
+                assert.ok(!home.text.includes('messages free every day'), 'the free allowance is not a stat while paused');
+                const models = await paused.get('/models');
+                assert.ok(models.text.includes('Free paused'), 'the paused offer says so');
+                const freeModel = pausedAi.catalogData.models.find((m) => (m.offers || []).some((o) => o.free_tier));
+                const page = await paused.get('/m/' + freeModel.slug);
+                assert.ok(page.text.includes('Free paused'));
+            });
+        } finally { await paused.close(); }
+
         const broken = await boot({ ai: createFakeAi(), openapiFetch: async () => { throw new Error('down'); } });
         try {
             await check('/openapi.json still answers when the API host is down', async () => {
