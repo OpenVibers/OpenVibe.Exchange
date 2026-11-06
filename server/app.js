@@ -28,6 +28,7 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
+const { createOpenApi } = require('./openapi');
 const { createChatStore, createAdultStore } = require('./chat/store');
 const { createPageRoutes } = require('./http/pages');
 const { createServiceReadiness } = require('./observability');
@@ -67,7 +68,8 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, ai, chats, adult, accountData, accountSend, log };
+    const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
+    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');

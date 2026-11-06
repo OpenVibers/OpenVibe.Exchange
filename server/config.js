@@ -72,6 +72,13 @@ function load(env = process.env) {
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
+        api: {
+            publicUrl: trim(env.OV_EXCHANGE_API_URL || 'https://api.openvibe.exchange'),
+            openapiUrl: trim(env.OV_EXCHANGE_OPENAPI_URL || 'https://api.openvibe.exchange/openapi.json'),
+            openapiCacheMs: Math.max(60_000, int(env.EXCHANGE_OPENAPI_CACHE_MS, 600_000)),
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_OPENAPI_TIMEOUT_MS, 15_000)),
+        },
+
         // /chat: how many messages a signed-in person may send a day (each one may run up to three models).
         chat: {
             perDay: Math.max(1, int(env.EXCHANGE_CHAT_PER_DAY, 40)),

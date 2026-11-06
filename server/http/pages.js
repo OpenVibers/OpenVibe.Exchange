@@ -33,7 +33,7 @@ const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sand
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
 
 function createPageRoutes(ctx) {
-    const { config, ai, chats, adult } = ctx;
+    const { config, ai, openapi, chats, adult } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -57,6 +57,15 @@ function createPageRoutes(ctx) {
         }, 410);
     }
     for (const p of RETIRED_PATHS) { r.get(p, retiredHandler); r.post(p, retiredHandler); }
+
+    // ── /openapi.json: the API host's document, as every OpenVibe site serves one ──
+    r.get('/openapi.json', async (req, res) => {
+        const { doc, stale } = await openapi();
+        res.status(200)
+            .type('application/json')
+            .set('Cache-Control', `public, max-age=${stale ? 60 : Math.floor(config.api.openapiCacheMs / 1000)}`)
+            .send(JSON.stringify(doc));
+    });
 
     // ── Home ─────────────────────────────────────────────────
     r.get('/', async (req, res) => {
@@ -138,7 +147,8 @@ function createPageRoutes(ctx) {
     // ── Chat ─────────────────────────────────────────────────
     async function chatCatalog() {
         const catalog = await catalogOf();
-        return { catalog, models: (catalog.models || []).filter((m) => m.type === 'chat' || m.type === 'vision') };
+        const notChat = new Set(['embedding', 'embeddings', 'stt', 'asr', 'tts', 'speech', 'image', 'images', 'rerank', 'moderation']);
+        return { catalog, models: (catalog.models || []).filter((m) => !notChat.has(String(m.kind || m.type || 'chat').toLowerCase())) };
     }
     const modelOptions = (models, selected) => models.slice(0, 40).map((m) => [m.slug, m.name + (m.uncensored ? ' · 18+' : ''), (selected || []).includes(m.slug)]);
 
@@ -185,7 +195,7 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
                 ? thread.card({ tone: 'bad', title: 'Did not answer', text: m.error })
                 : thread.answer({ html: textOf(m.content), meta: [] });
             const receipt = `<details class="ex-receipt"><summary>Receipt</summary><dl>
-<dt>Offer</dt><dd>${esc((m.meta && m.meta.provider) || '—')}${m.meta && m.meta.answered_model ? ` · ${esc(m.meta.answered_model)}` : ''}</dd>
+<dt>Offer</dt><dd>${esc(m.meta && m.meta.provider ? views.providerLabel({ provider: m.meta.provider }) : '—')}${m.meta && m.meta.answered_model ? ` · ${esc(m.meta.answered_model)}` : ''}</dd>
 <dt>Price</dt><dd>${cost == null ? '—' : Number(cost) === 0 ? 'free' : `$${Number(cost).toFixed(6)}`}</dd>
 <dt>Tokens</dt><dd>${m.meta && (m.meta.tokens_in != null || m.meta.tokens_out != null) ? `${Number(m.meta.tokens_in || 0).toLocaleString('en-US')} in · ${Number(m.meta.tokens_out || 0).toLocaleString('en-US')} out` : '—'}</dd>
 <dt>Latency</dt><dd>${latency == null ? '—' : `${Number(latency).toLocaleString('en-US')} ms`}</dd>

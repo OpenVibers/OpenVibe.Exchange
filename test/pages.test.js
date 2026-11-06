@@ -119,6 +119,68 @@ const { createFakeAi, downAi } = require('./helpers/ai');
         });
     } finally { await t.close(); }
 
+    await (async () => {
+        let calls = 0;
+        const openapiFetch = async () => {
+            calls += 1;
+            return {
+                ok: true,
+                json: async () => ({ openapi: '3.1.0', info: { title: 'OpenVibe.AI API' }, servers: [{ url: 'https://somewhere.else' }], paths: { '/v1/chat/completions': { post: {} } } }),
+            };
+        };
+        const o = await boot({ ai: createFakeAi(), openapiFetch });
+        try {
+            await check('/openapi.json is the API host’s document, on the API host, cached ten minutes', async () => {
+                const r = await o.get('/openapi.json');
+                assert.strictEqual(r.status, 200);
+                assert.match(r.headers.get('content-type'), /application\/json/);
+                assert.match(r.headers.get('cache-control'), /max-age=600/);
+                const doc = JSON.parse(r.text);
+                assert.strictEqual(doc.servers[0].url, 'https://api.openvibe.exchange');
+                assert.ok(doc.paths['/v1/chat/completions'], 'the API host’s paths, not Exchange v1’s');
+                await o.get('/openapi.json');
+                assert.strictEqual(calls, 1, 'read once, then cached');
+            });
+        } finally { await o.close(); }
+
+        const broken = await boot({ ai: createFakeAi(), openapiFetch: async () => { throw new Error('down'); } });
+        try {
+            await check('/openapi.json still answers when the API host is down', async () => {
+                const r = await broken.get('/openapi.json');
+                assert.strictEqual(r.status, 200);
+                assert.match(r.headers.get('cache-control'), /max-age=60/);
+                const doc = JSON.parse(r.text);
+                assert.strictEqual(doc.servers[0].url, 'https://api.openvibe.exchange');
+            });
+        } finally { await broken.close(); }
+    })();
+
+    await (async () => {
+        const catalog = createFakeAi().catalog();
+        const internal = {
+            slug: 'local/bge-small-en-v1.5', canonical: 'local/bge-small-en-v1.5', name: 'bge-small-en-v1.5',
+            family: 'Local model (OpenAI-compatible server on this host)', type: 'embedding', kind: 'embedding',
+            capabilities: {}, offers: [{ provider: 'local', provider_name: 'Local model (OpenAI-compatible server on this host)', model: 'bge', trust: 'first-party', free: true, price: null, speed: {}, uptime: null, requests_7d: 0, data_policy: null }], requests_7d: 0,
+        };
+        const chatKind = {
+            slug: 'deepseek/deepseek-chat', canonical: 'deepseek/deepseek-chat', name: 'DeepSeek Chat', family: 'DeepSeek', kind: 'chat',
+            capabilities: { tools: true }, offers: [{ provider: 'shared', provider_name: "Shared provider (Live's shared key)", model: 'deepseek-chat', id: 'deepseek/deepseek-chat@v1', trust: 'first-party', free: false, price: { in: 0.2, out: 0.3 }, speed: { p50_ms: 400, p95_ms: 800 }, uptime: 0.99, requests_7d: 5, data_policy: { trains: false, retention_days: 0 } }], requests_7d: 5,
+        };
+        const c = await boot({ ai: { ...createFakeAi(), catalog: async () => ({ generated_at: '', models: [internal, chatKind], families: [], count: 2 }) } });
+        try {
+            await check('only chat models are listed, and a provider’s internal label is never printed', async () => {
+                for (const p of ['/', '/models', '/api', '/status']) {
+                    const r = await c.get(p);
+                    assert.strictEqual(r.status, 200, p);
+                    assert.ok(!/Local model \(OpenAI-compatible|Shared provider \(Live/.test(r.text), `${p} prints no internal label`);
+                    assert.ok(!r.text.includes('bge-small'), `${p} sells no embedding`);
+                }
+                const m = await c.get('/m/deepseek/deepseek-chat');
+                assert.ok(m.text.includes('OpenVibe'), 'the shared capacity is said as OpenVibe');
+            });
+        } finally { await c.close(); }
+    })();
+
     const down = await boot({ ai: downAi });
     try {
         await check('AI unreachable: every page still renders and says the numbers are not live', async () => {

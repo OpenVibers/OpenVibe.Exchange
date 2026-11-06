@@ -20,8 +20,35 @@ const count = (n) => (n == null ? '–' : Number(n).toLocaleString('en-US'));
 const blended = (price) => (price ? (Number(price.in) + Number(price.out)) / 2 : Number.POSITIVE_INFINITY);
 const cheapest = (m) => (m.offers || []).filter((o) => o.price).sort((a, b) => blended(a.price) - blended(b.price))[0] || null;
 const hrefOf = (m) => `/m/${String(m.slug).split('/').map(encodeURIComponent).join('/')}`;
-const providerCount = (catalog) => new Set((catalog.models || []).flatMap((m) => m.offers.map((o) => o.provider))).size;
-const offerCount = (catalog) => (catalog.models || []).reduce((n, m) => n + m.offers.length, 0);
+const providerCount = (models) => new Set(models.flatMap((m) => (m.offers || []).map((o) => o.provider))).size;
+const offerCount = (models) => models.reduce((n, m) => n + (m.offers || []).length, 0);
+
+/**
+ * Only chat and vision models are sold here, and the read API's kind (when it sends one) is the truth; the
+ * older type field is the fallback until every deployment carries kind.
+ */
+const kindOf = (m) => String((m.kind || m.type || 'chat')).toLowerCase();
+const NOT_CHAT = new Set(['embedding', 'embeddings', 'stt', 'asr', 'tts', 'speech', 'image', 'images', 'rerank', 'moderation']);
+const isChat = (m) => !NOT_CHAT.has(kindOf(m));
+const chatModels = (catalog) => (catalog.models || []).filter(isChat);
+
+/**
+ * A provider's internal label ("Shared provider (Live's shared key)", "Local model (OpenAI-compatible server
+ * on this host)") is an operations name, not something to print. It is shown as what it is in public: OpenVibe's
+ * own capacity. Community capacity is a person's machine, said as that.
+ */
+const INTERNAL = /provider|shared key|openai-compatible|local model|speech-to-text|whisper\.cpp|^local$|^shared$/i;
+function providerLabel(offer) {
+    if (!offer) return '';
+    const name = String(offer.provider_name || offer.provider || '');
+    if (INTERNAL.test(name) || INTERNAL.test(String(offer.provider || ''))) return offer.trust === 'community' ? 'A community machine' : 'OpenVibe';
+    return name;
+}
+
+function familyLabel(m) {
+    const name = String((m && m.family) || '');
+    return !name || INTERNAL.test(name) || name.length > 24 ? 'Other' : name;
+}
 
 /**
  * The privacy label the design asks for, from facts only: a community machine sees the prompt; zero retention
@@ -64,13 +91,13 @@ function panel({ title, note = '', id, body, cls = '' }) {
 function modelRow(m, { withTry = true } = {}) {
     const best = cheapest(m);
     const bits = [];
-    if (best) bits.push(best.provider_name, inOut(best.price), ms(best.speed.p50_ms), pct(best.uptime));
-    else if (m.offers[0]) bits.push(m.offers[0].provider_name, 'free capacity');
+    if (best) bits.push(providerLabel(best), inOut(best.price), ms(best.speed.p50_ms), pct(best.uptime));
+    else if (m.offers[0]) bits.push(providerLabel(m.offers[0]), 'free capacity');
     if (best && best.refusal_rate != null) bits.push(`refuses ${pct(best.refusal_rate)}`);
     const pv = privacyOf(best || m.offers[0]);
     if (pv) bits.push(pv.short);
     return `<li class="ex-mrow">
-<a class="ex-mrow-main" href="${hrefOf(m)}">${mark(m.family)}<span class="ex-mrow-text"><span class="ex-mrow-title"><b>${esc(m.name)}</b>${badgesOf(m, best)}</span><small>${bits.map((b) => esc(b)).join(' · ')}</small></span></a>
+<a class="ex-mrow-main" href="${hrefOf(m)}">${mark(familyLabel(m))}<span class="ex-mrow-text"><span class="ex-mrow-title"><b>${esc(m.name)}</b>${badgesOf(m, best)}</span><small>${bits.map((b) => esc(b)).join(' · ')}</small></span></a>
 ${withTry ? `<a class="ex-try-link" href="${hrefOf(m)}#try">Try it</a>` : ''}
 </li>`;
 }
@@ -82,7 +109,7 @@ function modelList(models, { empty = 'No model matches yet.', withTry = true } =
 
 // ── Home ───────────────────────────────────────────────────
 function home({ catalog, usage, viewer, q = '', config = null }) {
-    const models = catalog.models || [];
+    const models = chatModels(catalog);
     const paid = models.map((m) => ({ m, o: cheapest(m) })).filter((x) => x.o).sort((a, b) => blended(a.o.price) - blended(b.o.price));
     const popular = [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 8);
     const bestPrice = paid[0] && paid[0].o;
@@ -90,7 +117,7 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 
     const stats = [];
     if (models.length) stats.push([models.length, 'models']);
-    if (providerCount(catalog)) stats.push([providerCount(catalog), 'providers']);
+    if (providerCount(models)) stats.push([providerCount(models), 'providers']);
     if (bestPrice) stats.push([money(bestPrice.price.in), 'cheapest in, per million']);
     if (config) stats.push([config.chat.perDay, 'messages free every day']);
     if (usage.today && usage.today.requests >= 1000) stats.push([count(usage.today.requests), 'requests today']);
@@ -134,8 +161,8 @@ ${panel({
 /** The hero's side-by-side chat preview: real models and prices, example words, said as an example. */
 function previewCard(preview) {
     const cells = preview.map(({ m, o }) => `<article class="ex-preview-cell">
-<header>${mark(m.family, { size: 22, label: false })}<b>${esc(m.name)}</b></header>
-<p>${esc(EXAMPLE_ANSWER[m.family] || EXAMPLE_ANSWER.Default)}</p>
+<header>${mark(familyLabel(m), { size: 22, label: false })}<b>${esc(m.name)}</b></header>
+<p>${esc(EXAMPLE_ANSWER[familyLabel(m)] || EXAMPLE_ANSWER.Default)}</p>
 <footer>${o ? `${money(o.price.in)} in · ${money(o.price.out)} out · ${ms(o.speed.p50_ms)}` : 'free capacity'}</footer>
 </article>`).join('');
     return `<aside class="ex-preview" aria-label="A preview of the side-by-side chat">
@@ -174,12 +201,12 @@ function productsSummary(usage) {
 
 // ── Models ─────────────────────────────────────────────────
 function modelsPage({ catalog, q = '', family = '', sort = '' }) {
-    let models = catalog.models || [];
-    const families = (catalog.families || []).map((f) => f.name);
-    if (family) models = models.filter((m) => m.family === family);
+    let models = chatModels(catalog);
+    const families = [...new Set(models.map(familyLabel))].filter((f) => f !== 'Other').sort();
+    if (family) models = models.filter((m) => familyLabel(m) === family);
     if (q) {
         const needle = String(q).toLowerCase();
-        models = models.filter((m) => `${m.name} ${m.family} ${m.slug} ${m.offers.map((o) => o.provider_name).join(' ')}`.toLowerCase().includes(needle));
+        models = models.filter((m) => `${m.name} ${familyLabel(m)} ${m.slug} ${m.offers.map(providerLabel).join(' ')}`.toLowerCase().includes(needle));
     }
     if (sort === 'cheap') models = [...models].sort((a, b) => blended((cheapest(a) || { price: null }).price) - blended((cheapest(b) || { price: null }).price));
     else if (sort === 'fast') models = [...models].sort((a, b) => (cheapest(a) ? cheapest(a).speed.p50_ms || 1e9 : 1e9) - (cheapest(b) ? cheapest(b).speed.p50_ms || 1e9 : 1e9));
@@ -189,7 +216,7 @@ function modelsPage({ catalog, q = '', family = '', sort = '' }) {
     const familyLinks = families.slice(0, 10).map((f) => `<a class="ex-chip${f === family ? ' is-on' : ''}" href="/models?family=${encodeURIComponent(f)}">${esc(f)}</a>`).join('');
 
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'Models', sub: `${models.length} model${models.length === 1 ? '' : 's'} · ${offerCount(catalog)} offers, live`, actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
+${kit.head({ title: 'Models', sub: `${models.length} model${models.length === 1 ? '' : 's'} · ${offerCount(models)} offers, live`, actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provider', value: q, icon: 'search' })}
 <div class="ex-chips" role="group" aria-label="Sort">${links}</div>
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
@@ -224,7 +251,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
     const rows = offers.map((o) => {
         const p = privacyOf(o);
         return {
-            provider: `<a class="ex-offer-name" href="#try">${esc(o.provider_name)}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}${o.access && o.access !== 'UNVERIFIED' && o.access !== 'OWN_DEPLOYMENT' ? ` ${kit.badge(o.access.toLowerCase().replace(/_/g, ' '))}` : ''}`,
+            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}`,
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             uptime: o.uptime == null ? '–' : pct(o.uptime),
@@ -240,7 +267,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
     const sdk = `import OpenAI from 'openai';\nconst ai = new OpenAI({ baseURL: 'https://api.openvibe.exchange/v1', apiKey: process.env.OPENVIBE_KEY });\nconst r = await ai.chat.completions.create({ model: '${modelId}', messages: [{ role: 'user', content: 'Hello' }] });`;
 
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: model.name, sub: `${model.family}${model.variant ? ` · ${model.variant}` : ''} · ${offers.length} offer${offers.length === 1 ? '' : 's'}`, back: { href: '/models', label: 'Models' }, actions: badges ? [badges] : [] })}
+${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` · ${model.variant}` : ''} · ${offers.length} offer${offers.length === 1 ? '' : 's'}`, back: { href: '/models', label: 'Models' }, actions: badges ? [badges] : [] })}
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
@@ -297,7 +324,7 @@ function policyText(p) {
 
 function resultCard(result) {
     const facts = [
-        ['Provider', result.provider || '–'],
+        ['Offer', result.provider ? (INTERNAL.test(String(result.provider)) ? 'OpenVibe' : result.provider) : '–'],
         ['Cost', result.cost_usd == null ? '–' : `$${Number(result.cost_usd).toFixed(6)}`],
         ['Latency', result.latency_ms == null ? '–' : ms(result.latency_ms)],
         ['Tokens', `${count(result.tokens_in)} in · ${count(result.tokens_out)} out`],
@@ -312,8 +339,8 @@ function resultCard(result) {
 
 // ── API ────────────────────────────────────────────────────
 function apiPage({ catalog, usage }) {
-    const models = (catalog.models || []).filter((m) => !m.uncensored).slice(0, 12);
-    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, family: esc(m.family), context: m.context || null }));
+    const models = chatModels(catalog).filter((m) => !m.uncensored).slice(0, 12);
+    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, family: esc(familyLabel(m)), context: m.context || null }));
     const byDay = (usage.by_day || []).slice(-14).reverse();
     const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: count((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd).toFixed(4)}` }));
     return `<div class="ex-wrap ex-page">
@@ -338,10 +365,10 @@ function sellPage({ catalog, usage }) {
     const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community').map((o) => ({ model: m, offer: o })));
     const first = offers[0];
     const seller = first
-        ? sellerCard({ machine: first.offer.provider_name, model: first.model, offer: first.offer, example: false })
+        ? sellerCard({ machine: providerLabel(first.offer), model: first.model, offer: first.offer, example: false })
         : sellerCard({ machine: 'RTX 3090', model: { name: 'Qwen 32B', family: 'Qwen' }, offer: { speed: { p50_ms: 24 }, uptime: 0.994 }, example: true });
     const machineRows = offers.slice(0, 10).map(({ model, offer }) => ({
-        model: `<a href="${hrefOf(model)}">${esc(model.name)}</a>`, provider: esc(offer.provider_name),
+        model: `<a href="${hrefOf(model)}">${esc(model.name)}</a>`, provider: esc(providerLabel(offer)),
         price: offer.price ? `${money(offer.price.in)} / ${money(offer.price.out)}` : 'volunteer (free)',
         uptime: offer.uptime == null ? '–' : pct(offer.uptime),
     }));
@@ -444,18 +471,18 @@ ${panel({ title: 'The cost, per day', body: usage.totals ? `<p class="ex-prose">
 
 // ── Status ─────────────────────────────────────────────────
 function statusPage({ catalog, usage }) {
-    const offers = (catalog.models || []).flatMap((m) => m.offers.map((o) => ({ m, o })));
+    const offers = chatModels(catalog).flatMap((m) => m.offers.map((o) => ({ m, o })));
     offers.sort((a, b) => (b.o.requests_7d || 0) - (a.o.requests_7d || 0));
     const rows = offers.slice(0, 40).map(({ m, o }) => ({
         model: `<a href="${hrefOf(m)}">${esc(m.name)}</a>`,
-        provider: esc(o.provider_name),
+        provider: esc(providerLabel(o)),
         uptime: o.uptime == null ? '<span class="ex-muted">no traffic</span>' : pct(o.uptime),
         traffic: count(o.requests_7d),
         speed: o.speed.p95_ms == null ? '–' : ms(o.speed.p95_ms),
         updated: o.updated_at ? String(o.updated_at).slice(0, 10) : '–',
     }));
     const recent = [...offers].filter(({ o }) => o.updated_at).sort((a, b) => String(b.o.updated_at).localeCompare(String(a.o.updated_at))).slice(0, 10)
-        .map(({ m, o }) => `<li><time>${esc(String(o.updated_at).slice(0, 10))}</time> ${esc(m.name)} on ${esc(o.provider_name)}${o.price ? ` · ${inOut(o.price)}` : ''}</li>`).join('');
+        .map(({ m, o }) => `<li><time>${esc(String(o.updated_at).slice(0, 10))}</time> ${esc(m.name)} on ${esc(providerLabel(o))}${o.price ? ` · ${inOut(o.price)}` : ''}</li>`).join('');
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Status', sub: 'Uptime per offer, the model changelog, and incidents.', actions: [kit.button({ href: '/models', label: 'Models', kind: 'quiet' })] })}
 ${unavailable(catalog, 'The status board')}
@@ -489,4 +516,4 @@ ${panel({ title: 'Where those things live now', body: `<ul class="ex-list">
 </div>`;
 }
 
-module.exports = { home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, privacyOf, ENDPOINT };
+module.exports = { home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, privacyOf, providerLabel, familyLabel, chatModels, ENDPOINT };
