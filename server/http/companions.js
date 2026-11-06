@@ -286,7 +286,7 @@ function createCompanionRoutes(ctx) {
         if (card.scenario) lines.push('Scenario: ' + card.scenario);
         if (chat.persona) lines.push('The person you talk with plays: ' + chat.persona);
         if (card.first_message) lines.push('Begin with: ' + card.first_message);
-        lines.push('Stay in character and answer as the character would. The hard floor holds on every model: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.');
+        lines.push('Stay in character and answer as the character would. The hard floor holds on every model: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.');
         return lines.join(String.fromCharCode(10));
     }
 

@@ -157,7 +157,7 @@ function cardForm({ card = null, action = '/companions/new', title = 'Make a cha
         + '<option value="everyone"' + (c.rating === 'adult' ? '' : ' selected') + '>Everyone</option>'
         + '<option value="adult"' + (c.rating === 'adult' ? ' selected' : '') + '>18+</option>'
         + '</select>'
-        + '<p class="ex-hint">A card rated 18+ whose stated age is under 18 is refused at save. The hard floor applies to every card: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.</p>'
+        + '<p class="ex-hint">A card rated 18+ whose stated age is under 18 is refused at save. The hard floor applies to every card: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.</p>'
         + field('avatar_url', 'Avatar image URL (optional)', c.avatar_url, 'maxlength="400"')
         + field('model', 'Model this card recommends (optional)', c.model, 'maxlength="120"')
         + '<label class="ex-label" for="ex-import">Import a card instead (JSON or PNG)</label>'

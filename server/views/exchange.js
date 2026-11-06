@@ -465,7 +465,7 @@ function companionsPolicy() {
         + '<li>On a chat, your own message is checked before it is sent, and the answer is checked before it is shown.</li>'
         + '<li>An answer that breaks the floor is never delivered: the chat ends and the account is reviewed.</li>'
         + '<li>An 18+ character shows only to people signed in with the 18+ confirmation, and never reaches a public list, a sitemap, llms.txt or a search.</li>'
-        + '</ul><p class="ex-prose">The same three rules as everywhere else, with the character’s own card in scope: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.</p>';
+        + '</ul><p class="ex-prose">The same three rules as everywhere else, with the character’s own card in scope: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.</p>';
     return panel({ title: 'The floor on characters and chats', id: 'companions-floor', body });
 }
 
