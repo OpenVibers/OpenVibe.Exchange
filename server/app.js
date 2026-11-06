@@ -30,7 +30,10 @@ const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
 const { createOpenApi } = require('./openapi');
 const { createChatStore, createAdultStore } = require('./chat/store');
+const { createCharacterStore, createCompanionChatStore } = require('./companions/store');
+const { createSharing } = require('./companions/sharing');
 const { createPageRoutes } = require('./http/pages');
+const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
 const { assetVersion, send } = require('./render/layout');
 const { raw } = require('./render/html');
@@ -53,6 +56,10 @@ async function createApp(opts = {}) {
     const fetchImpl = opts.fetchImpl || globalThis.fetch;
     const s = opts.store || await openStore(config, { now: opts.now, log });
 
+    // The sharing system's own DDL (openvibe-sdk/share). The migration role creates it in production; the runtime
+    // role may not run DDL, so a failure here is not fatal: the tables are already there.
+    try { await require('openvibe-sdk/share').migrateShares(s.db); } catch (err) { log.warn('[Exchange] the sharing tables are not ready:', err.message); }
+
     const keys = createKeyStore({ config, fetchImpl, log });
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
@@ -60,6 +67,10 @@ async function createApp(opts = {}) {
     const ai = opts.ai || createAi({ config, fetchImpl: opts.aiFetchImpl || globalThis.fetch, log, now: s.now });
     const chats = createChatStore(s);
     const adult = createAdultStore(s);
+    // Companions (2026-11-06): the cards, their chats, and the one sharing system they use.
+    const characters = createCharacterStore(s);
+    const companionChats = createCompanionChatStore(s);
+    const sharing = createSharing({ db: s.db, config, fetchImpl, log });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -69,7 +80,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, accountData, accountSend, log };
+    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, characters, companionChats, sharing, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -176,6 +187,8 @@ async function createApp(opts = {}) {
         agentLayer.mount(agent, { descriptor: require('./agent-descriptor'), render: require('./agent-pages').createAgentPages(ctx).renderPublicPage });
         app.use(agent);
     }
+    // The companions routes come before the pages router: /companions, /c/... and /talk/...
+    app.use(createCompanionRoutes(ctx));
     app.use(createPageRoutes(ctx));
 
     // eslint-disable-next-line no-unused-vars

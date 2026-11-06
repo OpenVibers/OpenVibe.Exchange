@@ -52,6 +52,24 @@ function createDiscoveryRoutes(ctx) {
     const TEXT = cache.htmlHeaders({ maxAge: 3600 });
     const pages = publicPages();
 
+    /**
+     * The public character pages. Only cards that are public and rated for everyone: an 18+ card never
+     * reaches a sitemap, llms.txt or any other public list.
+     */
+    async function characterPages() {
+        if (!ctx.characters) return [];
+        try {
+            const gallery = await ctx.characters.gallery({ sort: 'new', limit: 500, allowAdult: false });
+            return gallery.items.map((c) => ({
+                path: '/c/' + encodeURIComponent(c.handle) + '/' + encodeURIComponent(c.slug),
+                title: c.name,
+                text: String(c.description || c.name).slice(0, 160),
+                changefreq: 'weekly',
+                priority: 0.5,
+            }));
+        } catch (e) { return []; }
+    }
+
     async function modelPages() {
         const catalog = await ai.catalog();
         return (catalog.models || []).slice(0, 5000).map((m) => ({
@@ -71,7 +89,9 @@ function createDiscoveryRoutes(ctx) {
 
     r.get('/llms.txt', async (_req, res) => {
         let models = [];
+        let characters = [];
         try { models = (await ai.catalog()).models || []; } catch (e) { models = []; }
+        try { characters = await characterPages(); } catch (e) { characters = []; }
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: DESCRIPTION,
@@ -87,6 +107,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Uncensored (18+)', url: abs('/uncensored') },
                     { title: 'AI in OpenVibe', url: abs('/ai') },
                 ] },
+                { title: 'Characters', links: [{ title: 'The gallery', url: abs('/companions'), note: 'character cards' }, ...characters.slice(0, 40).map((c) => ({ title: c.title, url: abs(c.path), note: c.text }))] },
                 { title: 'Models', links: models.slice(0, 60).map((m) => ({
                     title: m.name, url: abs(`/m/${m.slug.split('/').map(encodeURIComponent).join('/')}`),
                     note: [m.family, m.uncensored ? '18+' : null, m.offers.length ? `${m.offers.length} offers` : null].filter(Boolean).join(' · '),
@@ -104,23 +125,28 @@ function createDiscoveryRoutes(ctx) {
 
     r.get('/llms-full.txt', async (_req, res) => {
         let modelPageRows = [];
+        let characterRows = [];
         try { modelPageRows = await modelPages(); } catch (e) { modelPageRows = []; }
+        try { characterRows = await characterPages(); } catch (e) { characterRows = []; }
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsFull({
             site: SITE_NAME,
             summary: 'Every public page of OpenVibe.Exchange: the home, the models, the API, selling compute, the uncensored tier and AI in OpenVibe.',
             base: site,
             maxBytes: 512 * 1024,
-            sections: [{ title: 'Pages', pages: [...pages, ...modelPageRows].map((p) => ({ url: p.path, title: p.title, text: p.text })) }],
+            sections: [{ title: 'Pages', pages: [...pages, ...modelPageRows, ...characterRows].map((p) => ({ url: p.path, title: p.title, text: p.text })) }],
         }));
     });
 
     r.get('/sitemap.xml', async (_req, res) => {
         const lastmod = siteUpdated();
         let rows = [];
+        let characters = [];
         try { rows = await modelPages(); } catch (e) { rows = []; }
+        try { characters = await characterPages(); } catch (e) { characters = []; }
         const urls = [
             ...pages.map((e) => ({ loc: abs(e.path), ...(lastmod ? { lastmod } : {}), changefreq: e.changefreq, priority: e.priority })),
             ...rows.map((e) => ({ loc: abs(e.path), ...(lastmod ? { lastmod } : {}), changefreq: e.changefreq, priority: e.priority })),
+            ...characters.map((e) => ({ loc: abs(e.path), ...(lastmod ? { lastmod } : {}), changefreq: e.changefreq, priority: e.priority })),
         ];
         res.type('application/xml').set('Cache-Control', TEXT).send(seo.sitemapXml(urls));
     });

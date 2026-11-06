@@ -79,7 +79,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
 
     /** One completion, as the person: the run's quota and free allowance are theirs (on_behalf_of). */
-    async function chat({ model, messages, temperature = null, maxTokens = 1024, subject, signal = null }) {
+    async function chat({ model, messages, temperature = null, maxTokens = 1024, subject, signal = null, policy = null, preset = null, max_cost_usd = null }) {
         if (!tokens) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
         const token = await tokens.getToken();
         const body = {
@@ -89,9 +89,14 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
                 ...(model ? { model: String(model).slice(0, 256) } : {}),
                 ...(temperature != null ? { temperature: Number(temperature) } : {}),
                 ...(maxTokens ? { max_tokens: Math.max(1, Math.min(16000, Number(maxTokens) || 1024)) } : {}),
+                ...(max_cost_usd != null ? { max_cost_usd: Number(max_cost_usd) } : {}),
             },
             ...(subject ? { on_behalf_of: { type: 'user', id: String(subject) } } : {}),
-            options: { cache: 'none' },
+            options: {
+                cache: 'none',
+                ...(policy ? { policy: String(policy).slice(0, 40) } : {}),
+                ...(preset ? { preset: { name: String(preset).slice(0, 120), ...(policy ? { policy: String(policy).slice(0, 40) } : {}) } } : {}),
+            },
         };
         const res = await fetchImpl(`${config.ai.url}/api/v1/runs?wait=${config.ai.waitMs}`, {
             method: 'POST',
