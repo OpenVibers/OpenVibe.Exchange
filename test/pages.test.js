@@ -86,8 +86,10 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.strictEqual(r.status, 200);
             assert.ok(r.text.includes('Sign in with OpenVibe'), 'signed out: sign in first');
             assert.ok(r.text.includes('No sexual content involving minors'));
-            assert.ok(r.text.includes('No non-consensual sexual content of real people'));
+            assert.ok(r.text.includes('No non-consensual sexual content (fiction included), and no incest'));
             assert.ok(r.text.includes('No help with weapons of mass harm'));
+            // The policy says plainly why the second line is not negotiable.
+            assert.ok(r.text.includes('Non-consensual sexual content (fiction included) and incest are refused, because payment providers and hosts ban them.'));
         });
 
         await check('AI in OpenVibe: which product runs which model, and the daily cost', async () => {
