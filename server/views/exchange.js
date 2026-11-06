@@ -520,7 +520,7 @@ function changelogBody(changes) {
         : '');
     const priceChange = (x) => `${x.was_in == null && x.was_out == null ? 'no price' : `${money(x.was_in)} in / ${money(x.was_out)} out`} → ${x.price_in == null && x.price_out == null ? 'free capacity' : `${money(x.price_in)} in / ${money(x.price_out)} out`}`;
     const where = (x) => (x.community ? 'a community machine' : (x.provider ? providerLabel({ provider: x.provider, provider_name: x.provider }) : ''));
-    const added = block('New', changes.added, (x) => `<li><b>${esc(x.name)}</b>${x.family ? ` <span class="ex-muted">${esc(x.family)}</span>` : ''}${where(x) ? ` on ${esc(where(x))}` : ''}${x.price_out == null ? '' : ` · ${money(x.price_out)} out per M`}</li>`);
+    const added = block('New', changes.added, (x) => `<li><b>${esc(x.name)}</b>${x.family ? ` · <span class="ex-muted">${esc(x.family)}</span>` : ''}${where(x) ? ` on ${esc(where(x))}` : ''}${x.price_out == null ? '' : ` · ${money(x.price_out)} out per M`}</li>`);
     const repriced = block('Price changed', changes.repriced, (x) => `<li><b>${esc(x.name)}</b> · ${esc(priceChange(x))}</li>`);
     const gone = block('Gone', changes.gone, (x) => `<li><b>${esc(x.name)}</b>${where(x) ? ` <span class="ex-muted">on ${esc(where(x))}</span>` : ''}</li>`);
     const body = `${added}${repriced}${gone}` || '<p class="ex-prose">No model arrived, left or changed its price between the two recorded days.</p>';
