@@ -3,6 +3,9 @@
 // own render through the same views and layout the HTML routes use, always signed out: a chat, a try box and the
 // 18+ confirmation never appear in a twin.
 const views = require('./views/exchange');
+const arenaViews = require('./views/arena');
+const { CATEGORIES } = require('./arena/category');
+const { ARENA_KIND } = require('./bench');
 const { raw } = require('./render/html');
 const { renderPage } = require('./render/layout');
 const { homeJsonLd } = require('./http/discovery');
@@ -10,7 +13,7 @@ const { homeJsonLd } = require('./http/discovery');
 const HOME_DESCRIPTION = 'OpenVibe.Exchange: every AI model, one account. Live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
 
 function createAgentPages(ctx) {
-    const { config, ai } = ctx;
+    const { config, ai, bench, history } = ctx;
     const page = (path, o) => ({ html: renderPage({ viewer: { kind: 'anonymous' }, config, path, agentLayer: true, ...o }), title: o.title });
 
     async function home(path) {
@@ -52,9 +55,22 @@ function createAgentPages(ctx) {
             const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
             return page(p, { index: true, title: 'AI in OpenVibe', description: 'Which OpenVibe products use which models, and what each costs a day.', body: raw(views.aiPage({ catalog, usage })) });
         }
+        if (p === '/rankings') {
+            const [catalog, usage, board] = await Promise.all([
+                ai.catalog(), ai.usage(30), bench.board({ kind: ARENA_KIND, category: 'all' }),
+            ]);
+            return page(p, {
+                index: true, title: 'Rankings',
+                description: 'Model rankings by task category from blind Arena votes, beside price, speed and uptime.',
+                body: raw(arenaViews.rankingsPage({ catalog, usage, board, category: 'all', sort: '', categories: ['all', ...CATEGORIES] })),
+            });
+        }
         if (p === '/status') {
-            const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
-            return page(p, { index: true, title: 'Status', description: 'Uptime per offer, the model changelog, and incidents.', body: raw(views.statusPage({ catalog, usage })) });
+            const [catalog, usage, changes] = await Promise.all([
+                ai.catalog(), ai.usage(30),
+                history ? history.changes().catch(() => null) : Promise.resolve(null),
+            ]);
+            return page(p, { index: true, title: 'Status', description: 'Uptime per offer, the model changelog, and incidents.', body: raw(views.statusPage({ catalog, usage, changes })) });
         }
         return null;
     }

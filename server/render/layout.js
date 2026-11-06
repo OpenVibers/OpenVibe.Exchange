@@ -22,6 +22,8 @@ const NAV = [
     { label: 'Home', href: '/' },
     { label: 'Models', href: '/models' },
     { label: 'Chat', href: '/chat' },
+    { label: 'Arena', href: '/arena' },
+    { label: 'Rankings', href: '/rankings' },
     { label: 'API', href: '/api' },
     { label: 'Sell compute', href: '/sell' },
     { label: 'Uncensored', href: '/uncensored' },

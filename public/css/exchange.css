@@ -458,3 +458,59 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
     .ex-act { min-height: 44px; }
     .ex-branch-arrow { min-width: 44px; min-height: 44px; }
 }
+
+/* ── The Arena and the rankings ─────────────────────────── */
+.ex-arena-form textarea { width: 100%; }
+.ex-arena-form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 10px; }
+.ex-arena-form-row .ex-muted { font-size: .82rem; }
+.ex-arena-steps { display: grid; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; counter-reset: arena; }
+.ex-arena-steps li { position: relative; padding-left: 34px; line-height: 1.5; }
+.ex-arena-steps li::before {
+    counter-increment: arena; content: counter(arena);
+    position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 999px;
+    display: grid; place-items: center; font-size: .78rem; font-weight: 800;
+    background: var(--ovk-panel-2); color: var(--ovk-accent);
+}
+.ex-arena-recent { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ovk-line); }
+.ex-arena-recent li { border-bottom: 1px solid var(--ovk-line); }
+.ex-arena-recent a { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; align-items: baseline; padding: 12px 14px; text-decoration: none; color: inherit; }
+.ex-arena-recent a:hover, .ex-arena-recent a:focus-visible { background: var(--ovk-panel-2); }
+.ex-arena-recent small { color: var(--ovk-muted); font-size: .78rem; }
+.ex-arena-count { margin: 0 0 8px; font-size: .82rem; }
+.ex-arena-prompt { margin: 0 0 8px; font-size: 1.02rem; line-height: 1.55; }
+
+.ex-arena-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 860px) { .ex-arena-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ex-arena-answer { min-width: 0; border: 1px solid var(--ovk-line); border-radius: 16px; background: var(--ovk-panel); padding: 12px 14px; }
+.ex-arena-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--ovk-line); }
+.ex-arena-head b { font-size: .95rem; }
+.ex-arena-head .ex-muted { font-size: .74rem; overflow-wrap: anywhere; }
+.ex-arena-letter {
+    display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 999px;
+    background: var(--ovk-panel-2); color: var(--ovk-accent); font-weight: 800; font-size: .82rem;
+}
+.ex-arena-text { font-size: .95rem; line-height: 1.55; overflow-wrap: anywhere; }
+.ex-arena-receipt { margin-top: 12px; }
+
+.ex-arena-vote { margin-top: 16px; }
+.ex-arena-vote fieldset { margin: 0; padding: 0; border: 0; }
+.ex-arena-vote legend { font-weight: 700; margin-bottom: 8px; }
+.ex-arena-vote-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ex-arena-vote-row .ovk-btn { flex: 1 1 140px; min-height: 44px; }
+.ex-arena-vote .ex-muted { margin: 8px 0 0; font-size: .8rem; }
+.ex-arena-voted { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 16px 0 0; }
+
+@media (min-width: 860px) {
+    .ex-rankings-table td:first-child, .ex-rankings-table th:first-child { white-space: nowrap; }
+}
+
+/* A table's model link is a finger target on a phone, not only a word in a cell. */
+@media (max-width: 700px) {
+    .ex-page .ovk-table th a, .ex-page .ovk-table td a { display: inline-flex; align-items: center; min-height: 44px; }
+    .ex-arena-voted .ovk-btn { min-height: 44px; }
+}
+
+/* The status changelog: one line per change, so a long model name can wrap without a flex split. */
+.ex-changes { list-style: none; margin: 0 0 12px; padding: 0; }
+.ex-changes li { padding: 8px 0; border-top: 1px solid var(--ovk-line); font-size: .9rem; line-height: 1.5; }
+.ex-changes li:first-child { border-top: 0; }

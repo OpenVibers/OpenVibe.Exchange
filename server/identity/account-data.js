@@ -22,6 +22,10 @@ const TABLES = [
     { table: 'exchange_chats', subject: 'owner', value: (usr) => usr, file: 'chats.json', erase: 'delete' },
     { table: 'exchange_chat_messages', subject: 'owner', value: (usr) => usr, file: 'chat-messages.json', erase: 'delete' },
     { table: 'exchange_adult_confirmations', subject: 'subject', value: (usr) => usr, file: 'adult-confirmation.json', erase: 'delete' },
+    // The Arena (2026-11-06): the rounds this person asked for and the votes they cast are theirs. A vote
+    // goes first, then its round (the vote also cascades from the round).
+    { table: 'exchange_arena_votes', subject: 'owner', value: (usr) => usr, file: 'arena-votes.json', erase: 'delete' },
+    { table: 'exchange_arena_rounds', subject: 'owner', value: (usr) => usr, file: 'arena-rounds.json', erase: 'delete' },
     // The companions (2026-11-06): a person's characters, their chats and the messages in them are theirs,
     // exactly like the chats above. The messages go first, then the chats, then the characters: a character
     // may be deleted while somebody else's chat still points at it, and that chat keeps its messages.

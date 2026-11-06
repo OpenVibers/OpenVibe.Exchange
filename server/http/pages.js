@@ -33,7 +33,7 @@ const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sand
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
 
 function createPageRoutes(ctx) {
-    const { config, ai, openapi, chats, adult, log } = ctx;
+    const { config, ai, history, openapi, chats, adult, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -44,7 +44,13 @@ function createPageRoutes(ctx) {
         title, index: false,
         body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'person', title, text, action: { href: `/auth/login?next=${encodeURIComponent(next || req.originalUrl)}`, label: 'Sign in with OpenVibe' } })}</div>`),
     }, status);
-    const catalogOf = () => ai.catalog();
+    // The catalogue is also the day's changelog row: the first read of a UTC day records what every model
+    // costs, so /status can say what is new, gone or repriced without keeping a second catalogue.
+    const catalogOf = async () => {
+        const catalog = await ai.catalog();
+        await history.capture(catalog).catch((err) => log.warn('[OpenVibe.Exchange] catalogue snapshot failed:', err.message));
+        return catalog;
+    };
 
     // ── Exchange v1, retired ──────────────────────────────────
     function retiredHandler(req, res) {
@@ -159,6 +165,8 @@ function createPageRoutes(ctx) {
             groups: thread.group(items.sort((a, b) => String(b.at).localeCompare(String(a.at))), (c) => c.at || Date.now()),
             nav: [
                 { href: '/models', label: 'Models', icon: 'spark' },
+                { href: '/arena', label: 'The Arena', icon: 'spark' },
+                { href: '/rankings', label: 'Rankings', icon: 'trophy' },
                 { href: '/api', label: 'API', icon: 'code' },
                 { href: '/ai', label: 'AI in OpenVibe', icon: 'gear' },
             ],
@@ -438,11 +446,15 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
 
     // ── Status ───────────────────────────────────────────────
     r.get('/status', async (req, res) => {
-        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+        const catalog = await catalogOf();
+        const [usage, changes] = await Promise.all([
+            ai.usage(30),
+            history.changes().catch((err) => { log.warn('[OpenVibe.Exchange] changelog failed:', err.message); return null; }),
+        ]);
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: 'Status', description: 'Uptime per offer, the model changelog and incidents on OpenVibe.Exchange.',
-            body: raw(views.statusPage({ catalog, usage })),
+            body: raw(views.statusPage({ catalog, usage, changes })),
         });
     });
 
