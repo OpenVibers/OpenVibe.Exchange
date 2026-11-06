@@ -28,7 +28,10 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
+const { createBench } = require('./bench');
 const { createOpenApi } = require('./openapi');
+const { createArenaStore } = require('./arena/store');
+const { createCatalogHistory } = require('./catalog-history');
 const { createChatStore, createAdultStore } = require('./chat/store');
 const { createCharacterStore, createCompanionChatStore } = require('./companions/store');
 const { createSharing } = require('./companions/sharing');
@@ -38,6 +41,7 @@ const { createLorebooks } = require('./companions/lorebook');
 const { createLocker } = require('./companions/locker');
 const { createNoteTaker } = require('./companions/taking-notes');
 const { createPageRoutes } = require('./http/pages');
+const { createArenaRoutes } = require('./http/arena');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
 const { assetVersion, send } = require('./render/layout');
@@ -68,6 +72,9 @@ async function createApp(opts = {}) {
     const principal = createPrincipal({ config, keys });
 
     const ai = opts.ai || createAi({ config, fetchImpl: opts.aiFetchImpl || globalThis.fetch, log, now: s.now });
+    const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
+    const arenaStore = createArenaStore(s);
+    const history = createCatalogHistory({ s, log });
     const chats = createChatStore(s);
     const adult = createAdultStore(s);
     // Companions (2026-11-06): the cards, their chats, and the one sharing system they use.
@@ -93,7 +100,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, adultAccount, characters, companionChats, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
+    const ctx = { config, s, keys, sso, principal, ai, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -202,6 +209,8 @@ async function createApp(opts = {}) {
     }
     // The companions routes come before the pages router: /companions, /c/... and /talk/...
     app.use(createCompanionRoutes(ctx));
+    // The Arena and the rankings: /arena, /arena/:id and /rankings.
+    app.use(createArenaRoutes(ctx));
     app.use(createPageRoutes(ctx));
 
     // eslint-disable-next-line no-unused-vars

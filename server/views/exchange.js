@@ -168,7 +168,7 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 <h1>Every AI model, one account.</h1>
 <p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
 ${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
-<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/api', label: 'The API', kind: 'ghost' })}</p>
+<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/arena', label: 'Enter the Arena', kind: 'ghost' })}</p>
 </div>
 ${preview.length === 2 ? previewCard(preview) : ''}
 </section>
@@ -180,6 +180,8 @@ ${panel({
 ${models.length ? `<p class="ex-more"><a href="/models">All ${models.length} models →</a></p>` : ''}`,
     })}
 <div class="ex-lines">
+${lineCard({ href: '/arena', name: 'The Arena', text: 'One prompt, two unnamed models, one vote: then both names and their receipts.', mark: mark('DeepSeek') })}
+${lineCard({ href: '/rankings', name: 'Rankings by task', text: 'What people prefer for code, writing, chat and reasoning, beside the price, speed and uptime. Worth it, measured.', mark: mark('Qwen') })}
 ${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', mark: mark('Llama') })}
 ${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Node, labelled on every answer.', mark: mark('Qwen') })}
 ${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', mark: mark('GLM') })}
@@ -611,7 +613,29 @@ ${panel({ title: 'The cost, per day', body: usage.totals ? `<p class="ex-prose">
 }
 
 // ── Status ─────────────────────────────────────────────────
-function statusPage({ catalog, usage }) {
+/**
+ * The model changelog: what the last two daily snapshots of the catalogue say. Three honest lists — arrived,
+ * gone, repriced — each with the dates they were recorded. A single day recorded so far says so rather than
+ * inventing a change.
+ */
+function changelogBody(changes) {
+    if (!changes) return '<p class="ex-prose">The changelog could not be read right now.</p>';
+    if (!changes.available) {
+        return `<p class="ex-prose">${changes.from ? `The catalogue was first recorded on ${esc(changes.from)}.` : 'The catalogue has not been recorded yet.'} A model is listed as new, gone or repriced from the second day of snapshots.</p>`;
+    }
+    const block = (title, items, render) => (items.length
+        ? `<h3 class="ex-h3">${esc(title)} <span class="ex-muted">${items.length}</span></h3><ul class="ex-changes">${items.map(render).join('')}</ul>`
+        : '');
+    const priceChange = (x) => `${x.was_in == null && x.was_out == null ? 'no price' : `${money(x.was_in)} in / ${money(x.was_out)} out`} → ${x.price_in == null && x.price_out == null ? 'free capacity' : `${money(x.price_in)} in / ${money(x.price_out)} out`}`;
+    const where = (x) => (x.community ? 'a community machine' : (x.provider ? providerLabel({ provider: x.provider, provider_name: x.provider }) : ''));
+    const added = block('New', changes.added, (x) => `<li><b>${esc(x.name)}</b>${x.family ? ` · <span class="ex-muted">${esc(x.family)}</span>` : ''}${where(x) ? ` on ${esc(where(x))}` : ''}${x.price_out == null ? '' : ` · ${money(x.price_out)} out per M`}</li>`);
+    const repriced = block('Price changed', changes.repriced, (x) => `<li><b>${esc(x.name)}</b> · ${esc(priceChange(x))}</li>`);
+    const gone = block('Gone', changes.gone, (x) => `<li><b>${esc(x.name)}</b>${where(x) ? ` <span class="ex-muted">on ${esc(where(x))}</span>` : ''}</li>`);
+    const body = `${added}${repriced}${gone}` || '<p class="ex-prose">No model arrived, left or changed its price between the two recorded days.</p>';
+    return `<p class="ex-muted">Between ${esc(changes.from)} and ${esc(changes.to)}, from the daily catalogue snapshot.</p>${body}`;
+}
+
+function statusPage({ catalog, usage, changes = null }) {
     const offers = chatModels(catalog).flatMap((m) => m.offers.map((o) => ({ m, o })));
     offers.sort((a, b) => (b.o.requests_7d || 0) - (a.o.requests_7d || 0));
     const rows = offers.slice(0, 40).map(({ m, o }) => ({
@@ -622,8 +646,6 @@ function statusPage({ catalog, usage }) {
         speed: o.speed.p95_ms == null ? '–' : ms(o.speed.p95_ms),
         updated: o.updated_at ? String(o.updated_at).slice(0, 10) : '–',
     }));
-    const recent = [...offers].filter(({ o }) => o.updated_at).sort((a, b) => String(b.o.updated_at).localeCompare(String(a.o.updated_at))).slice(0, 10)
-        .map(({ m, o }) => `<li><time>${esc(String(o.updated_at).slice(0, 10))}</time> ${esc(m.name)} on ${esc(providerLabel(o))}${o.price ? ` · ${inOut(o.price)}` : ''}</li>`).join('');
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Status', sub: 'Uptime per offer, the model changelog, and incidents.', actions: [kit.button({ href: '/models', label: 'Models', kind: 'quiet' })] })}
 ${unavailable(catalog, 'The status board')}
@@ -635,7 +657,7 @@ ${panel({ title: 'Uptime per offer', note: 'Measured from real requests in the l
         { key: 'speed', label: 'p95' },
         { key: 'updated', label: 'Changed', hide: 'sm' },
     ], rows, label: 'Uptime per offer' }) : kit.empty({ icon: 'spark', title: 'No offers yet', text: 'Offers appear here when a provider key or a Node machine is on.' }) })}
-${panel({ title: 'Model changelog', note: 'What changed in the catalogue, newest first. Prices move when a provider moves them.', id: 'changelog', body: recent ? `<ul class="ex-changelog">${recent}</ul>` : '<p class="ex-prose">No catalogue change recorded yet.</p>' })}
+${panel({ title: 'Model changelog', note: 'Models that arrived, left or changed their price, from a daily snapshot of the catalogue. Never a guessed date.', id: 'changelog', body: changelogBody(changes) })}
 ${panel({ title: 'Incidents', id: 'incidents', body: catalog.unavailable || catalog.stale ? kit.notice({ kind: 'error', text: 'OpenVibe.AI is not answering right now, so these numbers are not live. Live prices and the catalog on the other pages say so too.' }) : '<p class="ex-prose">No incident recorded. When an offer goes down, a failover is used and the answer says so; here is where an outage is written down.</p>' })}
 ${panel({ title: 'Requests today', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : `<p class="ex-prose">${count(usage.today ? usage.today.requests : 0)} requests today, ${count(usage.today ? (usage.today.tokens_in || 0) + (usage.today.tokens_out || 0) : 0)} tokens.</p>` })}
 </div>`;

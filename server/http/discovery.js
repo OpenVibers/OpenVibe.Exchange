@@ -21,6 +21,7 @@ const PUBLIC_PAGES = [
     { path: '/api', changefreq: 'weekly', priority: 0.7, title: 'The API', text: 'One OpenAI- and Anthropic-compatible endpoint, model ids, keys from Network and aggregate usage.' },
     { path: '/sell', changefreq: 'weekly', priority: 0.6, title: 'Sell your compute', text: 'OpenVibe Node offers a GPU or a spare machine to the network for credits; what is not sold here, said plainly.' },
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
+    { path: '/rankings', changefreq: 'daily', priority: 0.8, title: 'Rankings', text: 'Model rankings by task category from blind Arena votes, beside each model’s price per million, measured speed and uptime.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
     { path: '/status', changefreq: 'hourly', priority: 0.5, title: 'Status', text: 'Uptime per offer, the model changelog, and incidents.' },
 ];
@@ -102,6 +103,7 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Exchange', url: abs('/'), note: 'every model, one account' },
                     { title: 'Models', url: abs('/models') },
+                    { title: 'Rankings', url: abs('/rankings'), note: 'blind Arena votes by task, beside price and speed' },
                     { title: 'The API', url: abs('/api') },
                     { title: 'Sell your compute', url: abs('/sell') },
                     { title: 'Uncensored (18+)', url: abs('/uncensored') },

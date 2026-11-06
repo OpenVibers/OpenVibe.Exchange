@@ -72,6 +72,25 @@ function load(env = process.env) {
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
+        // OpenVibe.Bench (server/bench.js): the Arena's rounds and each person's vote are a Bench
+        // human_pairwise judgement, and the rankings read the board by task category. The token is this
+        // service's own client-credentials grant (bench.round.create, bench.judgement.cast, bench.board.read).
+        bench: {
+            url: trim(env.OV_BENCH_URL || 'https://bench.openvibe.services'),
+            audience: env.OV_BENCH_AUDIENCE || 'openvibe.bench',
+            scope: env.OV_BENCH_SCOPE || 'bench.round.create bench.judgement.cast bench.board.read',
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_BENCH_TIMEOUT_MS, 15_000)),
+        },
+
+        // The Arena (/arena): one prompt, two models, one vote. A round is two runs on the person's own
+        // allowance, and a vote is rate-limited per person so a ballot cannot be stuffed from one account.
+        arena: {
+            perDay: Math.max(1, int(env.EXCHANGE_ARENA_PER_DAY, 10)),
+            votesPerHour: Math.max(1, int(env.EXCHANGE_ARENA_VOTES_PER_HOUR, 30)),
+            maxChars: Math.max(200, int(env.EXCHANGE_ARENA_MAX_CHARS, 2000)),
+            maxTokens: Math.max(100, Math.min(4000, int(env.EXCHANGE_ARENA_MAX_TOKENS, 900))),
+        },
+
         api: {
             publicUrl: trim(env.OV_EXCHANGE_API_URL || 'https://api.openvibe.exchange'),
             openapiUrl: trim(env.OV_EXCHANGE_OPENAPI_URL || 'https://api.openvibe.exchange/openapi.json'),

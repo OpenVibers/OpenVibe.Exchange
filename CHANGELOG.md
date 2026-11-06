@@ -12,6 +12,19 @@ What changed in OpenVibe.Exchange, newest first.
   (`ov-locker.js`, people-locked to the person) and Exchange stores only the envelope. The chat list shows a neutral
   title until it is opened, the model still receives the turn it answers, and the page says so plainly. Account
   export carries the envelope and deletion erases it.
+- **The Arena (`/arena`).** One prompt, two models answering side by side with no names, one vote (left, right, a
+  tie, or both bad), then both names and their receipts. The pair is chosen from the live catalogue, free-tier
+  capacity first and different families where possible, and each answer is a normal run on the person's own
+  allowance. A vote is a Bench `human_pairwise` judgement for that person, filed under the prompt's task category
+  (code, writing, chat, reasoning, translation, analysis), rate-limited per person and counted once per round.
+- **Rankings (`/rankings`).** Bench's board by task category beside the cheapest live price per million in and
+  out, the measured p50 and uptime, and a value column (rating points above 1000 per dollar of output). A
+  products-and-apps panel shows which models OpenVibe's products run, and developers' apps as one unnamed row, from AI's aggregate usage
+  and never a person.
+- **Model changelog (`/status`).** A daily snapshot of the catalogue in `exchange_model_snapshots` names the
+  models that arrived, left or changed their price between the last two recorded days, with the dates.
+- **Account data.** A person's arena rounds and votes are exported and erased with their account.
+
 - **Theme palettes.** A Design theme's listing keeps the preview palette from Design's public API (background,
   surface, text, accent and up to two more), in a new `palette` array on the API; the card and the listing page draw
   it as small swatches. Only `#rrggbb` values are stored and painted; a second refresh leaves the row untouched.
