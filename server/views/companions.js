@@ -56,7 +56,7 @@ function cardTile(card) {
 }
 
 /** The gallery: search, tags, the three sorts, and a counted fold. Never tabs. */
-function galleryPage({ items = [], total = 0, q = '', tags = [], sort = 'new', tagList = [], viewer = null, adult = false, mine = [], problem = null } = {}) {
+function galleryPage({ items = [], total = 0, q = '', tags = [], sort = 'new', tagList = [], viewer = null, adult = false, mine = [], problem = null, defaults = '' } = {}) {
     const shown = items.slice(0, 12);
     const rest = items.slice(12);
     const hidden = Math.max(0, total - shown.length);
@@ -65,6 +65,7 @@ function galleryPage({ items = [], total = 0, q = '', tags = [], sort = 'new', t
         + '<input type="hidden" name="tags" value="' + esc(tags.join(',')) + '">'
         + SORTS.map((s) => '<button type="submit" name="sort" value="' + esc(s.id) + '" class="ex-sort' + (sort === s.id ? ' is-on' : '') + '">' + esc(s.label) + '</button>').join('')
         + '</form>';
+    const defaultsHtml = defaults || '';
     const searchForm = '<form class="ex-search" method="get" action="/companions">'
         + '<input type="hidden" name="sort" value="' + esc(sort) + '">'
         + '<label class="ovk-sr" for="ex-q">Search characters</label>'
@@ -83,6 +84,7 @@ function galleryPage({ items = [], total = 0, q = '', tags = [], sort = 'new', t
         // Making or importing a card is always one tap away, not only from "Your characters" once you have one.
         + '<p class="ex-head-actions"><a class="ovk-btn ovk-btn--primary" href="/companions/new">Make or import a character</a></p></header>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
+        + defaultsHtml
         + '<div class="ex-gallery-bar">' + searchForm + sortForm + '</div>'
         + (tagChips ? '<div class="ex-gallery-tags">' + tagChips + '</div>' : '')
         + (empty || '<ul class="ex-card-grid">' + shown.map((c) => cardTile(c)).join('') + '</ul>')
@@ -98,7 +100,7 @@ function section(title, body) {
 }
 
 /** A character page. */
-function characterPage({ card, tags = [], viewer = null, mine = false, problem = null, remixes = 0, notice = null, allowRemix = true } = {}) {
+function characterPage({ card, tags = [], viewer = null, mine = false, problem = null, remixes = 0, notice = null, allowRemix = true, share = '' } = {}) {
     const list = (tags.length ? tags : (card.tags || [])).map((t) => '<a class="ex-chip" href="/companions?tags=' + encodeURIComponent(t) + '">' + esc(t) + '</a>').join('');
     const talk = '<form method="post" action="' + esc(pathOf(card)) + '/talk"><button type="submit" class="ex-btn ex-btn-primary">Talk to ' + esc(card.name) + '</button></form>';
     const remix = (mine || !allowRemix) ? '' : '<form method="post" action="' + esc(pathOf(card)) + '/remix" class="ex-inline"><button type="submit" class="ex-btn">Remix this character</button></form>';
@@ -112,7 +114,7 @@ function characterPage({ card, tags = [], viewer = null, mine = false, problem =
         + (notice ? kit.notice({ kind: 'info', text: notice }) : '')
         + (card.description ? '<p class="ex-companion-desc">' + esc(card.description) + '</p>' : '')
         + (list ? '<p class="ex-companion-tags">' + list + '</p>' : '')
-        + '<div class="ex-companion-acts">' + talk + remix
+        + '<div class="ex-companion-acts">' + talk + remix + (share || '')
         + '<a class="ex-btn" href="' + esc(pathOf(card) + '/memory') + '">Memory</a>'
         + '<a class="ex-btn" href="' + esc(pathOf(card) + '/lorebook') + '">Lorebooks</a></div>'
         + section('Personality', card.personality)

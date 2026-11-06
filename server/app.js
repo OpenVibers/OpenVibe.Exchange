@@ -34,7 +34,7 @@ const { createArenaStore } = require('./arena/store');
 const { createCatalogHistory } = require('./catalog-history');
 const { createChatStore, createAdultStore } = require('./chat/store');
 const { createCharacterStore, createCompanionChatStore } = require('./companions/store');
-const { createSharing } = require('./companions/sharing');
+const { createSharing } = require('./sharing');
 const { createAdultAccount } = require('./companions/adult');
 const { createMemoryClient, createCompanionNotes } = require('./companions/memory');
 const { createLorebooks } = require('./companions/lorebook');
@@ -174,6 +174,28 @@ async function createApp(opts = {}) {
             res.setHeader('Cache-Control', cache.assetHeaders(rel, { hashed: !!v && v === assetVersion(rel) }));
         },
     }));
+
+    // ── /api/v1/<kind>/<id>/share — the one Share sheet's API (openvibe-sdk/share) ──
+    // GET/PUT /api/v1/chat/:id/share, /character/:id/share, /arena-round/:id/share, and their requests and
+    // transfers, plus GET /api/v1/share/people?name= and /api/v1/shared-with-me. Access is still decided by
+    // canView on every read; the router only answers its own paths.
+    {
+        const shareApi = express.Router();
+        shareApi.use(sharing.shares.router({
+            service: 'exchange',
+            authenticate: (req) => sharing.shareViewer(req.viewer),
+            describe: sharing.describe,
+        }));
+        const SHARE_PATH = /^\/api\/v1\/(?:shared-with-me$|share\/people$|[^/]+\/[^/]+\/share(?:\/|$))/;
+        app.use((req, res, next) => (SHARE_PATH.test(req.path) ? shareApi(req, res, next) : next()));
+    }
+
+    // Expire members and transfers and send queued share events/notifications. Unref'd: it never holds a test open.
+    if (opts.startSharingWorker !== false) {
+        const timer = setInterval(() => { sharing.work().catch(() => { /* logged inside */ }); }, 15_000);
+        if (timer.unref) timer.unref();
+        app.locals.sharingTimer = timer;
+    }
 
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {

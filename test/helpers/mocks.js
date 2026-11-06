@@ -139,7 +139,22 @@ async function startNetwork() {
             if (!u) return problem(json, 404, 'identity.subject_not_found', 'no subject for that id');
             return json(200, { subject_id: subject, adult: Boolean(u.adult), confirmed_at: u.adult ? '2026-11-06T00:00:00.000Z' : null });
         }
-        if (url.pathname === '/internal/identity/resolve-batch' && req.method === 'POST') return json(200, { results: {} });
+        // The sharing system's name lookups (openvibe-sdk/share): one exact @name, and the page cards for ids.
+        if (url.pathname === '/internal/identity/resolve' && req.method === 'GET') {
+            const name = String(url.searchParams.get('username') || '').toLowerCase();
+            const u = st.byUsername.get(name);
+            if (!u) return problem(json, 404, 'identity.name_not_found', 'no such person');
+            return json(200, { subject: { type: 'user', id: u.subject }, username: u.username, display_name: u.display_name });
+        }
+        if (url.pathname === '/internal/identity/resolve-batch' && req.method === 'POST') {
+            const ids = JSON.parse(raw.toString('utf8') || '{}').subject_ids || [];
+            const results = {};
+            for (const subjectId of ids) {
+                const u = [...st.users.values()].find((x) => x.subject === subjectId);
+                if (u) results[subjectId] = { subject: { type: 'user', id: u.subject }, username: u.username, display_name: u.display_name };
+            }
+            return json(200, { results });
+        }
         if (url.pathname === '/internal/notifications/push' && req.method === 'POST') return json(200, { ok: true });
 
         // Network's Locker key directory (Network PR #577, server/locker/keys.js): a person's public keys

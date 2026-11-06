@@ -28,6 +28,11 @@ function createArenaStore(s) {
         return parse(await db.prepare('SELECT * FROM exchange_arena_rounds WHERE id = ? AND owner = ?').get(String(id || ''), owner));
     }
 
+    /** A round without its owner in the query, for the sharing check to decide who may read it. */
+    async function find(id) {
+        return parse(await db.prepare('SELECT * FROM exchange_arena_rounds WHERE id = ?').get(String(id || '')));
+    }
+
     async function recent(owner, limit = 8) {
         const rows = await db.prepare('SELECT id, prompt, category, created_at FROM exchange_arena_rounds WHERE owner = ? ORDER BY created_at DESC LIMIT ?')
             .all(owner, Math.max(1, Math.min(30, limit)));
@@ -58,7 +63,7 @@ function createArenaStore(s) {
         return Number(row && row.n) || 0;
     }
 
-    return { create, get, recent, voteOf, castVote, askedToday, votesLastHour };
+    return { create, get, find, recent, voteOf, castVote, askedToday, votesLastHour };
 }
 
 module.exports = { createArenaStore };

@@ -15,12 +15,14 @@
  */
 const express = require('express');
 const cache = require('openvibe-shared/cache-policy');
+const ovServe = require('openvibe-shared/serve');
 const kit = require('openvibe-shared/kit');
 const { asyncRouter } = require('./router');
 const { sameOrigin } = require('./principal');
-const { raw } = require('../render/html');
+const { esc, raw } = require('../render/html');
 const { send } = require('../render/layout');
 const views = require('../views/arena');
+const exchangeViews = require('../views/exchange');
 const { classify, CATEGORIES } = require('../arena/category');
 const { ARENA_KIND } = require('../bench');
 
@@ -66,7 +68,7 @@ function pickPair(candidates) {
 }
 
 function createArenaRoutes(ctx) {
-    const { config, ai, bench, arenaStore, log } = ctx;
+    const { config, ai, bench, arenaStore, sharing, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -80,28 +82,65 @@ function createArenaRoutes(ctx) {
         title: 'Not from this site', index: false,
         body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'shield', title: 'That came from somewhere else', text: 'Use the form on OpenVibe.Exchange.' })}</div>`),
     }, 403);
+    const shareHead = `<link rel="stylesheet" href="${ovServe.url('ov-share.css')}"><script src="${ovServe.url('ov-share.js')}" defer></script>`;
+    const shareButton = (round) => `<button type="button" class="ovk-btn ovk-btn--quiet" data-ov-share-sheet data-kind="arena-round" data-id="${esc(round.id)}" data-title="An Arena round">Share</button>`;
+    const notFound = (req, res) => {
+        res.set('X-Robots-Tag', 'noindex, nofollow');
+        return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such round', text: 'It may belong to another account, or the link is old.', action: { href: '/arena', label: 'The Arena' } })}</div>`) }, 404);
+    };
+    /** Specific people, and this reader is not on the list: the audience, never the prompt or an answer. */
+    const gate = (req, res, id) => {
+        const signedInAs = req.viewer && req.viewer.kind === 'user' ? (req.viewer.username || '') : '';
+        const signInUrl = `/auth/login?next=${encodeURIComponent(req.originalUrl)}`;
+        return page(req, res, {
+            title: 'Shared with specific people', index: false, head: shareHead,
+            body: raw(`<div class="ex-wrap ex-narrow"><div id="share-gate">${kit.empty({ icon: 'shield', title: 'This round is shared with specific people', text: 'Sign in with the OpenVibe account it was shared with, or ask its owner for access.' })}</div>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  var el = document.getElementById('share-gate');
+  if (el && window.OVShare) OVShare.gate(el, { kind: 'arena-round', id: ${JSON.stringify(id)},
+    signedInAs: ${JSON.stringify(signedInAs)}, signInUrl: ${JSON.stringify(signInUrl)} });
+});
+</script>`),
+        }, 404);
+    };
 
     async function renderHome(req, res, { problem = null, status = 200 } = {}) {
         const [catalog, rounds] = await Promise.all([
             ai.catalog(),
             signedIn(req) ? arenaStore.recent(owner(req), 6) : Promise.resolve([]),
         ]);
+        const defaults = signedIn(req)
+            ? exchangeViews.audienceDefaults({
+                kind: 'arena-round', label: 'rounds', action: '/arena/defaults', signedIn: true,
+                current: await sharing.defaultOf(owner(req), 'arena-round').catch(() => 'private'),
+            }) : '';
         return page(req, res, {
             title: 'The Arena', index: !signedIn(req), cache: signedIn(req) ? null : PUBLIC_CACHE,
             description: 'One prompt, two models, side by side and unnamed. Vote, then see both names, their prices and their receipts.',
-            body: raw(views.arenaHome({ viewer: req.viewer, catalog, rounds, problem, config })),
+            body: raw(views.arenaHome({ viewer: req.viewer, catalog, rounds, problem, config, defaults })),
         }, status);
     }
 
     async function renderRound(req, res, round, { problem = null, status = 200, notice = null } = {}) {
         const vote = await arenaStore.voteOf(owner(req), round.id);
         return page(req, res, {
-            title: 'The Arena', index: false,
-            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config })),
+            title: 'The Arena', index: false, head: shareHead,
+            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config, action: shareButton(round) })),
         }, status);
     }
 
     r.get('/arena', async (req, res) => renderHome(req, res));
+
+    /** The person's default for new rounds ("New rounds: Only me"), and what to do with the existing ones. */
+    r.post('/arena/defaults', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Farena');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const body = req.body || {};
+        const audience = ['private', 'people', 'link', 'public'].includes(body.audience) ? body.audience : 'private';
+        await sharing.setDefault(owner(req), 'arena-round', audience, { applyAll: String(body.apply_all || '') === '1' }).catch((err) => log.warn('[Arena] the round default was not saved:', err.message));
+        return res.redirect(303, '/arena');
+    });
 
     r.post('/arena/ask', async (req, res) => {
         if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to enter the Arena', text: 'Two models answer your prompt, blind.', next: '/arena' });
@@ -181,14 +220,33 @@ function createArenaRoutes(ctx) {
             benchRoundId: built.round && built.round.id,
             benchLeft: left.id, benchRight: right.id,
         });
+        // The person's default for new rounds (Only me unless they changed it), then the sheet for this one.
+        const audience = await sharing.defaultOf(owner(req), 'arena-round').catch(() => 'private');
+        try { await sharing.register({ subject: owner(req) }, 'arena-round', round.id, audience); } catch (err) { log.warn('[Arena] the round was kept but not registered with the sharing system:', err.message); }
         return res.redirect(303, `/arena/${round.id}`);
     });
 
+    /**
+     * A round is its owner's page. Someone it was shared with reads the pair, both names and the receipts, and
+     * cannot vote (the owner's vote is the one Bench counted). Anybody else gets the gate for Specific people, or
+     * "not found" when it is Only me.
+     */
     r.get('/arena/:id', async (req, res) => {
-        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to see this round', text: 'Your rounds are yours.', next: `/arena/${encodeURIComponent(req.params.id)}` });
-        const round = await arenaStore.get(owner(req), req.params.id);
-        if (!round) return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such round', text: 'It may belong to another account, or the link is old.', action: { href: '/arena', label: 'The Arena' } })}</div>`) }, 404);
-        return renderRound(req, res, round);
+        const round = await arenaStore.find(req.params.id);
+        if (!round) return notFound(req, res);
+        if (signedIn(req) && round.owner === owner(req)) return renderRound(req, res, round);
+        const allowed = await sharing.canView(req.viewer, 'arena-round', round.id).catch(() => false);
+        if (!allowed) {
+            const audience = await sharing.audienceOf('arena-round', round.id).catch(() => null);
+            if (audience === 'people') return gate(req, res, round.id);
+            return notFound(req, res);
+        }
+        const sharedRound = { ...round };
+        return page(req, res, {
+            title: 'A shared Arena round', index: false,
+            head: shareHead,
+            body: raw(views.arenaRound({ round: sharedRound, revealed: true, shared: true, config })),
+        });
     });
 
     r.post('/arena/:id/vote', async (req, res) => {

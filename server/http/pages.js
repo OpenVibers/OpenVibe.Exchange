@@ -19,6 +19,7 @@ const seo = require('openvibe-shared/seo');
 const cache = require('openvibe-shared/cache-policy');
 const kit = require('openvibe-shared/kit');
 const thread = require('openvibe-shared/thread');
+const ovServe = require('openvibe-shared/serve');
 const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
@@ -33,7 +34,7 @@ const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sand
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
 
 function createPageRoutes(ctx) {
-    const { config, ai, history, openapi, chats, adult, log } = ctx;
+    const { config, ai, history, openapi, chats, adult, sharing, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -231,35 +232,90 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         return `<li class="ovt-turn ex-round"><div class="ex-answer-grid" data-count="${list.length}">${cells}</div></li>`;
     }
 
-    function chatPage({ req, res, chat = null, chats = [], messages = [], models, problem = null, status = 200 }) {
+    // ── The one Share sheet (openvibe-shared ov-share.js) ────────────────────
+    const shareHead = `<link rel="stylesheet" href="${ovServe.url('ov-share.css')}"><script src="${ovServe.url('ov-share.js')}" defer></script>`;
+    const shareButton = ({ kind, id, title }) => `<button type="button" class="ovk-btn ovk-btn--quiet" data-ov-share-sheet data-kind="${esc(kind)}" data-id="${esc(id)}" data-title="${esc(title)}">Share</button>`;
+    /** The gate a `people` item shows somebody who is not on its list: the audience, never the title or a turn. */
+    function gatePage(req, res, { kind, id }) {
+        const signedInAs = signedIn(req) ? (req.viewer.username || '') : '';
+        const signInUrl = `/auth/login?next=${encodeURIComponent(req.originalUrl)}`;
+        return page(req, res, {
+            title: 'Shared with specific people', index: false, head: shareHead,
+            body: raw(`<div class="ex-wrap ex-narrow"><div id="share-gate">
+${kit.empty({ icon: 'shield', title: 'This is shared with specific people', text: 'Sign in with the OpenVibe account it was shared with, or ask its owner for access.' })}
+</div></div>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+  var el = document.getElementById('share-gate');
+  if (el && window.OVShare) OVShare.gate(el, { kind: ${JSON.stringify(kind)}, id: ${JSON.stringify(id)},
+    signedInAs: ${JSON.stringify(signedInAs)}, signInUrl: ${JSON.stringify(signInUrl)} });
+});
+</script>`),
+        }, 404);
+    }
+
+    /** An item that is not shared at all: no title, no content, no hint. */
+    function privatePage(req, res) {
+        res.set('X-Robots-Tag', 'noindex, nofollow');
+        return page(req, res, {
+            title: 'Not found', index: false,
+            body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such chat', text: 'It may have been deleted, or it belongs to another account.' })}</div>`),
+        }, 404);
+    }
+
+    function turnsFor(messages, models) {
         const bySlug = new Map((models || []).map((m) => [m.slug, m]));
         const turns = [];
-        if (chat) {
-            let i = 0;
-            while (i < messages.length) {
-                const m = messages[i];
-                if (m.role === 'user') {
-                    turns.push(thread.turn({ id: m.id, you: { text: m.content }, reply: null }));
-                    i += 1;
-                    const answers = [];
-                    while (i < messages.length && messages[i].role === 'assistant') { answers.push(messages[i]); i += 1; }
-                    if (answers.length) turns.push(answerRound(answers, bySlug));
-                } else {
-                    turns.push(answerRound([m], bySlug));
-                    i += 1;
-                }
+        let i = 0;
+        while (i < messages.length) {
+            const m = messages[i];
+            if (m.role === 'user') {
+                turns.push(thread.turn({ id: m.id, you: { text: m.content }, reply: null }));
+                i += 1;
+                const answers = [];
+                while (i < messages.length && messages[i].role === 'assistant') { answers.push(messages[i]); i += 1; }
+                if (answers.length) turns.push(answerRound(answers, bySlug));
+            } else {
+                turns.push(answerRound([m], bySlug));
+                i += 1;
             }
         }
+        return turns;
+    }
+
+    /** A chat somebody else shared: the conversation, read-only, with the same words and no composer. */
+    function sharedChatPage({ req, res, chat, messages, models }) {
+        return page(req, res, {
+            title: chat.title, index: false, class: 'ex-chat', app: true,
+            head: `<link rel="stylesheet" href="${ovServe.url('thread.css')}"><script src="${ovServe.url('ov-thread.js')}" defer></script>${shareHead}`,
+            body: raw(thread.page({
+                head: thread.head({
+                    title: chat.title,
+                    actions: shareButton({ kind: 'chat', id: chat.id, title: chat.title }),
+                }),
+                turns: turnsFor(messages, models),
+                empty: '',
+                composer: '',
+                label: 'A shared chat',
+            })),
+        });
+    }
+
+    function chatPage({ req, res, chat = null, chats = [], messages = [], models, problem = null, status = 200, defaults = '' }) {
+        const turns = chat ? turnsFor(messages, models) : [];
         const empty = `<div class="ovt-welcome"><h2>Every model, one chat</h2><p>Pick one model, or up to three to compare side by side.</p><p class="ex-muted ex-small">The floor applies on every model: no sexual content involving minors, no non-consensual sexual content (fiction included) and no incest, no help with mass harm.</p></div>`;
         return page(req, res, {
             title: chat ? chat.title : 'Chat', index: false,
             class: 'ex-chat', app: true,
-            head: `<link rel="stylesheet" href="${require('openvibe-shared/serve').url('thread.css')}"><script src="${require('openvibe-shared/serve').url('ov-thread.js')}" defer></script>`,
+            head: `<link rel="stylesheet" href="${ovServe.url('thread.css')}"><script src="${ovServe.url('ov-thread.js')}" defer></script>${shareHead}`,
             body: raw(thread.page({
                 sidebar: chatSidebar(chats, chat ? chat.id : null),
-                head: thread.head({ title: chat ? chat.title : 'Chat', newHref: '/chat' }),
+                head: thread.head({
+                    title: chat ? chat.title : 'Chat', newHref: '/chat',
+                    actions: chat && !chat.sealed ? shareButton({ kind: 'chat', id: chat.id, title: chat.title }) : '',
+                }),
                 turns,
-                empty,
+                empty: empty + defaults,
                 center: !chat,
                 composer: composerFor({ chat, models, problem, action: chat ? `/chat/${chat.id}/send` : '/chat/send' }),
             })),
@@ -312,6 +368,8 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         const envelope = envelopeOf(req.body);
         if (!envelope) return jsonRefusal(res, 422, 'A sealed chat needs the sealed envelope.');
         const chat = await chats.createSealed({ owner: owner(req), envelope });
+        // A sealed chat stays Only me: its turns are sealed to this person's Locker, so there is nothing to share.
+        try { await sharing.register({ subject: owner(req) }, 'chat', chat.id, 'private'); } catch (err) { log.warn('[Exchange] the sealed chat was saved but not registered with the sharing system:', err.message); }
         return res.status(201).json({ id: chat.id, url: `/chat/${chat.id}` });
     });
 
@@ -383,7 +441,7 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         const list = await loadChats(req);
         if (!list.length) return signInIfGuest(req, res, async () => {
             const { models } = await chatCatalog();
-            return chatPage({ req, res, chats: [], models });
+            return chatPage({ req, res, chats: [], models, defaults: await chatDefaults(req) });
         });
         return res.redirect(303, `/chat/${list[0].id}`);
     });
@@ -393,20 +451,52 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         return fn();
     }
 
+    /** The person's default for new chats, on the page where a chat starts ("New chats: Only me"). */
+    async function chatDefaults(req) {
+        if (!signedIn(req)) return '';
+        const current = await sharing.defaultOf(owner(req), 'chat').catch(() => 'private');
+        return views.audienceDefaults({ kind: 'chat', label: 'chats', current, action: '/chat/defaults', signedIn: true });
+    }
+
+    r.post('/chat/defaults', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fchat');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const body = req.body || {};
+        const audience = ['private', 'people', 'link', 'public'].includes(body.audience) ? body.audience : 'private';
+        await sharing.setDefault(owner(req), 'chat', audience, { applyAll: String(body.apply_all || '') === '1' }).catch((err) => log.warn('[Exchange] the chat default was not saved:', err.message));
+        return res.redirect(303, '/chat');
+    });
+
     r.get('/chat/new', async (req, res) => signInIfGuest(req, res, async () => {
-        const [list, cat] = await Promise.all([chats.list(owner(req)), chatCatalog()]);
+        const [list, cat, defaults] = await Promise.all([chats.list(owner(req)), chatCatalog(), chatDefaults(req)]);
         if (req.query.sealed === '1') return sealedPage({ req, res, models: cat.models });
-        return chatPage({ req, res, chats: list, models: cat.models });
+        return chatPage({ req, res, chats: list, models: cat.models, defaults });
     }));
 
-    r.get('/chat/:id', async (req, res) => signInIfGuest(req, res, async () => {
-        const chat = await chats.get(owner(req), req.params.id);
-        if (!chat) return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'chat', title: 'No such chat', text: 'It may have been deleted.', action: { href: '/chat', label: 'Your chats' } })}</div>`) }, 404);
-        const [list, cat] = await Promise.all([chats.list(owner(req)), chatCatalog()]);
-        if (chat.sealed) return sealedPage({ req, res, chat, models: cat.models });
-        const messages = await chats.messages(owner(req), chat.id);
-        return chatPage({ req, res, chat, chats: list, messages, models: cat.models });
-    }));
+    /**
+     * A chat is its owner's page. Someone it was shared with reads the same conversation without the composer;
+     * anybody else gets the gate for Specific people, or "not found" when it is Only me.
+     */
+    r.get('/chat/:id', async (req, res) => {
+        const chat = await chats.find(req.params.id);
+        if (!chat) return privatePage(req, res);
+        if (signedIn(req) && chat.owner === owner(req)) {
+            const [list, cat] = await Promise.all([chats.list(owner(req)), chatCatalog()]);
+            if (chat.sealed) return sealedPage({ req, res, chat, models: cat.models });
+            const messages = await chats.messages(owner(req), chat.id);
+            return chatPage({ req, res, chat, chats: list, messages, models: cat.models });
+        }
+        // A sealed chat is never shared: its turns are the owner's Locker's, so nobody else can read it anyway.
+        if (chat.sealed) return privatePage(req, res);
+        const allowed = await sharing.canView(req.viewer, 'chat', chat.id).catch(() => false);
+        if (!allowed) {
+            const audience = await sharing.audienceOf('chat', chat.id).catch(() => null);
+            if (audience === 'people') return gatePage(req, res, { kind: 'chat', id: chat.id });
+            return privatePage(req, res);
+        }
+        const [messages, cat] = await Promise.all([chats.allMessages(chat.id), chatCatalog()]);
+        return sharedChatPage({ req, res, chat, messages, models: cat.models });
+    });
 
     async function sendMessage(req, res, chatId = null) {
         if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to chat', text: 'Your history stays in your account.', next: '/chat' });
@@ -447,7 +537,12 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         }
 
         const isNew = !chat;
-        if (!chat) chat = await chats.create({ owner: owner(req), models: chosen, title: text.replace(/\s+/g, ' ').slice(0, 60), strictPrivacy: strict });
+        if (!chat) {
+            chat = await chats.create({ owner: owner(req), models: chosen, title: text.replace(/\s+/g, ' ').slice(0, 60), strictPrivacy: strict });
+            // The person's default for new chats (Only me unless they changed it), then the sheet for this one.
+            const audience = await sharing.defaultOf(owner(req), 'chat').catch(() => 'private');
+            try { await sharing.register({ subject: owner(req) }, 'chat', chat.id, audience); } catch (err) { log.warn('[Exchange] the chat was saved but not registered with the sharing system:', err.message); }
+        }
         else {
             await chats.settings(owner(req), chat.id, { models: chosen, systemPrompt: system, temperature });
             await chats.setPrivacy(owner(req), chat.id, { strictPrivacy: strict });
