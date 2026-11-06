@@ -84,7 +84,8 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('What is sold'));
             assert.ok(r.text.includes('Owner’s machine') || r.text.includes('No community capacity yet'));
             assert.ok(r.text.includes('Idle-only') && r.text.includes('Kudos') && r.text.includes('sees the prompt'), 'idle-only, kudos and the privacy sentence');
-            assert.ok(r.text.includes('@name’s'), 'the seller card');
+            assert.ok(r.text.includes('A community machine') && !r.text.includes('@name'), 'the seller card names the machine, never a placeholder or a person');
+            assert.ok(r.text.includes('not verified yet'), 'an offer is said verified only when it is');
         });
 
         await check('uncensored: sign-in first, then the 18+ gate and the floor', async () => {

@@ -390,8 +390,12 @@ ${panel({ title: 'What it costs', body: '<p class="ex-prose">Every price is the 
 }
 
 // ── Sell compute ───────────────────────────────────────────
+const HOUSE_SERVER = /^local\d*$/;
+
 function sellPage({ catalog, usage }) {
-    const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community').map((o) => ({ model: m, offer: o })));
+    // OpenVibe's own model servers on its hosts (`local`, `local2`) carry community trust so the router treats their
+    // privacy conservatively, but nobody sells them: only machines people offer through Node are listed here.
+    const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community' && !HOUSE_SERVER.test(String(o.provider || ''))).map((o) => ({ model: m, offer: o })));
     const first = offers[0];
     const seller = first
         ? sellerCard({ machine: providerLabel(first.offer), model: first.model, offer: first.offer, example: false })
@@ -426,11 +430,12 @@ ${panel({ title: 'Machines on the network now', id: 'community', body: machineRo
 
 function sellerCard({ machine, model, offer, example }) {
     const speed = offer.speed && offer.speed.p50_ms != null ? `answers in ${ms(offer.speed.p50_ms)}` : 'speed not measured yet';
-    const label = /owner|volunteer|machine/i.test(String(machine)) ? '@name’s own machine' : `@name’s ${machine}`;
+    // No person's name: a seller card says what the machine is, never who owns it.
+    const label = example ? `A spare ${machine}` : (/owner|volunteer|machine/i.test(String(machine)) ? 'A community machine' : `A community ${machine}`);
     return `<article class="ex-seller${example ? ' is-example' : ''}">
 <span class="ex-mk ex-mk--machine" style="--ex-mk-size:36px" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v9H4zM8 19h8M12 15v4"/></svg></span>
 <div><b>${esc(label)}</b>
-<p>${esc(model.name)} · ${speed} · ${offer.uptime == null ? 'uptime not measured yet' : `${pct(offer.uptime)} uptime`} · verified</p></div>
+<p>${esc(model.name)} · ${speed} · ${offer.uptime == null ? 'uptime not measured yet' : `${pct(offer.uptime)} uptime`}${example || offer.verified === true ? ' · verified' : ' · not verified yet'}</p></div>
 ${example ? '<span class="ex-badge-note">Example</span>' : ''}
 </article>`;
 }
