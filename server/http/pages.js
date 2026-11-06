@@ -241,16 +241,9 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         const signInUrl = `/auth/login?next=${encodeURIComponent(req.originalUrl)}`;
         return page(req, res, {
             title: 'Shared with specific people', index: false, head: shareHead,
-            body: raw(`<div class="ex-wrap ex-narrow"><div id="share-gate">
-${kit.empty({ icon: 'shield', title: 'This is shared with specific people', text: 'Sign in with the OpenVibe account it was shared with, or ask its owner for access.' })}
-</div></div>
-<script>
-window.addEventListener('DOMContentLoaded', function () {
-  var el = document.getElementById('share-gate');
-  if (el && window.OVShare) OVShare.gate(el, { kind: ${JSON.stringify(kind)}, id: ${JSON.stringify(id)},
-    signedInAs: ${JSON.stringify(signedInAs)}, signInUrl: ${JSON.stringify(signInUrl)} });
-});
-</script>`),
+            // The gate draws itself from this markup (openvibe-shared 4.123.0's [data-ov-share-gate]): no inline
+            // script, so a strict CSP needs nothing, and every value is escaped like any other attribute.
+            body: raw(`<div class="ex-wrap ex-narrow"><div id="share-gate" data-ov-share-gate data-kind="${esc(kind)}" data-id="${esc(id)}" data-signed-in-as="${esc(signedInAs)}" data-sign-in-url="${esc(signInUrl)}">This is shared with specific people. Sign in with the OpenVibe account it was shared with, or ask its owner for access.</div></div>`),
         }, 404);
     }
 
