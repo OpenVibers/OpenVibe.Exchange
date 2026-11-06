@@ -63,3 +63,14 @@ npm test -- <file|word>        # e.g. npm test -- pages chat retirement
 
 `DATABASE_URL` serves, `DATABASE_DIRECT_URL` migrates; `OV_OAUTH_CLIENT_SECRET` makes the sign-in and the AI
 client-credentials token work. See [.env.example](.env.example).
+
+## License
+
+AGPL-3.0-only. See [LICENSE](LICENSE).
+
+<!-- versions:start -->
+- openvibe-contracts: v0.289.1
+- openvibe-sdk: v0.82.0
+- openvibe-shared: v4.115.1
+- openvibe-publishing: v1.5.0
+<!-- versions:end -->
