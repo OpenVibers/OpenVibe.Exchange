@@ -13,7 +13,7 @@ const { boot, check, done } = require('./helpers/boot');
     try {
         await check('0001_initial.sql applies and creates the Exchange tables', async () => {
             const names = (await t.ctx.s.db.many("SELECT table_name AS name FROM information_schema.tables WHERE table_schema = current_schema() ORDER BY table_name")).map((r) => r.name);
-            for (const table of ['exchange_listings', 'exchange_listing_tests', 'exchange_listing_events', 'exchange_sandbox_trials', 'exchange_installs', 'exchange_offers', 'exchange_outbox', 'account_data_events', 'telemetry_samples']) {
+            for (const table of ['exchange_listings', 'exchange_listing_tests', 'exchange_listing_events', 'exchange_sandbox_trials', 'exchange_installs', 'exchange_offers', 'exchange_outbox', 'exchange_chats', 'exchange_chat_messages', 'exchange_adult_confirmations', 'account_data_events', 'telemetry_samples']) {
                 assert.ok(names.includes(table), `missing ${table}`);
             }
         });

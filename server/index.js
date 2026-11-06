@@ -19,8 +19,6 @@ function createLifecycle({ server, ctx, exit, signals, timers = [], extra = [] }
         close: [
             () => { for (const t of timers) clearInterval(t); },
             () => ctx.keys.client.stop(),
-            () => ctx.firstParty.stop(),
-            () => ctx.searchRelay.stop(),
             async () => { clearInterval(ctx.telemetryTick); if (ctx.retention) await ctx.retention.stop(); if (ctx.telemetry) await ctx.telemetry.stop(); },
             () => ctx.s.close(),
             ...extra,
@@ -46,9 +44,6 @@ async function start() {
     ctx.telemetryTick = setInterval(() => { ctx.telemetry.flush().catch(() => {}); }, 60_000);
     ctx.telemetryTick.unref();
     ctx.keys.client.start();
-    ctx.firstParty.start();
-    // Queued Search documents → OpenVibe.Search (a tick a few seconds after boot, then every minute).
-    if (!config.drill) ctx.searchRelay.start();
 
     // The two account topics (export_requested, deleted) at OpenVibe.Events: idempotent; off without the URL, the
     // delivery secret and the client secret. The consumer itself is mounted in server/app.js.

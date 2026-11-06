@@ -61,26 +61,22 @@ function load(env = process.env) {
             scope: env.EXCHANGE_EVENTS_SCOPE || 'events.event.publish',
         },
 
-        // OpenVibe.Search's owner API: the documents queued in exchange_outbox are delivered there (server/app.js,
-        // openvibe-publishing/search-relay) with this service's token (search.document.write). Unset: they wait.
-        search: { url: trim(env.EXCHANGE_SEARCH_URL || '') },
-
-        // The sandbox: a manifest dry run, not a code execution. A passed trial is good for this many minutes and
-        // is required before an install; a person gets at most this many trials a day.
-        sandbox: {
-            ttlMinutes: Math.min(240, Math.max(5, int(env.EXCHANGE_SANDBOX_TTL_MINUTES, 60))),
-            perDay: Math.min(100, Math.max(1, int(env.EXCHANGE_SANDBOX_PER_DAY, 20))),
+        // OpenVibe.AI (server/ai.js): the public catalog and usage reads, and the chat runs this service makes
+        // for a person. The token is the service's own client-credentials grant (ai.run.create, ns ai.complete);
+        // the person's Network subject rides on the run as on_behalf_of, so their own allowance and limits apply.
+        ai: {
+            url: trim(env.OV_AI_URL || 'https://ai.openvibe.services'),
+            audience: env.OV_AI_AUDIENCE || 'openvibe.ai',
+            scope: env.OV_AI_SCOPE || 'ai.run.create',
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_AI_TIMEOUT_MS, 30_000)),
+            waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
-        // The first-party catalogue (server/jobs/first-party.js): Design's built-in themes and token files, Live's OBS
-        // scenes and alerts, and Games' public worlds. Off under EXCHANGE_DRILL and when EXCHANGE_FIRST_PARTY=0.
-        firstParty: {
-            enabled: env.EXCHANGE_FIRST_PARTY !== '0' && env.EXCHANGE_FIRST_PARTY !== 'false',
-            intervalMs: Math.max(60_000, int(env.EXCHANGE_FIRST_PARTY_INTERVAL_MS, 6 * 60 * 60_000)),
-            timeoutMs: Math.max(500, int(env.EXCHANGE_FIRST_PARTY_TIMEOUT_MS, 8000)),
-            designUrl: trim(env.OV_DESIGN_URL || 'https://openvibe.design'),
-            liveUrl: trim(env.OV_LIVE_URL || 'https://openvibe.live'),
-            gamesUrl: trim(env.OV_GAMES_URL || 'https://openvibe.games'),
+        // /chat: how many messages a signed-in person may send a day (each one may run up to three models).
+        chat: {
+            perDay: Math.max(1, int(env.EXCHANGE_CHAT_PER_DAY, 40)),
+            models: Math.max(1, Math.min(3, int(env.EXCHANGE_CHAT_MODELS, 3))),
+            maxChars: Math.max(200, int(env.EXCHANGE_CHAT_MAX_CHARS, 8000)),
         },
     };
 }

@@ -1,18 +1,16 @@
 'use strict';
 // What openvibe.exchange tells an agent about itself (openvibe-shared/agent-layer): /.well-known/agent.json.
-// Every field is something this site really serves: the JSON API under /api/v1, the developers page that
-// documents it, and the app's own per-address limits. No OpenAPI document or MCP endpoint is published.
+// Every field is something this site really serves: the pages, the public API host, and its own limits.
 module.exports = {
     id: 'exchange',
     name: 'OpenVibe.Exchange',
-    purpose: 'Trade what people make: free and swap listings for agents, MCP tools, templates, themes, game assets and creator services, each with a permission passport, a sandbox and one-tap revocation.',
+    purpose: 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.',
     home: 'https://openvibe.exchange',
     site: 'openvibe.exchange',
-    api: '/api/v1',
-    docs: '/developers',
-    openapi: '/openapi.json',
+    api: 'https://api.openvibe.exchange/v1',
+    docs: 'https://openvibe.exchange/api',
     policy: {
         auth: ['none', 'Network OIDC'],
-        rateLimit: '300 page requests a minute per address; 240 API requests a minute; sign-in limited to 60 attempts per 15 minutes',
+        rateLimit: '300 page requests a minute per address; sign-in limited to 60 attempts per 15 minutes',
     },
 };

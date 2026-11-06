@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Page shell. Every page is server-rendered through openvibe-shared/shell and is complete without JavaScript.
- * This is Meme's layout with Exchange's name, navigation, room accent and assets.
+ * The page shell: openvibe-shared/shell (the Frame, the theme and the footer) around body markup the pages build
+ * with openvibe-shared/kit. Every page is complete without JavaScript.
  */
 const crypto = require('crypto');
 const fs = require('fs');
@@ -16,14 +16,16 @@ const { render, esc } = require('./html');
 
 const NETWORK_URL = 'https://openvibe.network';
 const SITE_NAME = 'OpenVibe.Exchange';
-const TAGLINE = 'Trade what people make.';
+const TAGLINE = 'Every AI model, one account.';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const NAV = [
     { label: 'Home', href: '/' },
-    { label: 'Listings', href: '/listings' },
-    { label: 'Installations', href: '/installs' },
-    { label: 'Sell or swap', href: '/submit' },
-    { label: 'Developers', href: '/developers' },
+    { label: 'Models', href: '/models' },
+    { label: 'Chat', href: '/chat' },
+    { label: 'API', href: '/api' },
+    { label: 'Sell compute', href: '/sell' },
+    { label: 'Uncensored', href: '/uncensored' },
+    { label: 'AI in OpenVibe', href: '/ai' },
 ];
 
 const hashes = new Map();
@@ -39,8 +41,10 @@ const asset = (rel) => `/${rel}?v=${assetVersion(rel)}`;
 let RELEASE = 'dev';
 function setRelease(id) { if (id) RELEASE = String(id); }
 
+const active = (pathNow, href) => pathNow === href || (href !== '/' && pathNow.startsWith(`${href}/`));
+
 /**
- * o: title, description, body (html), viewer, config, path, index, cache, crumbs, jsonLd, styles
+ * o: title, description, body (html), viewer, config, path, index, cache, jsonLd, head, class
  */
 function renderPage(o) {
     const viewer = o.viewer || { kind: 'anonymous' };
@@ -51,7 +55,7 @@ function renderPage(o) {
     const nav = {
         service: 'exchange',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, active: pathNow === l.href || pathNow.startsWith(`${l.href}/`) })),
+        links: NAV.map((l) => ({ label: l.label, href: l.href, active: active(pathNow, l.href) })),
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',
@@ -63,41 +67,40 @@ function renderPage(o) {
     const account = signedIn
         ? `Signed in as <strong>${esc(viewer.displayName || viewer.username || 'you')}</strong> · <a href="/auth/logout?next=${loginNext}">Sign out</a>`
         : `<a href="/auth/login?next=${loginNext}">Sign in with OpenVibe</a>`;
-    const crumbs = (o.crumbs || []).length
-        ? `<nav class="crumbs" aria-label="Breadcrumbs">${o.crumbs.map((c, i) => `${i ? ' / ' : ''}${c.href ? `<a href="${c.href}">${esc(c.label)}</a>` : esc(c.label)}`).join('')}</nav>`
-        : '';
-    const scripts = (o.scripts || []).map((rel) => `<script src="${asset(rel)}" defer></script>`);
     return shell.page({
         name: SITE_NAME,
         lang: 'en',
         title: o.title || `${SITE_NAME}: ${TAGLINE}`,
         titleSuffix: o.title ? ` · ${SITE_NAME}` : '',
         siteName: SITE_NAME,
-        description: o.description || `${SITE_NAME} — ${TAGLINE}`,
+        description: o.description || `${SITE_NAME} — ${TAGLINE} Every model's price, speed and uptime, live; one OpenAI-compatible endpoint; chat with one model or three side by side.`,
         canonical,
         agentLayer: Boolean(o.agentLayer),
-        robots: o.index ? 'index, follow' : 'noindex, nofollow',
+        robots: o.index === false ? 'noindex, nofollow' : 'index, follow',
         jsonLd: (o.jsonLd || []).filter(Boolean),
         home: '/',
         navLinks: NAV,
+        bodyClass: o.app ? 'ex-app' : undefined,
         navbar: nav,
         footer,
         head: `<meta name="referrer" content="strict-origin-when-cross-origin">
 ${appIcon.headTags({ site: 'exchange' })}
 <link rel="stylesheet" href="${ovServe.url('kit.css')}">
+<link rel="stylesheet" href="${ovServe.url('kit-data.css')}">
 <link rel="stylesheet" href="${ovServe.url('room.css')}">
 <link rel="stylesheet" href="${ovServe.url('showcase.css')}">
 <link rel="stylesheet" href="${asset('css/exchange.css')}">
 <script src="${ovServe.url('motion.js')}" defer></script>
+<script src="${ovServe.url('kit-web.js')}" defer></script>
 <script src="${asset('js/exchange.js')}" defer></script>
-${render(scripts)}
-<meta name="ov-boost" content="exchange@${esc(RELEASE)}">
+${o.head || ''}
+<meta property="og:site_name" content="${SITE_NAME}">
+<meta name="theme-color" content="#0b0f17">
 <script src="${ovServe.url('boost.js')}" data-main="#main" defer></script>`,
         body: `<a class="skip" href="#main">Skip to content</a>
 <div id="navbar-mount"></div>
 <noscript><div class="account-bar" role="navigation" aria-label="Account">${account}</div></noscript>
-<main id="main" class="ex ov-room" style="${rooms.style('exchange')}">
-${crumbs}
+<main id="main" class="ex ov-room ${o.class || ''}" style="${rooms.style('exchange')}">
 ${render(o.body)}
 </main>
 <script>
