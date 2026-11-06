@@ -50,6 +50,21 @@ function familyLabel(m) {
     return !name || INTERNAL.test(name) || name.length > 24 ? 'Other' : name;
 }
 
+/** The model families on sale now, most requested first ("GPT", "DeepSeek"); internal and unnamed ones are left out. */
+function familiesOnSale(models) {
+    const out = [];
+    for (const m of [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0))) {
+        const f = familyLabel(m);
+        if (f !== 'Other' && !out.includes(f)) out.push(f);
+    }
+    return out;
+}
+
+/** "A", "A and B", "A, B and C". */
+function listSaid(xs) {
+    return xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
 /**
  * The privacy label the design asks for, from facts only: a community machine sees the prompt; zero retention
  * and no training is Private; no training alone is said as that. "Anonymized" is never claimed, because no
@@ -94,7 +109,8 @@ function panel({ title, note = '', id, body, cls = '' }) {
 function modelRow(m, { withTry = true } = {}) {
     const best = cheapest(m);
     const bits = [];
-    if (best) bits.push(providerLabel(best), inOut(best.price), ms(best.speed.p50_ms), pct(best.uptime));
+    // A stat not measured yet is left out, never printed as a dash ("– · –" read as noise in a row).
+    if (best) bits.push(providerLabel(best), inOut(best.price), ...(best.speed && best.speed.p50_ms != null ? [ms(best.speed.p50_ms)] : []), ...(best.uptime != null ? [`${pct(best.uptime)} up`] : []));
     else if (m.offers[0]) bits.push(providerLabel(m.offers[0]), 'free capacity');
     if (best && best.refusal_rate != null) bits.push(`refuses ${pct(best.refusal_rate)}`);
     const pv = privacyOf(best || m.offers[0]);
@@ -116,6 +132,8 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
     const paid = models.map((m) => ({ m, o: cheapest(m) })).filter((x) => x.o).sort((a, b) => blended(a.o.price) - blended(b.o.price));
     const popular = [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 8);
     const bestPrice = paid[0] && paid[0].o;
+    // The hero names only the families on sale now, most requested first: never one no provider sells yet.
+    const families = familiesOnSale(models);
     const preview = (paid.length >= 2 ? paid.slice(0, 2) : models.slice(0, 2).map((m) => ({ m, o: cheapest(m) })));
 
     const stats = [];
@@ -130,8 +148,8 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 <div class="ex-hero-copy">
 <p class="ex-kicker">OpenVibe.Exchange</p>
 <h1>Every AI model, one account.</h1>
-<p class="ex-lead">DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds: the live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
-${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model: DeepSeek, Qwen, Kimi, GLM…', value: q, icon: 'search' })}
+<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
+${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
 <p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/api', label: 'The API', kind: 'ghost' })}</p>
 </div>
 ${preview.length === 2 ? previewCard(preview) : ''}
@@ -163,9 +181,18 @@ ${panel({
 
 /** The hero's side-by-side chat preview: real models and prices, example words, said as an example. */
 function previewCard(preview) {
+    // Two models of one family would say the same example words; the second takes another wording, so the preview
+    // never shows two identical answers.
+    const said = [];
+    const answerFor = (m) => {
+        let text = EXAMPLE_ANSWER[familyLabel(m)] || EXAMPLE_ANSWER.Default;
+        if (said.includes(text)) text = Object.values(EXAMPLE_ANSWER).find((t) => !said.includes(t)) || text;
+        said.push(text);
+        return text;
+    };
     const cells = preview.map(({ m, o }) => `<article class="ex-preview-cell">
 <header>${mark(familyLabel(m), { size: 22, label: false })}<b>${esc(m.name)}</b></header>
-<p>${esc(EXAMPLE_ANSWER[familyLabel(m)] || EXAMPLE_ANSWER.Default)}</p>
+<p>${esc(answerFor(m))}</p>
 <footer>${o ? `${money(o.price.in)} in · ${money(o.price.out)} out · ${ms(o.speed.p50_ms)}` : 'free capacity'}</footer>
 </article>`).join('');
     return `<aside class="ex-preview" aria-label="A preview of the side-by-side chat">
@@ -224,7 +251,7 @@ ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provi
 <div class="ex-chips" role="group" aria-label="Sort">${links}</div>
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
 ${unavailable(catalog)}
-${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family (DeepSeek, Qwen, Kimi, GLM) or a provider.' }) })}
+${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family or a provider.' }) })}
 <p class="ex-more"><a href="/status">Uptime and incidents →</a></p>
 </div>`;
 }
@@ -343,9 +370,9 @@ function resultCard(result) {
 // ── API ────────────────────────────────────────────────────
 function apiPage({ catalog, usage }) {
     const models = chatModels(catalog).filter((m) => !m.uncensored).slice(0, 12);
-    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, family: esc(familyLabel(m)), context: m.context || null }));
+    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, context: m.context || null }));
     const byDay = (usage.by_day || []).slice(-14).reverse();
-    const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: count((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd).toFixed(4)}` }));
+    const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: shortCount((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd) < 0.1 ? Number(d.cost_usd).toFixed(4) : Number(d.cost_usd).toFixed(2)}` }));
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${panel({ title: 'One endpoint', body: `
@@ -356,16 +383,26 @@ ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIB
 <p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })}</p>
 <h3 class="ex-h3">Model ids</h3>
 <p class="ex-prose"><code>openvibe/auto</code> lets the router pick by your floor, ceiling and policy, and the answer says which model ran and why. An exact id pins one artifact. Bring your own provider key and those requests pay the provider directly, at no fee from us.</p>
-${kit.table({ columns: [{ key: 'model', label: 'Model', primary: true, html: true }, { key: 'family', label: 'Family' }, { key: 'context', label: 'Context', num: true }], rows, label: 'Model ids' })}
+${kit.table({ columns: [{ key: 'model', label: 'Model id', primary: true, html: true }, { key: 'context', label: 'Context', num: true }], rows, label: 'Model ids', stack: false })}
 ` })}
-${panel({ title: 'Usage', note: 'Aggregate, from OpenVibe.AI: no prompt and no person.', id: 'usage', body: usage.unavailable ? kit.notice({ kind: 'info', text: 'Usage is not available right now.' }) : (usageRows.length ? kit.table({ columns: [{ key: 'day', label: 'Day', primary: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens' }, { key: 'cost', label: 'Cost' }], rows: usageRows, label: 'Usage by day', caption: 'The last 14 days, all products and people.' }) : kit.empty({ icon: 'spark', title: 'No requests yet', text: 'The first call through the endpoint will show here.' })) })}
+${panel({ title: 'Usage', note: 'Aggregate, from OpenVibe.AI: no prompt and no person.', id: 'usage', body: usage.unavailable ? kit.notice({ kind: 'info', text: 'Usage is not available right now.' }) : (usageRows.length ? kit.table({ columns: [{ key: 'day', label: 'Day', primary: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens' }, { key: 'cost', label: 'Cost' }], rows: usageRows, label: 'Usage by day', caption: 'The last 14 days, all products and people.', stack: false }) : kit.empty({ icon: 'spark', title: 'No requests yet', text: 'The first call through the endpoint will show here.' })) })}
 ${panel({ title: 'What it costs', body: '<p class="ex-prose">Every price is the offer\'s own, per million tokens, and the answer carries the exact cost of that run. A small free daily allowance comes with every account; it grows with account age and contribution. Paid use, when the owner turns money on, is at cost plus a margin and shown before the request.</p>' })}
 </div>`;
 }
 
+/** 2832475 → "2.83M", 48210 → "48.2k": short enough that a four-column table fits a phone. */
+function shortCount(n) {
+    const v = Number(n) || 0;
+    return v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e4 ? `${(v / 1e3).toFixed(1)}k` : count(v);
+}
+
 // ── Sell compute ───────────────────────────────────────────
+const HOUSE_SERVER = /^local\d*$/;
+
 function sellPage({ catalog, usage }) {
-    const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community').map((o) => ({ model: m, offer: o })));
+    // OpenVibe's own model servers on its hosts (`local`, `local2`) carry community trust so the router treats their
+    // privacy conservatively, but nobody sells them: only machines people offer through Node are listed here.
+    const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community' && !HOUSE_SERVER.test(String(o.provider || ''))).map((o) => ({ model: m, offer: o })));
     const first = offers[0];
     const seller = first
         ? sellerCard({ machine: providerLabel(first.offer), model: first.model, offer: first.offer, example: false })
@@ -400,11 +437,12 @@ ${panel({ title: 'Machines on the network now', id: 'community', body: machineRo
 
 function sellerCard({ machine, model, offer, example }) {
     const speed = offer.speed && offer.speed.p50_ms != null ? `answers in ${ms(offer.speed.p50_ms)}` : 'speed not measured yet';
-    const label = /owner|volunteer|machine/i.test(String(machine)) ? '@name’s own machine' : `@name’s ${machine}`;
+    // No person's name: a seller card says what the machine is, never who owns it.
+    const label = example ? `A spare ${machine}` : (/owner|volunteer|machine/i.test(String(machine)) ? 'A community machine' : `A community ${machine}`);
     return `<article class="ex-seller${example ? ' is-example' : ''}">
 <span class="ex-mk ex-mk--machine" style="--ex-mk-size:36px" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v9H4zM8 19h8M12 15v4"/></svg></span>
 <div><b>${esc(label)}</b>
-<p>${esc(model.name)} · ${speed} · ${offer.uptime == null ? 'uptime not measured yet' : `${pct(offer.uptime)} uptime`} · verified</p></div>
+<p>${esc(model.name)} · ${speed} · ${offer.uptime == null ? 'uptime not measured yet' : `${pct(offer.uptime)} uptime`}${example || offer.verified === true ? ' · verified' : ' · not verified yet'}</p></div>
 ${example ? '<span class="ex-badge-note">Example</span>' : ''}
 </article>`;
 }
@@ -439,7 +477,7 @@ function companionsPolicy() {
         + '<li>On a chat, your own message is checked before it is sent, and the answer is checked before it is shown.</li>'
         + '<li>An answer that breaks the floor is never delivered: the chat ends and the account is reviewed.</li>'
         + '<li>An 18+ character shows only to people signed in with the 18+ confirmation, and never reaches a public list, a sitemap, llms.txt or a search.</li>'
-        + '</ul><p class="ex-prose">The same three rules as everywhere else, with the character’s own card in scope: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.</p>';
+        + '</ul><p class="ex-prose">The same three rules as everywhere else, with the character’s own card in scope: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.</p>';
     return panel({ title: 'The floor on characters and chats', id: 'companions-floor', body });
 }
 
