@@ -9,10 +9,10 @@
 function createChatStore(s) {
     const db = s.db;
 
-    async function create({ owner, models = [], title = 'New chat' }) {
+    async function create({ owner, models = [], title = 'New chat', sealed = false, strictPrivacy = false }) {
         const id = s.newId('exc');
-        await db.prepare(`INSERT INTO exchange_chats (id, owner, title, models) VALUES (?, ?, ?, ?)`)
-            .run(id, owner, String(title).slice(0, 120) || 'New chat', JSON.stringify(models.slice(0, 3)));
+        await db.prepare(`INSERT INTO exchange_chats (id, owner, title, models, sealed, strict_privacy) VALUES (?, ?, ?, ?, ?, ?)`)
+            .run(id, owner, String(title).slice(0, 120) || 'New chat', JSON.stringify(models.slice(0, 3)), Boolean(sealed), Boolean(strictPrivacy));
         return get(owner, id);
     }
 
@@ -22,7 +22,7 @@ function createChatStore(s) {
     }
 
     async function list(owner, limit = 60) {
-        const rows = await db.prepare('SELECT id, title, models, updated_at FROM exchange_chats WHERE owner = ? ORDER BY updated_at DESC LIMIT ?')
+        const rows = await db.prepare('SELECT id, title, models, sealed, strict_privacy, updated_at FROM exchange_chats WHERE owner = ? ORDER BY updated_at DESC LIMIT ?')
             .all(owner, Math.max(1, Math.min(200, limit)));
         return rows.map((r) => ({ ...r, models: parseModels(r.models) }));
     }
@@ -59,6 +59,37 @@ function createChatStore(s) {
         await db.prepare('UPDATE exchange_chats SET updated_at = now() WHERE id = ? AND owner = ?').run(chatId, owner);
     }
 
+    /** The chat's strict privacy switch: only offers that keep nothing and train on nothing may answer. */
+    async function setPrivacy(owner, chatId, { strictPrivacy }) {
+        await db.prepare('UPDATE exchange_chats SET strict_privacy = ?, updated_at = now() WHERE id = ? AND owner = ?')
+            .run(Boolean(strictPrivacy), chatId, owner);
+    }
+
+    /** The sealed conversation of a chat: the envelope only, never its plaintext (it never arrives here). */
+    async function sealGet(owner, chatId) {
+        const row = await db.prepare('SELECT chat_id, envelope, updated_at FROM exchange_chat_seals WHERE chat_id = ? AND owner = ?')
+            .get(String(chatId || ''), owner);
+        return row || null;
+    }
+
+    /** Replace a chat's sealed envelope. The owner is in the WHERE, so one account never writes another's chat. */
+    async function sealPut(owner, chatId, envelope) {
+        const chat = await db.prepare('SELECT id FROM exchange_chats WHERE id = ? AND owner = ? AND sealed = true').get(chatId, owner);
+        if (!chat) return null;
+        await db.prepare(`INSERT INTO exchange_chat_seals (chat_id, owner, envelope, updated_at) VALUES (?, ?, ?, now())
+            ON CONFLICT (chat_id) DO UPDATE SET envelope = excluded.envelope, updated_at = now()`)
+            .run(chatId, owner, envelope);
+        await db.prepare('UPDATE exchange_chats SET updated_at = now() WHERE id = ? AND owner = ?').run(chatId, owner);
+        return sealGet(owner, chatId);
+    }
+
+    /** A sealed chat: the chat row (the neutral title, the models) and its first envelope. */
+    async function createSealed({ owner, envelope, models = [] }) {
+        const chat = await create({ owner, models, title: 'Sealed chat', sealed: true });
+        await db.prepare('INSERT INTO exchange_chat_seals (chat_id, owner, envelope) VALUES (?, ?, ?)').run(chat.id, owner, envelope);
+        return chat;
+    }
+
     async function remove(owner, chatId) {
         await db.prepare('DELETE FROM exchange_chats WHERE id = ? AND owner = ?').run(chatId, owner);
     }
@@ -70,7 +101,7 @@ function createChatStore(s) {
         return Number(row && row.n) || 0;
     }
 
-    return { create, get, list, messages, append, rename, settings, clear, remove, countToday };
+    return { create, get, list, messages, append, rename, settings, clear, remove, countToday, setPrivacy, sealGet, sealPut, createSealed };
 }
 
 function createAdultStore(s) {

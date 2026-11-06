@@ -460,6 +460,62 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
     .ex-branch-arrow { min-width: 44px; min-height: 44px; }
 }
 
+/* ── Strict privacy and a sealed chat ─────────────────────── */
+.ex-check {
+    display: flex; align-items: flex-start; gap: 9px;
+    margin: 10px 0 4px; font-size: 14.5px; line-height: 1.5; color: var(--ovk-text);
+    cursor: pointer;
+}
+.ex-check input { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ovk-accent, currentColor); }
+.ex-small { font-size: 12.5px; margin: 2px 0 0; }
+.ex-switch { max-width: 640px; }
+.ex-switch .ovk-btn { margin-top: 8px; }
+
+.ex-sealed-card {
+    display: grid; gap: 14px; margin-top: 18px;
+    padding: 16px; border-radius: 16px;
+    border: 1px solid var(--ovk-line); background: var(--ovk-panel);
+}
+.ex-sealed-title { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: -.01em; }
+.ex-sealed-status { margin: 0; color: var(--ovk-muted); font-size: 14px; line-height: 1.55; }
+.ex-sealed-status.is-ready { color: var(--ovk-text); }
+.ex-sealed-turns { display: grid; gap: 12px; max-height: 58vh; overflow: auto; }
+.ex-sealed-turns:empty { display: none; }
+.ex-turn {
+    display: grid; gap: 4px; max-width: 760px;
+    padding: 12px 14px; border-radius: 14px;
+    border: 1px solid var(--ovk-line); background: var(--ovk-panel-2, var(--ovk-panel));
+}
+.ex-turn--user { background: transparent; justify-self: end; }
+.ex-turn-who { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
+.ex-turn-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 15px; }
+.ex-sealed-form { display: grid; gap: 8px; }
+.ex-sealed-form textarea {
+    width: 100%; box-sizing: border-box; min-height: 92px; padding: 10px 12px;
+    border-radius: 12px; border: 1px solid var(--ovk-line);
+    background: var(--ovk-input, var(--ovk-panel)); color: var(--ovk-text); font: inherit; line-height: 1.55; resize: vertical;
+}
+.ex-sealed-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.ex-sealed-row select {
+    min-height: 40px; padding: 6px 10px; border-radius: 10px;
+    border: 1px solid var(--ovk-line); background: var(--ovk-input, var(--ovk-panel)); color: var(--ovk-text); font: inherit;
+}
+.ex-sealed-note {
+    margin: 16px 0 0; max-width: 68ch; font-size: 13px; line-height: 1.6; color: var(--ovk-muted);
+}
+.ex-sealed-note strong { color: var(--ovk-text); }
+
+@media (max-width: 640px) {
+    .ex-sealed-card { padding: 12px; border-radius: 14px; }
+    .ex-sealed-turns { max-height: none; }
+    .ex-sealed-row select { width: 100%; }
+    .ex-sealed-row .ex-check { min-height: 44px; }
+}
+
+@media (max-width: 700px) {
+    .ex-check { min-height: 44px; align-items: center; }
+}
+
 /* ── The Arena and the rankings ─────────────────────────── */
 .ex-arena-form textarea { width: 100%; }
 .ex-arena-form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 10px; }

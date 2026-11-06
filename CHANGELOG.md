@@ -4,6 +4,14 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **Private AI.** Strict privacy is a switch on `/chat` and on the API page's keys. It sends AI the `private` preset:
+  only offers that keep nothing and train on nothing (or OpenVibe's own deployments) may answer, the router refuses
+  with a plain message when none can, and every answer's receipt carries its label (Private, No training, Anonymized,
+  Community, Standard).
+- **Sealed history.** A chat can be sealed with the person's Locker: the browser seals the whole conversation
+  (`ov-locker.js`, people-locked to the person) and Exchange stores only the envelope. The chat list shows a neutral
+  title until it is opened, the model still receives the turn it answers, and the page says so plainly. Account
+  export carries the envelope and deletion erases it.
 - **The Arena (`/arena`).** One prompt, two models answering side by side with no names, one vote (left, right, a
   tie, or both bad), then both names and their receipts. The pair is chosen from the live catalogue, free-tier
   capacity first and different families where possible, and each answer is a normal run on the person's own
@@ -11,7 +19,7 @@ What changed in OpenVibe.Exchange, newest first.
   (code, writing, chat, reasoning, translation, analysis), rate-limited per person and counted once per round.
 - **Rankings (`/rankings`).** Bench's board by task category beside the cheapest live price per million in and
   out, the measured p50 and uptime, and a value column (rating points above 1000 per dollar of output). A
-  products-and-apps panel shows which models OpenVibe's products and public apps run, from AI's aggregate usage
+  products-and-apps panel shows which models OpenVibe's products run, and developers' apps as one unnamed row, from AI's aggregate usage
   and never a person.
 - **Model changelog (`/status`).** A daily snapshot of the catalogue in `exchange_model_snapshots` names the
   models that arrived, left or changed their price between the last two recorded days, with the dates.

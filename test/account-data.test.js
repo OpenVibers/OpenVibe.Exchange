@@ -28,6 +28,7 @@ const deleteEvent = { event_id: `evt_${ids.ulid()}`, event_type: 'network.accoun
 const bodyOf = (ev) => JSON.stringify({ event: ev, seq: 1 });
 
 const PASSPORT = '{"reads":[],"writes":[],"spends":[],"contacts":[]}';
+const SEALED = Buffer.alloc(96, 7).toString('base64');
 const MANIFEST = '{"name":"x","entry":"y"}';
 
 async function startNetworkStub() {
@@ -99,6 +100,7 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
         const bCompanion = await t.ctx.companionChats.create({ owner: B, characterId: bCharacter.id, title: 'Bob’s chat' });
         await t.ctx.companionChats.append({ owner: B, chatId: bCompanion.id, role: 'user', content: 'Bob’s words', turnId: 'ext_2' });
 
+        const sealedChat = await t.ctx.chats.createSealed({ owner: A, envelope: SEALED });
         // The memory-note index, a lorebook with an entry, and a Locker row: stages 3 and 4, exported and erased.
         const noteId = `exn_${ids.ulid()}`;
         const m2Id = `mem_${ids.ulid()}`;
@@ -125,12 +127,13 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(part.auth, 'Bearer tok_exchange');
             assert.strictEqual(part.body.subject, A);
             assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(),
-                ['adult-confirmation.json', 'characters.json', 'chat-messages.json', 'chats.json', 'companion-chats.json', 'companion-locks.json', 'companion-messages.json', 'companion-notes.json', 'installs.json', 'listings.json', 'lorebook-entries.json', 'lorebooks.json', 'offers.json', 'sandbox-trials.json']);
+                ['adult-confirmation.json', 'characters.json', 'chat-messages.json', 'chat-seals.json', 'chats.json', 'companion-chats.json', 'companion-locks.json', 'companion-messages.json', 'companion-notes.json', 'installs.json', 'listings.json', 'lorebook-entries.json', 'lorebooks.json', 'offers.json', 'sandbox-trials.json']);
             const all = JSON.stringify(part.body);
             assert.ok(all.includes('Alice\'s listed theme'));
             assert.ok(all.includes('Alice\'s draft theme'));
             assert.ok(!all.includes('Bob\'s listed theme'), 'nobody else\'s row');
             assert.ok(all.includes('A question for the models') && all.includes('What is a mutex?') && all.includes('A lock.'), 'the chat and its messages');
+            assert.ok(all.includes(SEALED), 'a sealed chat’s envelope is exported as it is stored');
             assert.strictEqual(part.body.files.find((f) => f.name === 'installs.json').content[0].id, install);
             assert.strictEqual(part.body.files.find((f) => f.name === 'sandbox-trials.json').content[0].id, trial);
             assert.match(all, /I would like Bob/);
@@ -162,6 +165,8 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_offers WHERE id = $1', [offer])), 0);
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chats WHERE owner = $1', [A])), 0, 'the chat is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chat_messages WHERE owner = $1', [A])), 0, 'its messages are erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chat_seals WHERE owner = $1', [A])), 0, 'the sealed envelope is erased with the chat');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chats WHERE id = $1', [sealedChat.id])), 0);
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_adult_confirmations WHERE subject = $1', [A])), 0, 'the confirmation is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [A])), 0, 'the character is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [A])), 0, 'the companion chat is erased');

@@ -134,6 +134,9 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             ? (Array.isArray(explain.reasons) && explain.reasons.length ? explain.reasons.slice(0, 4).map(String)
                 : (explain.selected || explain.policy || explain.objective || null))
             : null;
+        // The privacy label the router put on the run's own explain (server/exchange/privacy.js in AI): Private,
+        // Anonymized or Community, with the facts behind it. The answer shows it beside the receipt.
+        const privacy = explain && typeof explain === 'object' && explain.privacy && typeof explain.privacy === 'object' ? explain.privacy : null;
         return {
             content,
             model: (run.output && run.output.model) || (run.provenance && run.provenance.model) || null,
@@ -145,10 +148,77 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             tokens_out: usage ? usage.tokens_out || 0 : 0,
             latency_ms: Number.isFinite(started) && Number.isFinite(finished) && finished >= started ? finished - started : null,
             why: why == null ? null : (Array.isArray(why) ? why : [String(why)]),
+            privacy: privacy ? privacy.label || null : null,
+            privacy_detail: privacy,
+            preset: explain && explain.preset && explain.preset.name ? String(explain.preset.name) : null,
         };
     }
 
-    return { catalog, usage, chat, configured: Boolean(tokens) };
+    /** The presets saved for a person on AI (GET /api/v1/presets), or null when the read fails. */
+    async function presetsFor(subject) {
+        if (!tokens || !subject) return null;
+        try {
+            const token = await tokens.getToken();
+            const res = await fetchImpl(`${config.ai.url}/api/v1/presets?on_behalf_of=${encodeURIComponent(subject)}`, {
+                headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(config.ai.timeoutMs),
+            });
+            const body = await jsonOf(res);
+            return res.ok && body && Array.isArray(body.presets) ? body.presets : null;
+        } catch (err) {
+            warned('presets', err);
+            return null;
+        }
+    }
+
+    /** The developer projects the person owns (Network's GET /api/v1/projects), as ids; [] when it cannot be read. */
+    async function ownedProjects(token, subject) {
+        if (!token || !subject) return [];
+        try {
+            const res = await fetchImpl(`${config.networkUrl}/api/v1/projects`, {
+                headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(config.ai.timeoutMs),
+            });
+            const body = await jsonOf(res);
+            const projects = res.ok && body && Array.isArray(body.projects) ? body.projects : [];
+            // Only the person's own projects: a shared one may carry other members' traffic.
+            return projects.filter((p) => p && p.id && p.owner && p.owner.id === subject).map((p) => String(p.id));
+        } catch (err) {
+            warned('projects', err);
+            return [];
+        }
+    }
+
+    /**
+     * The strict-privacy switch on a person's keys: their "default" preset in AI makes every request that names no
+     * preset private, and turning it off deletes it. The keys are their projects' keys too, so the same preset is
+     * written on each project they own; a project that cannot be written is counted, never hidden.
+     */
+    async function setKeyPrivacy(subject, on, { networkToken = null } = {}) {
+        if (!tokens || !subject) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
+        const token = await tokens.getToken();
+        const targets = [{ type: 'user', id: String(subject) }];
+        for (const id of await ownedProjects(networkToken, subject)) targets.push({ type: 'project', id });
+        let written = 0;
+        const failed = [];
+        for (const target of targets) {
+            const res = await fetchImpl(`${config.ai.url}/api/v1/presets${on ? '' : '/default'}`, {
+                method: on ? 'POST' : 'DELETE',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ on_behalf_of: target, ...(on ? { name: 'default', policy: { data_policy: 'private', community: false } } : {}) }),
+                signal: AbortSignal.timeout(config.ai.timeoutMs),
+            });
+            const body = await jsonOf(res);
+            if (res.ok) { written += 1; continue; }
+            if (!on && res.status === 404) { written += 1; continue; }   // nothing to remove: the switch is off
+            const err = new Error((body && (body.detail || body.title)) || `AI answered ${res.status}`);
+            err.code = (body && body.code) || 'ai.failed';
+            err.status = res.status;
+            if (target.type === 'user') throw err;   // the person's own preset is the switch: a failure is not hidden
+            failed.push(target.id);
+        }
+        return { on: Boolean(on), projects: targets.length - 1, projects_set: Math.max(0, written - 1), projects_failed: failed };
+    }
+
+    return { catalog, usage, chat, presetsFor, setKeyPrivacy, ownedProjects, configured: Boolean(tokens) };
 }
 
 /**

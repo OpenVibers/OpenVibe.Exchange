@@ -21,6 +21,9 @@ const TABLES = [
     { table: 'exchange_offers', subject: 'from_subject', value: (usr) => usr, file: 'offers.json', erase: 'delete' },
     { table: 'exchange_chats', subject: 'owner', value: (usr) => usr, file: 'chats.json', erase: 'delete' },
     { table: 'exchange_chat_messages', subject: 'owner', value: (usr) => usr, file: 'chat-messages.json', erase: 'delete' },
+    // A sealed chat's envelope is exported as it is stored (base64 ciphertext: only the person's Locker opens it) and
+    // erased with the chat it belongs to. Its plaintext was never here.
+    { table: 'exchange_chat_seals', subject: 'owner', value: (usr) => usr, file: 'chat-seals.json', erase: 'delete' },
     { table: 'exchange_adult_confirmations', subject: 'subject', value: (usr) => usr, file: 'adult-confirmation.json', erase: 'delete' },
     // The Arena (2026-11-06): the rounds this person asked for and the votes they cast are theirs. A vote
     // goes first, then its round (the vote also cascades from the round).
