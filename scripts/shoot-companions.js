@@ -5,16 +5,20 @@
  *
  *   node scripts/shoot-companions.js [outDir]
  *
+ * The shots go to a folder outside the repository (a temporary one by default): they are pictures of the site, not
+ * code, and they are never committed.
+ *
  * It boots the real app on a temp database with a mock Network and a stand-in AI, seeds a few characters, and
  * drives headless Chrome (the ov-phone-shots recipe). It checks the width (scrollWidth === viewport), the
  * console, and the tap targets at 390 px, and says what it found.
  */
 const path = require('path');
+const os = require('os');
 const { boot } = require('../test/helpers/boot');
 const { createFakeAi } = require('../test/helpers/ai');
 const { chromium } = require('/home/workstation/openvibe/work/OpenVibe.Games/node_modules/playwright');
 
-const OUT = path.resolve(process.argv[2] || path.join(__dirname, '..', 'screenshots'));
+const OUT = path.resolve(process.argv[2] || path.join(os.tmpdir(), 'exchange-companions-shots'));
 const CHROME = '/usr/bin/google-chrome';
 
 const FORM = {

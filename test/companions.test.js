@@ -9,6 +9,9 @@ const { createFakeAi } = require('./helpers/ai');
 const codec = require('../server/companions/codec');
 const floor = require('../server/companions/floor');
 
+/** The branch line under a turn: "2/3", the count of the branch on screen out of all of them. */
+const branchCount = (html) => (html.match(/ex-branch-count">([^<]*)</) || [])[1] || null;
+
 const FORM = {
     name: 'Ada',
     description: 'A keeper of clocks',
@@ -273,9 +276,16 @@ const FORM = {
             assert.strictEqual(r.status, 303, r.text);
             const after = await t.get('/talk/' + chatId, { as: alice });
             assert.ok(after.text.includes('Good evening'), 'the new version is there');
-            assert.ok(after.text.includes('of 2'), 'the branch count');
+            assert.strictEqual(branchCount(after.text), '2/2', 'the branch line: ' + branchCount(after.text));
             const dump = await t.dbDump();
             assert.ok(dump.includes('Good day'), 'the old version is kept');
+            // The arrows walk the tree: back to the first version, and the count follows.
+            const back = (after.text.match(/class="ex-branch-arrow" href="([^"]+)"[^>]*aria-label="The previous branch"/) || [])[1];
+            assert.ok(back, 'the previous branch is a link');
+            const older = await t.get(back, { as: alice });
+            assert.strictEqual(older.status, 200, older.text);
+            assert.ok(older.text.includes('Good day'), 'the first version is there');
+            assert.strictEqual(branchCount(older.text), '1/2', 'the count of the first branch');
         });
 
         await check('regenerating adds another answer to the same turn', async () => {
@@ -284,7 +294,61 @@ const FORM = {
             const r = await t.get('/talk/' + chatId + '/regenerate', { as: alice, form: { message: id } });
             assert.strictEqual(r.status, 303, r.text);
             const after = await t.get('/talk/' + chatId, { as: alice });
-            assert.ok(after.text.includes('of 2'), 'two answers to the same message');
+            assert.strictEqual(branchCount(after.text), '3/3', 'the answer, the edit and the new answer: ' + branchCount(after.text));
+        });
+
+        await check('a character without an avatar wears a monogram: the gallery, the page and the chat', async () => {
+            const made = await t.get('/companions/new', { as: alice, form: { name: 'Zola', description: 'A card with no picture.', tags: 'history', rating: 'everyone' } });
+            assert.strictEqual(made.status, 303, made.text);
+            const zola = (await t.ctx.characters.listByOwner(alice.subject)).find((c) => c.name === 'Zola');
+            assert.ok(zola, 'the card was made');
+            await t.get('/companions/' + zola.id + '/share', { as: alice, form: { audience: 'public' } });
+            const gallery = await t.get('/companions');
+            assert.ok(/class="ex-card-face ex-mono"[^>]*>Z</.test(gallery.text), 'the gallery tile wears the monogram');
+            const card = await t.get('/c/alice/zola', { as: alice });
+            assert.strictEqual(card.status, 200, card.text);
+            assert.ok(/class="ex-companion-avatar ex-mono"[^>]*>Z</.test(card.text), 'the character page wears the monogram');
+            assert.ok(/--ex-mono: var\(--ovk-[a-z]+\)/.test(card.text), 'the colour is a palette token');
+            const chat = await t.get('/talk/' + chatId, { as: alice });
+            assert.ok(/class="ex-chat-face ex-mono"[^>]*>A</.test(chat.text), 'the chat header wears the monogram');
+        });
+
+        await check('the chat page has one header, and the thread starts under it', async () => {
+            const chat = await t.get('/talk/' + chatId, { as: alice });
+            assert.strictEqual((chat.text.match(/<header class="ovt-head/g) || []).length, 1, 'one header');
+            assert.ok(chat.text.includes('ex-companion-shell'), 'the chat is its own window');
+            const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'public', 'css', 'exchange.css'), 'utf8');
+            assert.ok(/ex-companion-shell #navbar-mount[^{]*\{[^}]*display:\s*none/.test(css), 'the site bar is not on the chat page');
+        });
+
+        await check('the quiet actions sit under the messages', async () => {
+            const chat = await t.get('/talk/' + chatId, { as: alice });
+            assert.ok(chat.text.includes('>Edit</span>'), 'Edit under the person');
+            assert.ok(chat.text.includes('>Regenerate</button>'), 'Regenerate under the answer');
+            assert.ok(chat.text.includes('data-ovt-copy'), 'Copy under the answer');
+            assert.ok(chat.text.includes('ex-branch-arrow'), 'the branch arrows');
+            assert.ok(chat.text.includes('ex-receipt'), 'the folded receipt');
+            assert.ok(/<textarea[^>]*name="text"/.test(chat.text), 'the edit box');
+        });
+
+        await check('each message is shown once, and the model sees it once', async () => {
+            const chat = await t.get('/talk/' + chatId, { as: alice });
+            const thread = (chat.text.match(/<ol class="ovt-thread"[\s\S]*?<\/ol>/) || [''])[0];
+            assert.strictEqual((thread.match(/<p class="ovt-bubble">Good evening<\/p>/g) || []).length, 1, 'the message is one bubble');
+            const panel = (chat.text.match(/<ol class="ex-saw-context">[\s\S]*?<\/ol>/) || [''])[0];
+            assert.strictEqual((panel.match(/Good evening/g) || []).length, 1, 'the context holds the message once');
+            const last = ai.calls[ai.calls.length - 1];
+            assert.strictEqual(last.messages.filter((m) => m.role === 'user' && m.content === 'Good evening').length, 1, 'the model sees the message once');
+        });
+
+        await check('the chat header names the character and the model, and the chip opens the settings', async () => {
+            const chat = await t.get('/talk/' + chatId, { as: alice });
+            assert.ok(chat.text.includes('ex-chat-title">Ada<'), 'the name');
+            assert.ok(chat.text.includes('ex-chat-chip'), 'the chip');
+            assert.ok(chat.text.includes('ex-chat-settings-body'), 'the settings behind the chip');
+            assert.ok(chat.text.includes('id="ex-model"'), 'the model picker');
+            assert.ok(chat.text.includes('id="ovt-composer"'), 'the composer');
+            assert.ok(chat.text.includes('form="ovt-composer"'), 'the settings travel with the message');
         });
     } finally { await t.close(); }
 

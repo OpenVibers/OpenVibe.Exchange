@@ -20,7 +20,7 @@ const pathOf = (card) => '/c/' + encodeURIComponent(card.handle) + '/' + encodeU
  * always gets the same colour and a stranger's card is never an empty square. The colours are the kit's own palette
  * tokens, so a monogram wears every theme, light and dark.
  */
-const MONO_TOKENS = ['--ovk-accent', '--ovk-ok', '--ovk-warn', '--ovk-bad', '--ovk-live', '--ovk-fill'];
+const MONO_TOKENS = ['--ovk-accent', '--ovk-ok', '--ovk-warn', '--ovk-bad'];
 
 function monoToken(name) {
     const s = String(name || '').trim().toLowerCase();

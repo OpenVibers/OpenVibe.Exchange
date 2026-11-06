@@ -345,8 +345,10 @@ body.ex-app .ovf { display: none; }
    name always gets the same colour and a card is never an empty square. */
 .ex-mono {
     display: inline-grid; place-items: center; overflow: hidden;
-    background: color-mix(in srgb, var(--ex-mono, var(--ovk-accent)) 18%, var(--ovk-panel));
-    color: var(--ex-mono, var(--ovk-accent));
+    background: color-mix(in srgb, var(--ex-mono, var(--ovk-accent)) 22%, var(--ovk-panel));
+    /* The letter is the palette colour mixed towards the panel's text colour, so it reads on the tint in a light
+       theme and in a dark one: the palette's fills alone are not text colours. */
+    color: color-mix(in srgb, var(--ex-mono, var(--ovk-accent)) 50%, var(--ovk-text));
     font-weight: 700; letter-spacing: -.02em; line-height: 1;
 }
 .ex-card-face.ex-mono { font-size: 1.7rem; }
@@ -355,11 +357,16 @@ body.ex-app .ovf { display: none; }
 /* The chat is an app: the window does not scroll, the thread scrolls in its own pane. So the navbar stays where it
    is, the thread starts under the one header, and nothing ever slides under a translucent bar. */
 body.ex-companion-shell { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
-body.ex-companion-shell #navbar-mount { flex: none; }
+/* One header on the chat page: the site's own bar (faded at the top, and another site's chrome) is not there, so the
+   chat's header is the top of the window and the thread starts under it. */
+body.ex-companion-shell #navbar-mount,
+body.ex-companion-shell .account-bar { display: none; }
 body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-companion-chat .ovt { flex: 1; min-height: 0; height: auto; }
 .ex-companion-chat .ovt-main { min-height: 0; }
 .ex-companion-chat .ovt-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+/* The person's side keeps its bubble and its actions together, whatever height the turn is. */
+.ex-companion-chat .ovt-you { align-content: start; }
 @media (min-width: 761px) { .ex-companion-chat .ovt > .ovk-sidebar { position: static; height: auto; } }
 @media (min-width: 1180px) { .ex-companion-chat .ovt-panel { position: static; height: auto; } }
 
@@ -413,6 +420,8 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-lbl-shut { display: none; }
 .ex-menu[open] .ex-lbl-open { display: none; }
 .ex-menu[open] .ex-lbl-shut { display: inline; }
+/* While the box is open the label keeps the edge the message had, above the box. */
+.ex-menu[open] > summary { display: flex; width: 100%; justify-content: flex-end; }
 .ex-menu-body {
     display: grid; gap: 8px; justify-items: start; margin-top: 6px; padding: 10px;
     width: min(420px, 76vw); box-sizing: border-box;

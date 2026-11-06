@@ -225,6 +225,9 @@ function createCompanionChatStore(s) {
 /**
  * The chat's tree, read as turns. Each turn is one user message (the variant the person is looking at) and the
  * answers to it. The chosen variant comes from the page's query string, so the arrows are plain links.
+ *
+ * allAnswers is every answer in the turn, not only the ones to the variant on screen: the branch line walks the whole
+ * tree, so it needs the answers of the other versions too.
  */
 function readTurns(messages, selected = {}) {
     const groups = new Map();
@@ -242,7 +245,7 @@ function readTurns(messages, selected = {}) {
         const mine = answers.filter((a) => a.parent_id === user.id).sort((a, b) => a.variant - b.variant);
         const wantA = Number(selected['a_' + user.id]);
         const answer = Number.isFinite(wantA) && mine[wantA] ? mine[wantA] : (mine[mine.length - 1] || null);
-        turns.push({ id: turnId, users, user, answers: mine, answer, index: turns.length });
+        turns.push({ id: turnId, users, user, answers: mine, allAnswers: answers, answer, index: turns.length });
     }
     return turns;
 }

@@ -340,8 +340,9 @@ function createCompanionRoutes(ctx) {
      */
     function branchPairs(turn) {
         const pairs = [];
+        const all = turn.allAnswers || turn.answers || [];
         for (const u of turn.users) {
-            const answers = turn.answers.filter((a) => a.parent_id === u.id).sort((a, b) => a.variant - b.variant);
+            const answers = all.filter((a) => a.parent_id === u.id).sort((a, b) => a.variant - b.variant);
             if (!answers.length) pairs.push({ user: u, answer: null });
             else for (const a of answers) pairs.push({ user: u, answer: a });
         }
@@ -374,7 +375,7 @@ function createCompanionRoutes(ctx) {
         }
         next.set('v_' + turnId, String(pair.user.variant));
         if (pair.answer) next.set('a_' + pair.user.id, String(pair.answer.variant));
-        return '/talk/' + encodeURIComponent(chat.id) + '?' + next.toString();
+        return '/talk/' + encodeURIComponent(chatId) + '?' + next.toString();
     }
 
     /** Edit, in place: the message becomes a box, and the box becomes a new branch of the message when it is saved. */
@@ -479,7 +480,7 @@ function createCompanionRoutes(ctx) {
     function chatHead(card, chat, models) {
         const face = card.avatar_url
             ? '<img class="ex-chat-face" src="' + esc(card.avatar_url) + '" alt="" width="32" height="32">'
-            : thread.face({ name: card.name, color: 'var(' + views.monoToken(card.name) + ')' });
+            : views.monogram(card.name, 'ex-chat-face ex-mono');
         return '<header class="ovt-head ex-chat-head" data-ovt-head>'
             + kit.sidebarButton({ id: 'ovt-chats', label: 'Your chats' })
             + '<div class="ex-chat-id">' + face + '<h1 class="ovt-title ex-chat-title">' + esc(card.name) + '</h1></div>'
@@ -533,7 +534,9 @@ function createCompanionRoutes(ctx) {
     /** Save the settings the composer carries, and answer. */
     async function answerTurn(req, res, chat, card, { userMessage, turnId, variant }) {
         const settings = await companionChats.settings(owner(req), chat.id, {
-            model: req.body && req.body.model ? String(req.body.model).slice(0, 120) : chat.model,
+            // The model the person chose in the header travels with the message; an empty choice is "let the router
+            // pick", and it is remembered as such.
+            model: req.body && 'model' in req.body ? (String(req.body.model || '').slice(0, 120) || null) : chat.model,
             preset: req.body && req.body.preset !== undefined ? String(req.body.preset || '').slice(0, 120) : chat.preset,
             temperature: req.body && req.body.temperature !== undefined ? (req.body.temperature === '' ? null : Number(req.body.temperature)) : chat.temperature,
             context_size: req.body && req.body.context_size !== undefined ? (req.body.context_size === '' ? null : Number(req.body.context_size)) : chat.context_size,
@@ -544,6 +547,9 @@ function createCompanionRoutes(ctx) {
         const history = contextTurns(turns, settings.context_size);
         const seen = [];
         for (const t of history) {
+            // The message being answered is already in the tree: it is added once, at the end, and the turn it
+            // belongs to is left out here, so the model never sees the same message twice.
+            if (t.user.id === userMessage.id) continue;
             seen.push({ role: 'user', content: t.user.content });
             if (t.answer && t.answer.content) seen.push({ role: 'assistant', content: t.answer.content });
         }
