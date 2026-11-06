@@ -4,7 +4,7 @@
 module.exports = {
     id: 'exchange',
     name: 'OpenVibe.Exchange',
-    purpose: 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.',
+    purpose: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.',
     home: 'https://openvibe.exchange',
     site: 'openvibe.exchange',
     api: 'https://api.openvibe.exchange/v1',

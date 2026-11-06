@@ -67,19 +67,21 @@ function galleryPage({ items = [], total = 0, q = '', tags = [], sort = 'new', t
         + '</form>';
     const searchForm = '<form class="ex-search" method="get" action="/companions">'
         + '<input type="hidden" name="sort" value="' + esc(sort) + '">'
-        + '<label class="ovt-sr" for="ex-q">Search characters</label>'
+        + '<label class="ovk-sr" for="ex-q">Search characters</label>'
         + '<input id="ex-q" type="search" name="q" value="' + esc(q) + '" placeholder="Search characters" maxlength="80">'
-        + '<label class="ovt-sr" for="ex-tags">Tags</label>'
+        + '<label class="ovk-sr" for="ex-tags">Tags</label>'
         + '<input id="ex-tags" type="text" name="tags" value="' + esc(tags.join(',')) + '" placeholder="Tags, comma separated" maxlength="120">'
         + '<button type="submit" class="ex-btn">Search</button>'
         + '</form>';
     const tagChips = tagList.length
         ? '<ul class="ex-taglist">' + tagList.map((t) => '<li><a class="ex-chip' + (tags.includes(t.tag) ? ' is-on' : '') + '" href="/companions?tags=' + encodeURIComponent(t.tag) + '&sort=' + esc(sort) + '">' + esc(t.tag) + ' <span class="ex-chip-n">' + t.n + '</span></a></li>').join('') + '</ul>'
         : '';
-    const empty = items.length ? '' : '<div class="ex-empty">' + kit.empty({ icon: 'person', title: 'No characters yet', text: 'The gallery is empty. Make the first one, or import a card you brought from elsewhere.' }) + '</div>';
+    const empty = items.length ? '' : '<div class="ex-empty">' + kit.empty({ icon: 'person', title: 'No characters yet', text: 'The gallery is empty. Make the first one above, or import a Character Card V2 or V3 you brought from elsewhere.' }) + '</div>';
     return '<div class="ex-wrap">'
         + '<header class="ex-companions-head"><h1>Characters</h1>'
-        + '<p class="ex-lede">Cards people made, on OpenVibe.Exchange. Bring one in as a Character Card V2 or V3, talk to it, and take it with you again.</p></header>'
+        + '<p class="ex-lede">Cards people made, on OpenVibe.Exchange. Bring one in as a Character Card V2 or V3, talk to it, and take it with you again.</p>'
+        // Making or importing a card is always one tap away, not only from "Your characters" once you have one.
+        + '<p class="ex-head-actions"><a class="ovk-btn ovk-btn--primary" href="/companions/new">Make or import a character</a></p></header>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
         + '<div class="ex-gallery-bar">' + searchForm + sortForm + '</div>'
         + (tagChips ? '<div class="ex-gallery-tags">' + tagChips + '</div>' : '')
@@ -157,7 +159,7 @@ function cardForm({ card = null, action = '/companions/new', title = 'Make a cha
         + '<option value="everyone"' + (c.rating === 'adult' ? '' : ' selected') + '>Everyone</option>'
         + '<option value="adult"' + (c.rating === 'adult' ? ' selected' : '') + '>18+</option>'
         + '</select>'
-        + '<p class="ex-hint">A card rated 18+ whose stated age is under 18 is refused at save. The hard floor applies to every card: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.</p>'
+        + '<p class="ex-hint">A card rated 18+ whose stated age is under 18 is refused at save. The hard floor applies to every card: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.</p>'
         + field('avatar_url', 'Avatar image URL (optional)', c.avatar_url, 'maxlength="400"')
         + field('model', 'Model this card recommends (optional)', c.model, 'maxlength="120"')
         + '<label class="ex-label" for="ex-import">Import a card instead (JSON or PNG)</label>'

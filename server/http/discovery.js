@@ -12,7 +12,7 @@ const cache = require('openvibe-shared/cache-policy');
 const { asyncRouter } = require('./router');
 
 const SITE_NAME = 'OpenVibe.Exchange';
-const DESCRIPTION = 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
+const DESCRIPTION = 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
 const DISALLOW = ['/auth/', '/api/', '/internal', '/metrics', '/chat', '/listings', '/submit', '/sandbox', '/installs', '/offers'];
 
 const PUBLIC_PAGES = [
@@ -118,7 +118,7 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
                 { title: 'OpenVibe.AI', url: 'https://ai.openvibe.services', note: 'the router and the run API every product uses' },
-                { title: 'OpenVibe.Node', url: 'https://openvibe.node', note: 'offer a machine to the network' },
+                { title: 'OpenVibe.Node', url: 'https://node.openvibe.network', note: 'offer a machine to the network' },
             ],
         }));
     });
