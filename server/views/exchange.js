@@ -32,6 +32,7 @@ function privacyOf(offer) {
     if (!offer) return null;
     if (offer.trust === 'community') return { label: 'Community', kind: 'accent', short: 'Community' };
     const p = offer.data_policy;
+    if (p && p.anonymized === true) return { label: 'Anonymized', kind: 'accent', short: 'Anonymized' };
     if (p && p.trains === false && p.retention_days === 0) return { label: 'Private', kind: 'ok', short: 'Private' };
     if (p && p.trains === false) return { label: 'No training', kind: 'ok', short: 'No training' };
     return { label: 'Standard', kind: '', short: 'Standard' };
@@ -55,7 +56,8 @@ function unavailable(catalog, what = 'The live catalog') {
 
 /** A card: one section, in the page's one column, with its links inside its padding. */
 function panel({ title, note = '', id, body, cls = '' }) {
-    return `<div class="ex-panel${cls ? ` ${cls}` : ''}">${kit.section({ title, note, id, body })}</div>`;
+    // kit.section is already the card: do not wrap it in another one, and keep its body on the heading's line.
+    return kit.section({ title, note, id, cls: `ex-card${cls ? ` ${cls}` : ''}`, body: `<div class="ex-sec-body">${body}</div>` });
 }
 
 /** One model row: family mark, name and badges, the cheapest offer's price, speed and uptime, and Try it. */
@@ -165,7 +167,7 @@ function productsSummary(usage) {
     const rows = products.slice(0, 5).map((p) => {
         const prod = product(p.product);
         const top = (p.models || []).slice(0, 2).map((m) => m.model || m.provider).filter(Boolean).join(', ');
-        return `<li class="ex-product-row"><a href="/ai">${productMark(p.product, { size: 22 })}<span><b>${esc(prod.name)}</b><small>${top ? `runs ${esc(top)}` : 'runs models through OpenVibe.AI'}</small></span><span class="ex-trail"><b>${count(p.requests)}</b><small>requests</small></span></a></li>`;
+        return `<li class="ex-product-row"><a href="/ai">${productMark(p.product, { size: 28 })}<span><b>${esc(prod.name)}</b><small>${top ? `runs ${esc(top)}` : 'runs models through OpenVibe.AI'}</small></span><span class="ex-trail"><b>${count(p.requests)}</b><small>requests</small></span></a></li>`;
     }).join('');
     return `<ul class="ex-product-list">${rows}</ul>`;
 }
@@ -192,7 +194,7 @@ ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provi
 <div class="ex-chips" role="group" aria-label="Sort">${links}</div>
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
 ${unavailable(catalog)}
-<div class="ex-panel">${modelList(models, { empty: 'No model matches that search. Try a family (DeepSeek, Qwen, Kimi, GLM) or a provider.' })}</div>
+${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family (DeepSeek, Qwen, Kimi, GLM) or a provider.' }) })}
 <p class="ex-more"><a href="/status">Uptime and incidents →</a></p>
 </div>`;
 }
@@ -387,7 +389,7 @@ function uncensoredPage({ catalog, adult, signedIn }) {
             : '';
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Uncensored', sub: 'Abliterated models, for adults. The same floor, always.', actions: [kit.badge('18+', 'bad')] })}
-${gate ? `<div class="ex-panel">${gate}</div>` : ''}
+${gate || ''}
 ${panel({ title: 'The floor on every offer, uncensored or not', id: 'floor', body: floorText(true) })}
 ${adult ? panel({ title: 'Uncensored models', id: 'models', body: modelList(models, { empty: 'No uncensored model is live right now. Featherless and Refuseless offers appear here when their keys are on.' }) }) : ''}
 ${panel({ title: 'How to use it', body: '<p class="ex-prose">Pick an uncensored model in <a href="/chat">chat</a>, or send its exact id to the API. Your 18+ confirmation sits on your account, so it follows you here; the floor applies to every request on this tier, and a breach ends the account.</p>' })}
@@ -410,7 +412,7 @@ function aiPage({ catalog, usage }) {
     const rows = products.map((p) => {
         const prod = product(p.product);
         return {
-            product: `<span class="ex-product-cell">${productMark(p.product, { size: 22 })}<b>${esc(prod.name)}</b></span>`,
+            product: `<span class="ex-product-cell">${productMark(p.product, { size: 28 })}<b>${esc(prod.name)}</b></span>`,
             models: (p.models || []).slice(0, 4).map((m) => `<code>${esc(m.model || m.provider)}</code>`).join(' ') || '–',
             requests: count(p.requests),
             tokens: count((p.tokens_in || 0) + (p.tokens_out || 0)),
