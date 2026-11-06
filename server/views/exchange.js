@@ -459,9 +459,9 @@ function changelogPanel() {
 function floorText() {
     const body = `<ul class="ex-list ex-floor">
 <li>No sexual content involving minors.</li>
-<li>No non-consensual sexual content of real people.</li>
+<li>No non-consensual sexual content (fiction included), and no incest.</li>
 <li>No help with weapons of mass harm or attacks on others.</li>
-</ul><p class="ex-prose">A breach ends the account. This is not a suggestion a model may talk its way past; it is the condition of being here.</p>`;
+</ul><p class="ex-prose">Non-consensual sexual content (fiction included) and incest are refused, because payment providers and hosts ban them.</p><p class="ex-prose">A breach ends the account. This is not a suggestion a model may talk its way past; it is the condition of being here.</p>`;
     return `<div class="ex-floor-box">${body}</div>`;
 }
 

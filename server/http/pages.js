@@ -225,7 +225,7 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
                 }
             }
         }
-        const empty = `<div class="ovt-welcome"><h2>Every model, one chat</h2><p>Pick one model, or up to three to compare side by side. The floor applies always: no sexual content involving minors, no non-consensual sexual content of real people, no help with mass harm.</p></div>`;
+        const empty = `<div class="ovt-welcome"><h2>Every model, one chat</h2><p>Pick one model, or up to three to compare side by side. The floor applies always: no sexual content involving minors, no non-consensual sexual content (fiction included) and no incest, no help with mass harm.</p></div>`;
         return page(req, res, {
             title: chat ? chat.title : 'Chat', index: false,
             class: 'ex-chat', app: true,
