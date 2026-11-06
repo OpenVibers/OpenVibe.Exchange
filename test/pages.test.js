@@ -25,6 +25,15 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(!r.text.includes('requests today'), 'fewer than 1,000 requests today is not shown');
             assert.ok(r.text.includes('A side-by-side answer') && r.text.includes('example words · live prices'), 'the preview is marked an example');
             assert.ok(r.text.includes('api.openvibe.exchange/v1/chat/completions'), 'the endpoint');
+            const lead = (r.text.match(/<p class="ex-lead">([\s\S]*?)<\/p>/) || [])[1] || '';
+            assert.ok(/DeepSeek/.test(lead) && /Qwen/.test(lead) && /Llama/.test(lead), 'the hero names the families on sale: ' + lead);
+            assert.ok(!/Kimi|GLM|MiniMax/.test(lead), 'the hero never names a family nobody sells: ' + lead);
+            const answers = [...r.text.matchAll(/<article class="ex-preview-cell">[\s\S]*?<p>([\s\S]*?)<\/p>/g)].map((m) => m[1]);
+            assert.strictEqual(answers.length, 2, 'two preview answers');
+            assert.notStrictEqual(answers[0], answers[1], 'the two example answers differ');
+            const { displayName } = require('../server/ai.js');
+            assert.deepStrictEqual(['gpt-5-nano', 'gpt-4.1-mini', 'gpt-4o-mini', 'gpt-5', 'gpt-oss-120b', 'DeepSeek V4 Pro'].map(displayName), ['GPT-5 nano', 'GPT-4.1 mini', 'GPT-4o mini', 'GPT-5', 'gpt-oss-120b', 'DeepSeek V4 Pro'], 'OpenAI models are named the way OpenAI says them');
+            assert.ok(!/ · – · –|– · –/.test(r.text), 'an unmeasured stat is left out, not printed as a dash');
             assert.strictEqual((r.text.match(/<h1[\s>]/g) || []).length, 1, 'one h1');
             assert.ok(r.text.includes('<main id="main"') && r.text.includes('<footer id="ov-footer"'));
         });
@@ -78,7 +87,8 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('What is sold'));
             assert.ok(r.text.includes('Owner’s machine') || r.text.includes('No community capacity yet'));
             assert.ok(r.text.includes('Idle-only') && r.text.includes('Kudos') && r.text.includes('sees the prompt'), 'idle-only, kudos and the privacy sentence');
-            assert.ok(r.text.includes('@name’s'), 'the seller card');
+            assert.ok(r.text.includes('A community machine') && !r.text.includes('@name'), 'the seller card names the machine, never a placeholder or a person');
+            assert.ok(r.text.includes('not verified yet'), 'an offer is said verified only when it is');
         });
 
         await check('uncensored: sign-in first, then the 18+ gate and the floor', async () => {

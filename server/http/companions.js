@@ -682,7 +682,7 @@ function createCompanionRoutes(ctx) {
             lines.push('World info for this conversation (use it when it fits the scene):');
             for (const entry of entries) lines.push('- ' + entry.content);
         }
-        lines.push('Stay in character and answer as the character would. The hard floor holds on every model: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.');
+        lines.push('Stay in character and answer as the character would. The hard floor holds on every model: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.');
         return lines.join(String.fromCharCode(10));
     }
 
