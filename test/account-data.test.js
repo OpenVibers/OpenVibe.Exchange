@@ -84,6 +84,15 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
         const offer = `exo_${ids.ulid()}`;
         await db.exec(`INSERT INTO exchange_offers (id, listing_id, from_subject, from_name, kind, body) VALUES ($1, $2, $3, 'alice', 'claim', 'I would like Bob''s theme.')`, [offer, bListed.id, A]);
 
+        // The companions: a person's characters and their chats are theirs too.
+        const aCharacter = await t.ctx.characters.create({ owner: A, handle: 'alice', name: 'Alice’s companion', description: 'A keeper of clocks' });
+        const bCharacter = await t.ctx.characters.create({ owner: B, handle: 'bob', name: 'Bob’s companion' });
+        const aCompanion = await t.ctx.companionChats.create({ owner: A, characterId: aCharacter.id, title: 'A chat with a character' });
+        await t.ctx.companionChats.append({ owner: A, chatId: aCompanion.id, role: 'user', content: 'Who are you?', turnId: 'ext_1' });
+        await t.ctx.companionChats.append({ owner: A, chatId: aCompanion.id, role: 'assistant', content: 'A keeper of clocks.', turnId: 'ext_1', parentId: 'exm_1' });
+        const bCompanion = await t.ctx.companionChats.create({ owner: B, characterId: bCharacter.id, title: 'Bob’s chat' });
+        await t.ctx.companionChats.append({ owner: B, chatId: bCompanion.id, role: 'user', content: 'Bob’s words', turnId: 'ext_2' });
+
         const chat = await t.ctx.chats.create({ owner: A, models: ['deepseek/deepseek-chat'], title: 'A question for the models' });
         await t.ctx.chats.append(A, chat.id, { role: 'user', content: 'What is a mutex?' });
         await t.ctx.chats.append(A, chat.id, { role: 'assistant', model: 'deepseek/deepseek-chat', content: 'A lock.', meta: { run_id: 'run_x' } });
@@ -99,7 +108,7 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(part.auth, 'Bearer tok_exchange');
             assert.strictEqual(part.body.subject, A);
             assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(),
-                ['adult-confirmation.json', 'chat-messages.json', 'chats.json', 'installs.json', 'listings.json', 'offers.json', 'sandbox-trials.json']);
+                ['adult-confirmation.json', 'characters.json', 'chat-messages.json', 'chats.json', 'companion-chats.json', 'companion-messages.json', 'installs.json', 'listings.json', 'offers.json', 'sandbox-trials.json']);
             const all = JSON.stringify(part.body);
             assert.ok(all.includes('Alice\'s listed theme'));
             assert.ok(all.includes('Alice\'s draft theme'));
@@ -108,6 +117,8 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(part.body.files.find((f) => f.name === 'installs.json').content[0].id, install);
             assert.strictEqual(part.body.files.find((f) => f.name === 'sandbox-trials.json').content[0].id, trial);
             assert.match(all, /I would like Bob/);
+            assert.ok(all.includes('A keeper of clocks'), 'the character and the companion chat are exported');
+            assert.ok(!all.includes('Bob’s words'), 'nobody else’s companion chat');
         });
 
         await check('a deletion closes the listed listing, deletes the draft, and erases Alice\'s rows; Bob stays', async () => {
@@ -132,6 +143,11 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chats WHERE owner = $1', [A])), 0, 'the chat is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_chat_messages WHERE owner = $1', [A])), 0, 'its messages are erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_adult_confirmations WHERE subject = $1', [A])), 0, 'the confirmation is erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [A])), 0, 'the character is erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [A])), 0, 'the companion chat is erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_messages WHERE owner = $1', [A])), 0, 'its companion messages are erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [B])), 1, 'Bob keeps his character');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [B])), 1, 'Bob keeps his chat');
             const confirmation = stub.calls.find((c) => c.url === `/internal/account-deletions/${DEL}/confirmations`);
             assert.ok(confirmation, 'the confirmation was sent');
             assert.ok(confirmation.body.erased.exchange_listings_drafts >= 1);

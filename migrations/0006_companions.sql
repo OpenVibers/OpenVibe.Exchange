@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS exchange_characters_owner ON exchange_characters (own
 CREATE INDEX IF NOT EXISTS exchange_characters_remix ON exchange_characters (remix_of) WHERE remix_of IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS exchange_character_tags (
-    character_id text COLLATE "C" NOT NULL REFERENCES exchange_characters (id) ON DELETE CASCADE,
+    character_id text COLLATE "C" REFERENCES exchange_characters (id) ON DELETE SET NULL, -- the character may be deleted while somebody else's chat still points at it
     tag          text COLLATE "C" NOT NULL,
     PRIMARY KEY (character_id, tag)
 );

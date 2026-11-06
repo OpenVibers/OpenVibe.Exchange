@@ -22,6 +22,12 @@ const TABLES = [
     { table: 'exchange_chats', subject: 'owner', value: (usr) => usr, file: 'chats.json', erase: 'delete' },
     { table: 'exchange_chat_messages', subject: 'owner', value: (usr) => usr, file: 'chat-messages.json', erase: 'delete' },
     { table: 'exchange_adult_confirmations', subject: 'subject', value: (usr) => usr, file: 'adult-confirmation.json', erase: 'delete' },
+    // The companions (2026-11-06): a person's characters, their chats and the messages in them are theirs,
+    // exactly like the chats above. The messages go first, then the chats, then the characters: a character
+    // may be deleted while somebody else's chat still points at it, and that chat keeps its messages.
+    { table: 'exchange_companion_messages', subject: 'owner', value: (usr) => usr, file: 'companion-messages.json', erase: 'delete' },
+    { table: 'exchange_companion_chats', subject: 'owner', value: (usr) => usr, file: 'companion-chats.json', erase: 'delete' },
+    { table: 'exchange_characters', subject: 'owner', value: (usr) => usr, file: 'characters.json', erase: 'delete' },
 ];
 
 function create({ db, log = console } = {}) {
@@ -61,7 +67,7 @@ function create({ db, log = console } = {}) {
         service: 'exchange',
         tables: TABLES,
         extraErase,
-        note: 'Chats, messages and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts).',
+        note: 'Chats, messages, the characters and their companion chats and messages, and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts).',
         log,
     });
 }
