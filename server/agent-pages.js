@@ -10,7 +10,7 @@ const { raw } = require('./render/html');
 const { renderPage } = require('./render/layout');
 const { homeJsonLd } = require('./http/discovery');
 
-const HOME_DESCRIPTION = 'OpenVibe.Exchange: every AI model, one account. Live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
+const HOME_DESCRIPTION = 'OpenVibe.Exchange: every AI model, one account. Live prices, speed and uptime of every offer, from the families on sale today and more as their providers join; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
 
 function createAgentPages(ctx) {
     const { config, ai, bench, history } = ctx;

@@ -51,7 +51,7 @@ const ATTACK_INTENT = /\b(?:(?:how (?:do|can|would) (?:i|we|you|one))\s+[^.?!]{0
 /** The three rules, in the order they are checked. */
 const RULES = [
     { rule: 'minors', label: 'sexual content involving minors', test: (t) => CSAM.test(t) || (MINOR.test(t) && NUDE.test(t)) },
-    { rule: 'non_consensual', label: 'non-consensual sexual content of real people', test: (t) => NONCONSENSUAL.test(t) },
+    { rule: 'non_consensual', label: 'non-consensual sexual content (fiction included) or incest', test: (t) => NONCONSENSUAL.test(t) },
     { rule: 'mass_harm', label: 'weapons of mass harm or attacks on others', test: (t) => MASS_HARM.test(t) || WEAPON_INTENT.test(t) || ATTACK_INTENT.test(t) },
 ];
 

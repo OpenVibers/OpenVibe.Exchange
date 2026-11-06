@@ -80,7 +80,7 @@ function createPageRoutes(ctx) {
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: null,
-            description: 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds. Chat, or call one OpenAI-compatible endpoint.',
+            description: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
             body: raw(views.home({ catalog, usage, viewer: req.viewer, q, config })),
         });
