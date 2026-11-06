@@ -81,7 +81,7 @@ function renderPage(o) {
         jsonLd: (o.jsonLd || []).filter(Boolean),
         home: '/',
         navLinks: NAV,
-        bodyClass: o.app ? 'ex-app' : undefined,
+        bodyClass: o.bodyClass || (o.app ? 'ex-app' : undefined),
         navbar: nav,
         footer,
         head: `<meta name="referrer" content="strict-origin-when-cross-origin">

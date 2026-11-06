@@ -26,7 +26,11 @@ async function openDb(config, { log = console, registry } = {}) {
     }
     if (!config.db.directUrl) throw new Error('DATABASE_DIRECT_URL is not set: migrations run with the owner role on a direct connection');
     const owner = createDb({ url: config.db.directUrl, service: 'exchange-migrate', max: 1, log });
-    try { await owner.migrate({ dir: MIGRATIONS, log }); } finally { await owner.close(); }
+    try {
+        // The sharing system's own DDL is migrations/0007_sharing.sql, kept verbatim from openvibe-sdk/share,
+        // so the migration role applies it and the test database (which applies this directory) has it too.
+        await owner.migrate({ dir: MIGRATIONS, log });
+    } finally { await owner.close(); }
     return createDb({ url: config.db.url, service: 'exchange', registry, log });
 }
 

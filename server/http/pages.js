@@ -33,7 +33,7 @@ const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sand
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
 
 function createPageRoutes(ctx) {
-    const { config, ai, openapi, chats, adult } = ctx;
+    const { config, ai, openapi, chats, adult, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -413,6 +413,15 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
         if (!req.body || req.body.adult !== 'yes') return res.redirect(303, '/uncensored');
         await adult.confirm(owner(req), '1');
+        // The confirmation belongs to the account (Network PR #587): record it there too, so the flag is one
+        // flag and OpenVibe.AI and the companions read the same answer.
+        if (ctx.adultAccount && typeof ctx.adultAccount.confirm === 'function') {
+            try {
+                await ctx.adultAccount.confirm(req.token || (req.viewer && req.viewer.token) || null);
+            } catch (err) {
+                log.warn('[OpenVibe.Exchange] the 18+ confirmation could not be recorded on the account:', err.message);
+            }
+        }
         return res.redirect(303, '/uncensored');
     });
 

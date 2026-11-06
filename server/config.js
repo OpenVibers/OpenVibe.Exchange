@@ -79,6 +79,13 @@ function load(env = process.env) {
             timeoutMs: Math.max(2000, int(env.EXCHANGE_OPENAPI_TIMEOUT_MS, 15_000)),
         },
 
+        // /companions: the daily allowance a person's companion chats run on, and the free-use
+        // price ceiling each answer stays under (a dearer model uses the person's own balance).
+        companions: {
+            perDay: Math.max(1, int(env.EXCHANGE_COMPANIONS_PER_DAY, 40)),
+            maxCostUsd: Math.max(0.001, Number(env.EXCHANGE_COMPANIONS_MAX_COST_USD) || 0.05),
+        },
+
         // /chat: how many messages a signed-in person may send a day (each one may run up to three models).
         chat: {
             perDay: Math.max(1, int(env.EXCHANGE_CHAT_PER_DAY, 40)),

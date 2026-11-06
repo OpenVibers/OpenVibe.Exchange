@@ -423,7 +423,37 @@ ${gate || ''}
 ${panel({ title: 'The floor on every offer, uncensored or not', id: 'floor', body: floorText(true) })}
 ${adult ? panel({ title: 'Uncensored models', id: 'models', body: modelList(models, { empty: 'No uncensored model is live right now. Featherless and Refuseless offers appear here when their keys are on.' }) }) : ''}
 ${panel({ title: 'How to use it', body: '<p class="ex-prose">Pick an uncensored model in <a href="/chat">chat</a>, or send its exact id to the API. Your 18+ confirmation sits on your account, so it follows you here; the floor applies to every request on this tier, and a breach ends the account.</p>' })}
+${companionsPolicy()}
+${changelogPanel()}
 </div>`;
+}
+
+/**
+ * The same floor, said for the companions (Opus's design, 2026-11-06): the floor holds on a character card at
+ * save and on every message of a chat, in and out.
+ */
+function companionsPolicy() {
+    const body = '<ul class="ex-list ex-floor">'
+        + '<li>A character card that sets an age under 18 and is rated 18+ is refused at save.</li>'
+        + '<li>A card that breaks the floor is refused at save, and never reaches the gallery.</li>'
+        + '<li>On a chat, your own message is checked before it is sent, and the answer is checked before it is shown.</li>'
+        + '<li>An answer that breaks the floor is never delivered: the chat ends and the account is reviewed.</li>'
+        + '<li>An 18+ character shows only to people signed in with the 18+ confirmation, and never reaches a public list, a sitemap, llms.txt or a search.</li>'
+        + '</ul><p class="ex-prose">The same three rules as everywhere else, with the character’s own card in scope: no sexual content involving minors, no non-consensual sexual content of real people, no help with weapons of mass harm or attacks on others.</p>';
+    return panel({ title: 'The floor on characters and chats', id: 'companions-floor', body });
+}
+
+/**
+ * The dated changelog of the adults’ tier (Opus’s design, 2026-11-06: "Changes are announced: a policy change is a
+ * dated changelog entry on /uncensored"). Newest first.
+ */
+const ADULT_CHANGELOG = [
+    { date: '2026-11-06', what: 'Characters and one-character chats arrived at <a href="/companions">/companions</a>. A card rated 18+ may not state an age under 18, and the floor now holds on the card at save and on every message of a chat, in and out. An 18+ character shows only to people signed in with the 18+ confirmation, and never reaches a public list, a sitemap, llms.txt or a search.' },
+];
+
+function changelogPanel() {
+    const rows = ADULT_CHANGELOG.map((e) => '<li><b>' + esc(e.date) + '</b> — ' + e.what + '</li>').join('');
+    return panel({ title: 'What changed', note: 'Newest first.', id: 'adult-changelog', body: '<ul class="ex-list">' + rows + '</ul>' });
 }
 
 function floorText() {
