@@ -24,7 +24,7 @@ const boardFor = (category) => ({ ...BOARD, category });
     const bench = createFakeBench({ board: async (args) => boardFor(args.category) });
     const ai = createFakeAi();
     ai.usageData.by_product.push({
-        product: 'app_demo', type: 'app', requests: 5, tokens_in: 10, tokens_out: 20,
+        product: 'apps', type: 'apps', apps: 2, requests: 5, tokens_in: 10, tokens_out: 20,
         models: [{ model: 'deepseek-chat', requests: 5 }],
     });
     const t = await boot({ ai, bench });
@@ -59,9 +59,9 @@ const boardFor = (category) => ({ ...BOARD, category });
             assert.strictEqual(r.status, 200);
             assert.ok(r.text.includes('Products and apps'));
             assert.ok(/OpenVibe\.Live|Live/.test(r.text), 'the product name');
-            assert.ok(r.text.includes('app_demo'), 'a public app is named');
-            assert.ok(r.text.includes('App'), 'the app is labelled as an app');
-            assert.ok(r.text.includes('never a person') || r.text.includes('never a person.'), 'the aggregate promise');
+            assert.ok(r.text.includes('Developer apps (2)'), 'developer apps are one unnamed row, with how many');
+            assert.ok(!/app_[a-z0-9]/i.test(r.text), 'no developer app is named');
+            assert.ok(r.text.includes('No prompt and no person'), 'the aggregate promise');
             assert.strictEqual(bench.calls.boards[bench.calls.boards.length - 1].category, 'all');
         });
 
