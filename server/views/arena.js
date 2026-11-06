@@ -175,8 +175,9 @@ function rankingsPage({ catalog, usage, board, category, sort, categories }) {
 
     const products = (usage.by_product || []).slice(0, 12);
     const productRows = products.map((p) => {
-        const isApp = p.type === 'app';
-        const prod = isApp ? { name: p.product } : product(p.product);
+        // AI folds every developer app into one row ("apps", with how many); a single app is never named publicly.
+        const isApp = p.type === 'apps' || p.type === 'app';
+        const prod = isApp ? { name: p.type === 'apps' ? `Developer apps (${count(p.apps || 0)})` : 'Developer apps' } : product(p.product);
         const modelsUsed = (p.models || []).slice(0, 3).map((m) => m.model || m.provider).filter(Boolean).join(', ');
         const who = isApp
             ? `${kit.badge('App', 'accent')}<b>${esc(prod.name)}</b>`
@@ -207,7 +208,7 @@ ${panel({ title: labelOf(category), note: boardNote, id: 'board', body: tableRow
         ],
         rows: tableRows, label: `Rankings for ${labelOf(category)}`,
     }) : kit.empty({ icon: 'spark', title: 'No votes here yet', text: category === 'all' ? 'The first Arena vote will open this board.' : `No one has voted on a ${labelOf(category).toLowerCase()} prompt yet. <a href="/arena">Ask one</a>.` }) })}
-${panel({ title: 'Products and apps', note: 'Which models OpenVibe’s products and public apps run, from AI’s own aggregate usage. No prompt and no person.', id: 'products', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : (productRows.length ? kit.table({
+${panel({ title: 'Products and apps', note: 'Which models OpenVibe’s products and developers’ apps run (apps as one row, never named), from AI’s own aggregate usage. No prompt and no person.', id: 'products', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : (productRows.length ? kit.table({
         columns: [{ key: 'product', label: 'Requester', primary: true, html: true }, { key: 'models', label: 'Models', html: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens', hide: 'sm' }],
         rows: productRows, label: 'Models by requester', caption: `The last ${usage.days || 30} days`,
     }) : kit.empty({ icon: 'code', title: 'No product has called the router yet', text: 'When one does, its models and requests show here.' })) })}
