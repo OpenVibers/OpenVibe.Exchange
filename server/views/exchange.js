@@ -243,7 +243,7 @@ function productsSummary(usage) {
     if (!products.length) return kit.empty({ icon: 'code', title: 'No product has run a model yet', text: 'When one does, its models and daily cost show here and on <a href="/ai">AI in OpenVibe</a>.' });
     const rows = products.slice(0, 5).map((p) => {
         const prod = product(p.product);
-        const top = (p.models || []).slice(0, 2).map((m) => m.model || m.provider).filter(Boolean).join(', ');
+        const top = [...new Set((p.models || []).slice(0, 3).map((m) => modelLabel(m.model || m.provider)).filter(Boolean))].slice(0, 2).join(', ');
         return `<li class="ex-product-row"><a href="/ai">${productMark(p.product, { size: 28 })}<span><b>${esc(prod.name)}</b><small>${top ? `runs ${esc(top)}` : 'runs models through OpenVibe.AI'}</small></span><span class="ex-trail"><b>${count(p.requests)}</b><small>requests</small></span></a></li>`;
     }).join('');
     return `<ul class="ex-product-list">${rows}</ul>`;
@@ -462,6 +462,14 @@ ${panel({ title: 'What it costs', body: '<p class="ex-prose">Every price is the 
 function shortCount(n) {
     const v = Number(n) || 0;
     return v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e4 ? `${(v / 1e3).toFixed(1)}k` : count(v);
+}
+
+/** A model id as people say it on the home: the dated snapshot suffix dropped, OpenAI's ids as OpenAI writes them
+ *  ("gpt-5-nano-2025-08-07" → "GPT-5 nano"). The /ai page keeps the exact ids. */
+function modelLabel(id) {
+    const bare = String(id || '').replace(/-\d{4}-\d{2}-\d{2}$/, '');
+    const known = { 'deepseek-chat': 'DeepSeek Chat', 'deepseek-reasoner': 'DeepSeek Reasoner', 'qwen2.5-1.5b-instruct': 'Qwen2.5 1.5B (local)' };
+    return known[bare] || require('../ai').displayName(bare);
 }
 
 // ── Sell compute ───────────────────────────────────────────
