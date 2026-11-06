@@ -58,8 +58,6 @@ async function createApp(opts = {}) {
     const s = opts.store || await openStore(config, { now: opts.now, log });
 
     // The sharing system's own DDL (openvibe-sdk/share). The migration role creates it in production; the runtime
-    // role may not run DDL, so a failure here is not fatal: the tables are already there.
-    try { await require('openvibe-sdk/share').migrateShares(s.db); } catch (err) { log.warn('[Exchange] the sharing tables are not ready:', err.message); }
 
     const keys = createKeyStore({ config, fetchImpl, log });
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });

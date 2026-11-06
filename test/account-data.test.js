@@ -12,7 +12,7 @@ const { ids } = require('openvibe-contracts');
 const { boot, check, done } = require('./helpers/boot');
 const { createNetworkSender, uncovered } = require('openvibe-sdk/account-data');
 const { signDeliveryHeaders } = require('openvibe-sdk/events');
-const { TABLES } = require('../server/identity/account-data');
+const { TABLES, EXEMPT } = require('../server/identity/account-data');
 const { testDb } = require('./helpers/db');
 const { createFakeAi } = require('./helpers/ai');
 
@@ -62,7 +62,10 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
         try {
             const missing = await uncovered(d.db, {
                 tables: TABLES,
-                exempt: { account_data_events: 'the ledger of requests itself: which export and deletion exchange applied' },
+                exempt: {
+                    account_data_events: 'the ledger of requests itself: which export and deletion exchange applied',
+                    ...EXEMPT,
+                },
             });
             assert.deepStrictEqual(missing, [], `a table with a person column is neither covered nor exempted: ${missing.join(', ')}`);
         } finally { await d.close(); }
@@ -90,6 +93,9 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
         const aCompanion = await t.ctx.companionChats.create({ owner: A, characterId: aCharacter.id, title: 'A chat with a character' });
         await t.ctx.companionChats.append({ owner: A, chatId: aCompanion.id, role: 'user', content: 'Who are you?', turnId: 'ext_1' });
         await t.ctx.companionChats.append({ owner: A, chatId: aCompanion.id, role: 'assistant', content: 'A keeper of clocks.', turnId: 'ext_1', parentId: 'exm_1' });
+        await db.exec(`INSERT INTO shares (service, kind, resource_id, owner_subject, audience) VALUES ('exchange', 'character', $1, $2::jsonb, 'private')`, [aCharacter.id, JSON.stringify({ type: 'user', id: A })]);
+        await db.exec(`INSERT INTO share_members (service, kind, resource_id, subject, role, added_by, added_at)
+            VALUES ('exchange', 'character', $1, $2::jsonb, 'viewer', $3::jsonb, now())`, [aCharacter.id, JSON.stringify({ type: 'user', id: A }), JSON.stringify({ type: 'user', id: A })]);
         const bCompanion = await t.ctx.companionChats.create({ owner: B, characterId: bCharacter.id, title: 'Bob’s chat' });
         await t.ctx.companionChats.append({ owner: B, chatId: bCompanion.id, role: 'user', content: 'Bob’s words', turnId: 'ext_2' });
 
@@ -148,6 +154,7 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_messages WHERE owner = $1', [A])), 0, 'its companion messages are erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [B])), 1, 'Bob keeps his character');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [B])), 1, 'Bob keeps his chat');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM share_members WHERE subject = $1::jsonb', [JSON.stringify({ type: 'user', id: A })])), 0, 'the sharing rows go with the account');
             const confirmation = stub.calls.find((c) => c.url === `/internal/account-deletions/${DEL}/confirmations`);
             assert.ok(confirmation, 'the confirmation was sent');
             assert.ok(confirmation.body.erased.exchange_listings_drafts >= 1);

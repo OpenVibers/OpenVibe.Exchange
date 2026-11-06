@@ -32,6 +32,14 @@ const TABLES = [
 
 function create({ db, log = console } = {}) {
     async function extraErase(t, subjects, { erased, retained, add }) {
+        // The sharing system's own rows (openvibe-sdk/share) name a person as a member or as somebody who asked
+        // for access. Their subject column is jsonb (a subject object), which the table map cannot express, so
+        // they are erased here instead.
+        const forms = subjects.map((s) => JSON.stringify({ type: 'user', id: s }));
+        const members = await t.exec(`DELETE FROM share_members WHERE subject = ANY($1::jsonb[])`, [forms]);
+        const requests = await t.exec(`DELETE FROM share_access_requests WHERE subject = ANY($1::jsonb[])`, [forms]);
+        if (Number(members) || Number(requests)) add(erased, 'share_rows', Number(members) + Number(requests));
+
         // The table map anonymised every v1 listing whose owner is one of the subjects; close the public ones and
         // delete the drafts outright. Nothing is published anywhere any more (the Search relay left with v1).
         const rows = await t.many('SELECT id, status, revision FROM exchange_listings WHERE owner IS NULL');
@@ -72,4 +80,11 @@ function create({ db, log = console } = {}) {
     });
 }
 
-module.exports = { create, TABLES, TOPICS };
+// The sharing system's own tables carry a person (a member, an access request). Their subject column is jsonb,
+// so the table map cannot express them: they are erased in extraErase, with the rest of the person's rows.
+const EXEMPT = {
+    share_members: 'the sharing system own member rows: the subject is a jsonb subject, so they are erased in extraErase',
+    share_access_requests: 'the sharing system own access requests: the subject is a jsonb subject, so they are erased in extraErase',
+};
+
+module.exports = { create, TABLES, TOPICS, EXEMPT };
