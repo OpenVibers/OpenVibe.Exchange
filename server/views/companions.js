@@ -15,11 +15,32 @@ const SORTS = [
 
 const pathOf = (card) => '/c/' + encodeURIComponent(card.handle) + '/' + encodeURIComponent(card.slug);
 
+/**
+ * A monogram for a character without an avatar: the first letter, on a colour picked from the name, so the same name
+ * always gets the same colour and a stranger's card is never an empty square. The colours are the kit's own palette
+ * tokens, so a monogram wears every theme, light and dark.
+ */
+const MONO_TOKENS = ['--ovk-accent', '--ovk-ok', '--ovk-warn', '--ovk-bad', '--ovk-live', '--ovk-fill'];
+
+function monoToken(name) {
+    const s = String(name || '').trim().toLowerCase();
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return MONO_TOKENS[(h >>> 0) % MONO_TOKENS.length];
+}
+
+/** The monogram itself: the letter, on the colour the name picks. */
+function monogram(name, cls = 'ex-mono') {
+    const s = String(name || '').trim();
+    const letter = (s[0] || '?').toUpperCase();
+    return '<span class="' + cls + '" style="--ex-mono: var(' + monoToken(s) + ')" aria-hidden="true">' + esc(letter) + '</span>';
+}
+
 function cardTile(card) {
     const tags = (card.tags || []).slice(0, 4);
     const face = card.avatar_url
         ? '<img class="ex-card-face" src="' + esc(card.avatar_url) + '" alt="" loading="lazy" width="64" height="64">'
-        : '<span class="ex-card-face ex-card-face-blank" aria-hidden="true"></span>';
+        : monogram(card.name, 'ex-card-face ex-mono');
     return '<li class="ex-card-tile">'
         + '<a class="ex-card-tile-link" href="' + esc(pathOf(card)) + '">'
         + face
@@ -82,7 +103,7 @@ function characterPage({ card, tags = [], viewer = null, mine = false, problem =
     return '<div class="ex-wrap ex-companion-page">'
         + '<article class="ex-companion">'
         + '<header class="ex-companion-head">'
-        + (card.avatar_url ? '<img class="ex-companion-avatar" src="' + esc(card.avatar_url) + '" alt="" width="96" height="96">' : '<span class="ex-companion-avatar ex-card-face-blank" aria-hidden="true"></span>')
+        + (card.avatar_url ? '<img class="ex-companion-avatar" src="' + esc(card.avatar_url) + '" alt="" width="96" height="96">' : monogram(card.name, 'ex-companion-avatar ex-mono'))
         + '<div><h1>' + esc(card.name) + '</h1>'
         + '<p class="ex-companion-by">by <span>' + esc(card.handle) + '</span>' + (card.rating === 'adult' ? ' <span class="ex-chip ex-chip-18">18+</span>' : '') + '</p></div></header>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
@@ -145,4 +166,4 @@ function cardForm({ card = null, action = '/companions/new', title = 'Make a cha
         + '</form></div>';
 }
 
-module.exports = { galleryPage, characterPage, cardForm, adultGate, cardTile, pathOf, SORTS };
+module.exports = { galleryPage, characterPage, cardForm, adultGate, cardTile, pathOf, monogram, monoToken, SORTS };

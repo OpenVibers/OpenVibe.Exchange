@@ -339,3 +339,113 @@ body.ex-app .ovf { display: none; }
 .ex-companion-chat .ov-sel-native { min-height: 44px; }
 .ex-companion-chat .ovt-send { min-height: 44px; min-width: 44px; }
 .ex-companion-chat .ov-sel-native { position: absolute; opacity: 0; height: 44px; }
+
+/* ── Companions: the chat ──────────────────────────────────────────────── */
+/* A monogram: the first letter of the name, on a colour the name picks out of the kit's palette, so the same
+   name always gets the same colour and a card is never an empty square. */
+.ex-mono {
+    display: inline-grid; place-items: center; overflow: hidden;
+    background: color-mix(in srgb, var(--ex-mono, var(--ovk-accent)) 18%, var(--ovk-panel));
+    color: var(--ex-mono, var(--ovk-accent));
+    font-weight: 700; letter-spacing: -.02em; line-height: 1;
+}
+.ex-card-face.ex-mono { font-size: 1.7rem; }
+.ex-companion-avatar.ex-mono { font-size: 2.4rem; }
+
+/* The chat is an app: the window does not scroll, the thread scrolls in its own pane. So the navbar stays where it
+   is, the thread starts under the one header, and nothing ever slides under a translucent bar. */
+body.ex-companion-shell { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+body.ex-companion-shell #navbar-mount { flex: none; }
+body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
+.ex-companion-chat .ovt { flex: 1; min-height: 0; height: auto; }
+.ex-companion-chat .ovt-main { min-height: 0; }
+.ex-companion-chat .ovt-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+@media (min-width: 761px) { .ex-companion-chat .ovt > .ovk-sidebar { position: static; height: auto; } }
+@media (min-width: 1180px) { .ex-companion-chat .ovt-panel { position: static; height: auto; } }
+
+/* The chat's header: the character, its name, and the model it talks on, as a chip that opens the settings. */
+.ex-chat-head { gap: 8px; }
+.ex-chat-id { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; }
+.ex-chat-face { width: 32px; height: 32px; border-radius: 10px; object-fit: cover; flex: none; }
+.ex-chat-title { font-size: 16px; }
+.ex-chat-settings { flex: none; }
+.ex-chat-chip {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 40vw;
+    min-height: 44px; padding: 0 12px; overflow: hidden; cursor: pointer; list-style: none;
+}
+.ex-chat-chip::-webkit-details-marker { display: none; }
+.ex-chat-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-chat-chip-caret { flex: none; font-size: .7rem; opacity: .75; }
+/* The settings drop from the header, over the thread. The header is the containing block (it is sticky). */
+.ex-chat-settings-body {
+    position: absolute; z-index: 40; right: 12px; top: calc(100% + 8px);
+    width: min(320px, calc(100% - 24px)); padding: 2px 14px 14px;
+    border-radius: 16px; border: 1px solid var(--ovk-line); background: var(--ovk-panel);
+    box-shadow: var(--ov-elev-3, 0 14px 32px rgba(0, 0, 0, .4));
+}
+.ex-chat-settings-body .ex-label { margin: 12px 0 6px; font-size: .85rem; }
+.ex-chat-settings-body select,
+.ex-chat-settings-body input,
+.ex-chat-settings-body textarea {
+    width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px;
+    border-radius: 10px; border: 1px solid var(--ovk-line); background: var(--ovk-input, var(--ovk-panel));
+    color: var(--ovk-text); font: inherit;
+}
+.ex-chat-settings-body textarea { min-height: 72px; resize: vertical; }
+
+/* The quiet actions under a message: small, and there on hover, on focus, and always on a touch screen. */
+.ex-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin-top: 2px; }
+.ex-acts-you { justify-content: flex-end; }
+.ex-act {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 32px; padding: 0 10px; border: 0; border-radius: 9px; background: none;
+    color: var(--ovk-muted); font: inherit; font-size: 12.5px; line-height: 1.2;
+    cursor: pointer; text-decoration: none;
+}
+.ex-act:hover, .ex-act:focus-visible { background: var(--ovk-panel-2); color: var(--ovk-text); }
+.ex-act-strong { color: var(--ovk-accent); font-weight: 600; }
+.ex-act-form { display: inline-flex; margin: 0; }
+
+/* Edit, in place: the summary opens the box, and the box becomes the message when it is saved. */
+.ex-menu { position: relative; }
+.ex-menu > summary { list-style: none; cursor: pointer; }
+.ex-menu > summary::-webkit-details-marker { display: none; }
+.ex-lbl-shut { display: none; }
+.ex-menu[open] .ex-lbl-open { display: none; }
+.ex-menu[open] .ex-lbl-shut { display: inline; }
+.ex-menu-body {
+    display: grid; gap: 8px; justify-items: start; margin-top: 6px; padding: 10px;
+    width: min(420px, 76vw); box-sizing: border-box;
+    border-radius: 14px; border: 1px solid var(--ovk-line); background: var(--ovk-panel);
+    box-shadow: var(--ov-elev-2, 0 10px 24px -18px rgba(0, 0, 0, .7));
+}
+.ex-menu-body textarea {
+    width: 100%; box-sizing: border-box; min-height: 76px; padding: 8px 10px;
+    border-radius: 10px; border: 1px solid var(--ovk-line); background: var(--ovk-input, var(--ovk-panel));
+    color: var(--ovk-text); font: inherit; line-height: 1.5; resize: vertical;
+}
+/* While the message is being edited, it is the box. */
+.ovt-turn:has(.ex-menu[open]) .ovt-bubble { display: none; }
+
+/* The branch arrows: the turn's branch line, 1/2. */
+.ex-branch-nav { display: inline-flex; align-items: center; gap: 2px; }
+.ex-branch-arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; min-height: 32px; border-radius: 9px;
+    color: var(--ovk-muted); text-decoration: none; font-size: 16px; line-height: 1;
+}
+.ex-branch-arrow:hover, .ex-branch-arrow:focus-visible { background: var(--ovk-panel-2); color: var(--ovk-text); }
+.ex-branch-arrow.is-off { opacity: .3; }
+.ex-branch-count { font-size: 12.5px; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+
+@media (hover: hover) and (pointer: fine) {
+    .ex-acts { opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+    .ovt-turn:hover .ex-acts, .ovt-turn:focus-within .ex-acts { opacity: 1; pointer-events: auto; }
+}
+.ex-acts:has(.ex-menu[open]) { opacity: 1; pointer-events: auto; }
+
+/* On a touch screen the quiet actions are always there, and they are finger-sized. */
+@media (hover: none), (pointer: coarse) {
+    .ex-act { min-height: 44px; }
+    .ex-branch-arrow { min-width: 44px; min-height: 44px; }
+}

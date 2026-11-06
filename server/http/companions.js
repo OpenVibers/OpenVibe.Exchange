@@ -334,53 +334,90 @@ function createCompanionRoutes(ctx) {
             + '</dl></details>';
     }
 
-    /** The arrows between the branches, and the forms that make a new one. */
-    function branchLinks(chatId, turn, query) {
-        const parts = [];
-        if (turn.users.length > 1) {
-            const at = turn.users.indexOf(turn.user);
-            const prev = at > 0 ? '<a class="ex-branch" href="' + esc(branchUrl(chatId, query, 'v_' + turn.id, at - 1)) + '" rel="nofollow">Previous version</a>' : '';
-            const next = at < turn.users.length - 1 ? '<a class="ex-branch" href="' + esc(branchUrl(chatId, query, 'a' === 'v' ? 'v_' + turn.id : 'v_' + turn.id, at + 1)) + '" rel="nofollow">Next version</a>' : '';
-            parts.push('<span class="ex-branch-count">' + (at + 1) + ' of ' + turn.users.length + '</span>' + prev + next);
+    /**
+     * The turn's branch line: every version of the message with the answers that belong to it. An edit adds a
+     * version, a regenerate adds an answer, and the line keeps them all, so the arrows walk the tree in place.
+     */
+    function branchPairs(turn) {
+        const pairs = [];
+        for (const u of turn.users) {
+            const answers = turn.answers.filter((a) => a.parent_id === u.id).sort((a, b) => a.variant - b.variant);
+            if (!answers.length) pairs.push({ user: u, answer: null });
+            else for (const a of answers) pairs.push({ user: u, answer: a });
         }
-        if (turn.answers.length > 1) {
-            const at = turn.answers.indexOf(turn.answer);
-            const prev = at > 0 ? '<a class="ex-branch" href="' + esc(branchUrl(chatId, query, 'a_' + turn.user.id, at - 1)) + '" rel="nofollow">Other answer</a>' : '';
-            const next = at < turn.answers.length - 1 ? '<a class="ex-branch" href="' + esc(branchUrl(chatId, query, 'a_' + turn.user.id, at + 1)) + '" rel="nofollow">Other answer</a>' : '';
-            parts.push('<span class="ex-branch-count">' + (at + 1) + ' of ' + turn.answers.length + '</span>' + prev + next);
-        }
-        return parts.length ? '<p class="ex-branches">' + parts.join('') + '</p>' : '';
+        return pairs;
     }
 
-    function branchUrl(chatId, query, key, value) {
+    /** The arrows: 1/2 with a chevron on each side. They are links, so they work without script. */
+    function branchNav(chatId, turn, query) {
+        const pairs = branchPairs(turn);
+        if (pairs.length < 2) return '';
+        let at = pairs.findIndex((p) => p.user.id === turn.user.id && (turn.answer ? !!(p.answer && p.answer.id === turn.answer.id) : !p.answer));
+        if (at < 0) at = pairs.length - 1;
+        const url = (p) => branchUrl(chatId, query, turn.id, p);
+        const prev = at > 0
+            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at - 1])) + '" rel="nofollow" aria-label="The previous branch">\u2039</a>'
+            : '<span class="ex-branch-arrow is-off" aria-hidden="true">\u2039</span>';
+        const next = at < pairs.length - 1
+            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at + 1])) + '" rel="nofollow" aria-label="The next branch">\u203a</a>'
+            : '<span class="ex-branch-arrow is-off" aria-hidden="true">\u203a</span>';
+        return '<span class="ex-branch-nav" title="Branch ' + (at + 1) + ' of ' + pairs.length + '">' + prev
+            + '<span class="ex-branch-count">' + (at + 1) + '/' + pairs.length + '</span>' + next + '</span>';
+    }
+
+    /** The address of one branch: the version of the message and the answer that goes with it. */
+    function branchUrl(chatId, query, turnId, pair) {
         const next = new URLSearchParams();
-        for (const [k, v] of Object.entries(query || {})) if (k !== key && v != null && v !== '') next.set(k, String(v));
-        next.set(key, String(value));
-        return '/talk/' + encodeURIComponent(chatId) + '?' + next.toString();
+        for (const [k, v] of Object.entries(query || {})) {
+            if (k === 'v_' + turnId || k.startsWith('a_')) continue;
+            if (v != null && v !== '') next.set(k, String(v));
+        }
+        next.set('v_' + turnId, String(pair.user.variant));
+        if (pair.answer) next.set('a_' + pair.user.id, String(pair.answer.variant));
+        return '/talk/' + encodeURIComponent(chat.id) + '?' + next.toString();
     }
 
-    function turnHtml(chat, card, turn, query) {
-        const you = thread.turn({ id: turn.id, you: { text: turn.user.content }, reply: null });
-        const editForm = '<form method="post" action="/talk/' + encodeURIComponent(chat.id) + '/edit" class="ex-inline">'
+    /** Edit, in place: the message becomes a box, and the box becomes a new branch of the message when it is saved. */
+    function editAction(chat, turn) {
+        const id = 'ex-edit-' + turn.id;
+        return '<details class="ex-menu">'
+            + '<summary class="ex-act"><span class="ex-lbl-open">Edit</span><span class="ex-lbl-shut">Cancel</span></summary>'
+            + '<form class="ex-menu-body" method="post" action="/talk/' + encodeURIComponent(chat.id) + '/edit">'
             + '<input type="hidden" name="message" value="' + esc(turn.user.id) + '">'
             + '<input type="hidden" name="turn" value="' + esc(turn.id) + '">'
-            + '<label class="ovt-sr" for="ex-edit-' + esc(turn.id) + '">Edit this message</label>'
-            + '<input id="ex-edit-' + esc(turn.id) + '" type="text" name="text" value="' + esc(turn.user.content) + '" maxlength="4000">'
-            + '<button type="submit" class="ex-btn">Edit</button>'
-            + '</form>';
-        const regen = '<form method="post" action="/talk/' + encodeURIComponent(chat.id) + '/regenerate" class="ex-inline">'
-            + '<input type="hidden" name="message" value="' + esc(turn.user.id) + '">'
-            + '<button type="submit" class="ex-btn">Regenerate</button>'
-            + '</form>';
+            + '<label class="ovt-sr" for="' + esc(id) + '">Edit this message</label>'
+            + '<textarea id="' + esc(id) + '" name="text" rows="3" maxlength="4000">' + esc(turn.user.content) + '</textarea>'
+            + '<button type="submit" class="ex-act ex-act-strong">Save</button>'
+            + '</form></details>';
+    }
+
+    /**
+     * One turn: what the person wrote (once, as a bubble), the answer, and the quiet actions under each. The
+     * actions are small, and they show on hover or focus; on a touch screen they are always there.
+     */
+    function turnHtml(chat, card, turn, query) {
+        const face = thread.face({ name: card.name, color: 'var(' + views.monoToken(card.name) + ')' });
+        const you = '<div class="ovt-you">'
+            + '<p class="ovt-bubble">' + esc(turn.user.content) + '</p>'
+            + '<div class="ex-acts ex-acts-you">' + editAction(chat, turn) + '</div>'
+            + '</div>';
         const answer = turn.answer
-            ? '<li class="ovt-turn ex-round"><article class="ex-answer-col">'
-                + thread.answer({ html: esc(turn.answer.content || '').split(String.fromCharCode(10)).join('<br>'), meta: [] })
+            ? '<article class="ex-answer-col">'
+                + thread.answer({ html: esc(turn.answer.content || '').split(String.fromCharCode(10)).join('<br>'), meta: [], copy: false })
                 + receiptFor(turn.answer)
-                + '</article></li>'
+                + '</article>'
             : '';
-        return you
-            + '<li class="ovt-turn ex-branch-turn"><div class="ex-branch-bar">' + branchLinks(chat.id, turn, query) + '</div>' + editForm + regen + '</li>'
-            + answer;
+        const acts = turn.answer
+            ? '<div class="ex-acts ex-acts-bot">'
+                + '<form class="ex-act-form" method="post" action="/talk/' + encodeURIComponent(chat.id) + '/regenerate">'
+                + '<input type="hidden" name="message" value="' + esc(turn.user.id) + '">'
+                + '<button type="submit" class="ex-act">Regenerate</button></form>'
+                + '<button type="button" class="ex-act" data-ovt-copy hidden>Copy</button>'
+                + branchNav(chat.id, turn, query)
+                + '</div>'
+            : '';
+        const bot = turn.answer ? '<div class="ovt-bot">' + face + '<div class="ovt-reply">' + answer + acts + '</div></div>' : '';
+        return '<li class="ovt-turn ex-turn" id="t-' + esc(turn.id) + '" data-turn="' + esc(turn.id) + '">' + you + bot + '</li>';
     }
 
     /** What the model saw: the card, the settings, the context, the receipt. Nothing hidden. */
@@ -409,26 +446,56 @@ function createCompanionRoutes(ctx) {
         });
     }
 
-    function composerFor(chat, card, models, problem) {
+    /**
+     * The settings, behind the chip in the header: the model or the preset, the temperature, the context size and the
+     * persona the person plays. The fields belong to the composer's form (form="ovt-composer"), so they travel with
+     * every message, and the chip opens them without a line of script.
+     */
+    function chatSettings(chat, models) {
         const selected = chat.model;
         const options = models.slice(0, 40).map((m) => '<option value="' + esc(m.slug) + '"' + (selected === m.slug ? ' selected' : '') + '>' + esc(m.name + (m.uncensored ? ' · 18+' : '')) + '</option>').join('');
-        const settings = '<details class="ovt-settings"><summary>Model, preset, temperature, context and persona</summary><div class="ovt-settings-body">'
+        const found = models.find((m) => m.slug === chat.model);
+        const label = found ? found.name : (chat.model || chat.preset || 'Auto');
+        return '<details class="ex-chat-settings">'
+            + '<summary class="ex-chip ex-chat-chip" title="The model, the preset, the temperature, the context and the persona">'
+            + '<span class="ex-chat-chip-label">' + esc(label) + '</span>'
+            + '<span class="ex-chat-chip-caret" aria-hidden="true">▾</span>'
+            + '</summary>'
+            + '<div class="ex-chat-settings-body">'
             + '<label class="ex-label" for="ex-model">Model</label>'
-            + '<select id="ex-model" name="model"><option value="">Let the router choose</option>' + options + '</select>'
+            + '<select id="ex-model" name="model" form="ovt-composer"><option value="">Let the router choose</option>' + options + '</select>'
             + '<label class="ex-label" for="ex-preset">Preset (optional)</label>'
-            + '<input id="ex-preset" name="preset" type="text" value="' + esc(chat.preset || '') + '" maxlength="120" placeholder="the preset name">'
+            + '<input id="ex-preset" name="preset" form="ovt-composer" type="text" value="' + esc(chat.preset || '') + '" maxlength="120" placeholder="the preset name">'
             + '<label class="ex-label" for="ex-temp">Temperature</label>'
-            + '<input id="ex-temp" name="temperature" type="number" min="0" max="2" step="0.1" value="' + (chat.temperature == null ? '' : esc(chat.temperature)) + '">'
+            + '<input id="ex-temp" name="temperature" form="ovt-composer" type="number" min="0" max="2" step="0.1" value="' + (chat.temperature == null ? '' : esc(chat.temperature)) + '">'
             + '<label class="ex-label" for="ex-context">Context size (characters of history)</label>'
-            + '<input id="ex-context" name="context_size" type="number" min="2000" max="200000" step="1000" value="' + (chat.context_size == null ? '' : esc(chat.context_size)) + '">'
+            + '<input id="ex-context" name="context_size" form="ovt-composer" type="number" min="2000" max="200000" step="1000" value="' + (chat.context_size == null ? '' : esc(chat.context_size)) + '">'
             + '<label class="ex-label" for="ex-persona">The persona you play</label>'
-            + '<textarea id="ex-persona" name="persona" rows="2" maxlength="2000">' + esc(chat.persona || '') + '</textarea>'
-            + '</div></details>' + (problem ? kit.notice({ kind: 'error', text: problem }) : '');
+            + '<textarea id="ex-persona" name="persona" form="ovt-composer" rows="2" maxlength="2000">' + esc(chat.persona || '') + '</textarea>'
+            + '</div></details>';
+    }
+
+    /** The chat's header: the character's face (or its monogram), its name, and the model it talks on, as a chip. */
+    function chatHead(card, chat, models) {
+        const face = card.avatar_url
+            ? '<img class="ex-chat-face" src="' + esc(card.avatar_url) + '" alt="" width="32" height="32">'
+            : thread.face({ name: card.name, color: 'var(' + views.monoToken(card.name) + ')' });
+        return '<header class="ovt-head ex-chat-head" data-ovt-head>'
+            + kit.sidebarButton({ id: 'ovt-chats', label: 'Your chats' })
+            + '<div class="ex-chat-id">' + face + '<h1 class="ovt-title ex-chat-title">' + esc(card.name) + '</h1></div>'
+            + chatSettings(chat, models)
+            + '<a class="ovt-btn ex-chat-new" href="/companions" aria-label="Characters">' + thread.icon('plus') + '</a>'
+            + '<button type="button" class="ovt-btn ovt-panel-open" data-ovt-panel-open aria-controls="ovt-panel" aria-expanded="false" aria-label="What the model saw" title="What the model saw">' + thread.icon('panel') + '</button>'
+            + '</header>';
+    }
+
+    function composerFor(chat, card, problem) {
         return thread.composer({
             action: '/talk/' + encodeURIComponent(chat.id) + '/send',
             name: 'text',
             placeholder: 'Say something…',
-            top: settings,
+            id: 'ovt-composer',
+            top: problem ? kit.notice({ kind: 'error', text: problem }) : '',
             maxlength: config.chat.maxChars,
             note: 'Your own daily allowance. The hard floor holds on every model and every character.',
         });
@@ -449,14 +516,15 @@ function createCompanionRoutes(ctx) {
         const empty = '<div class="ovt-welcome"><h2>' + esc(card.name) + '</h2><p>' + esc(card.description || 'Say something to begin.') + '</p></div>';
         const body = thread.page({
             sidebar,
-            head: thread.head({ title: card.name, newHref: '/companions' }),
+            head: chatHead(card, chat, models),
             turns: turns.map((t) => turnHtml(chat, card, t, query)),
             empty,
-            composer: chat.ended_at ? '' : composerFor(chat, card, models, problem),
+            composer: chat.ended_at ? '' : composerFor(chat, card, problem),
             panel: sawPanel(chat, card, turns),
         });
         return page(req, res, {
             title: card.name, index: false, class: 'ex-chat ex-companion-chat', app: true,
+            bodyClass: 'ex-app ex-companion-shell',
             head: '<link rel="stylesheet" href="' + require('openvibe-shared/serve').url('thread.css') + '"><script src="' + require('openvibe-shared/serve').url('ov-thread.js') + '" defer></script>',
             body: raw(body),
         }, status);

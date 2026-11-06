@@ -9,3 +9,6 @@ dist/
 *.pem
 *.key
 !server/data/
+
+# The design review screenshots stay out of the repository: they are pictures of the site, not code.
+screenshots/
