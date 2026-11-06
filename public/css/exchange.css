@@ -67,7 +67,7 @@
 .ex-sec-body > .ex-presets, .ex-sec-body > .ex-floor-box, .ex-sec-body > .ex-seller,
 .ex-sec-body > .ovk-receipt, .ex-sec-body > .ovk-notice, .ex-sec-body > .ovk-empty,
 .ex-sec-body > .ovk-snippet, .ex-sec-body > .ex-try, .ex-sec-body > .ex-signin,
-.ex-sec-body > .ovk-stats { margin-left: 14px; margin-right: 14px; }
+.ex-sec-body > .ovk-stats, .ex-sec-body > .ex-switch { margin-left: 14px; margin-right: 14px; }
 .ex-sec-body > p, .ex-sec-body > ul:not(.ex-mlist), .ex-sec-body > h3, .ex-sec-body > .ex-presets { margin-bottom: 12px; }
 .ex-sec-body > .ex-more { padding: 0 14px 12px; margin: 8px 0 0; }
 .ex-sec-body > .ovk-list, .ex-sec-body > .ovk-table-wrap, .ex-sec-body > .ex-mlist {
