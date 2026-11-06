@@ -144,10 +144,10 @@ const FORM = {
             assert.ok(memory.items.get(m2id).text.includes('pendulum'), 'M2 holds the new text');
             const pin = await t.get(base + '/memory/' + id + '/pin', { as: alice, method: 'POST', form: { pinned: '1' } });
             assert.strictEqual(pin.status, 200, pin.text);
-            assert.ok(pin.text.includes('>pinned<'));
+            assert.ok(pin.text.includes('>Pinned<'));
             const unpin = await t.get(base + '/memory/' + id + '/pin', { as: alice, method: 'POST', form: { pinned: '0' } });
             assert.strictEqual(unpin.status, 200, unpin.text);
-            assert.ok(!unpin.text.includes('>pinned<'));
+            assert.ok(!unpin.text.includes('>Pinned<'));
             const del = await t.get(base + '/memory/' + id + '/delete', { as: alice, method: 'POST' });
             assert.strictEqual(del.status, 200, del.text);
             assert.strictEqual((await t.ctx.notes.indexRows(alice.subject, card.id)).length, 0);

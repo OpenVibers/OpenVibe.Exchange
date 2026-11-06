@@ -188,6 +188,8 @@ const stillLocked = (locked, lock) => locked
     : '';
 
 /** The Memory panel: the notes this character keeps, and the person's edits, pins and additions. */
+const KIND_LABEL = { fact: 'Fact', preference: 'Preference', event: 'Event' };
+
 function memoryPage({ card = {}, notes = [], locked = false, lock = null, problem = null, notice = null } = {}) {
     const kinds = ['fact', 'preference', 'event'];
     // The pinned notes are the ones the person wants read first: they come first here, as in the context.
@@ -198,15 +200,15 @@ function memoryPage({ card = {}, notes = [], locked = false, lock = null, proble
             : esc(note.text);
         const edit = note.sealed ? '' : '<details class="ex-menu"><summary class="ex-act">Edit</summary>'
             + '<form class="ex-menu-body" method="post" action="' + esc('/c/' + card.handle + '/' + card.slug + '/memory/' + note.id + '/edit') + '">'
-            + '<label class="ovt-sr" for="ex-note-' + esc(note.id) + '">The note</label>'
+            + '<label class="ovk-sr" for="ex-note-' + esc(note.id) + '">The note</label>'
             + '<textarea id="ex-note-' + esc(note.id) + '" name="text" rows="3" maxlength="2000">' + esc(note.text) + '</textarea>'
             + '<button type="submit" class="ex-act ex-act-strong">Save</button></form></details>';
         const action = (path, label, extra = '') => '<form class="ex-act-form" method="post" action="' + esc(path) + '">'
             + (extra || '') + '<button type="submit" class="ex-act">' + esc(label) + '</button></form>';
         const base = '/c/' + card.handle + '/' + card.slug + '/memory/' + note.id;
         return '<li class="ex-note" data-note-id="' + esc(note.id) + '">'
-            + '<div class="ex-note-head"><span class="ex-chip">' + esc(note.kind) + '</span>'
-            + (note.pinned ? '<span class="ex-chip is-on">pinned</span>' : '')
+            + '<div class="ex-note-head"><span class="ex-chip">' + esc(KIND_LABEL[note.kind] || note.kind) + '</span>'
+            + (note.pinned ? '<span class="ex-chip is-on">Pinned</span>' : '')
             + '<span class="ex-muted">' + esc(note.origin === 'model' ? 'written by the character' : 'written by you') + '</span></div>'
             + '<p class="ex-note-text">' + text + '</p>'
             + '<div class="ex-note-acts">' + edit
@@ -220,6 +222,16 @@ function memoryPage({ card = {}, notes = [], locked = false, lock = null, proble
         + '<p class="ex-lede">What <b>' + esc(card.name) + '</b> remembers about you. The notes are yours: edit them, pin the ones that matter, delete the rest, or add your own. They live in your OpenVibe memory, not in a plan.</p>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
         + (notice ? kit.notice({ kind: 'info', text: notice }) : '')
+        + '<section class="ex-memory-list"><h2>Your notes (' + notes.length + ')</h2>'
+        + (notes.length ? '<ul class="ex-notes">' + notes.map(row).join('') + '</ul>' : '<p class="ex-muted">No notes yet. They appear here after a few turns, or add one below.</p>')
+        + '</section>'
+        + '<section class="ex-memory-add"><h2>Add a note</h2>'
+        + '<form class="ex-form" method="post" action="' + esc('/c/' + card.handle + '/' + card.slug + '/memory/add') + '">'
+        + '<label class="ex-label" for="ex-note-kind">Kind</label>'
+        + '<select id="ex-note-kind" name="kind">' + kinds.map((k) => '<option value="' + k + '">' + (KIND_LABEL[k] || k) + '</option>').join('') + '</select>'
+        + '<label class="ex-label" for="ex-note-text">The note</label>'
+        + '<textarea id="ex-note-text" name="text" rows="3" maxlength="2000" required placeholder="A fact, a preference, or something that happened"></textarea>'
+        + '<button type="submit" class="ex-btn ex-btn-primary">Add the note</button></form></section>'
         + '<section class="ex-memory-lock"><h2>The Locker</h2>'
         + (locked
             ? stillLocked(true, lock) + '<p class="ex-muted">The notes and the chats of this character are sealed with your keys. They are opened in your browser and sent for one turn only. OpenVibe cannot read them at rest.</p>'
@@ -227,16 +239,7 @@ function memoryPage({ card = {}, notes = [], locked = false, lock = null, proble
             : '<p class="ex-muted">With your Locker on, these notes and the chat history of this character are sealed with your keys before they are stored. Only your browser can read them. <a href="/locker">Set up your Locker</a> first if you have not.</p>'
                 + '<form method="post" action="' + esc('/c/' + card.handle + '/' + card.slug + '/lock') + '"><input type="hidden" name="on" value="1"><button type="submit" class="ex-btn ex-btn-primary">Turn the Locker on</button></form>')
         + '</section>'
-        + '<section class="ex-memory-add"><h2>Add a note</h2>'
-        + '<form class="ex-form" method="post" action="' + esc('/c/' + card.handle + '/' + card.slug + '/memory/add') + '">'
-        + '<label class="ex-label" for="ex-note-kind">Kind</label>'
-        + '<select id="ex-note-kind" name="kind">' + kinds.map((k) => '<option value="' + k + '">' + k + '</option>').join('') + '</select>'
-        + '<label class="ex-label" for="ex-note-text">The note</label>'
-        + '<textarea id="ex-note-text" name="text" rows="3" maxlength="2000" required placeholder="A fact, a preference, or something that happened"></textarea>'
-        + '<button type="submit" class="ex-btn ex-btn-primary">Add the note</button></form></section>'
-        + '<section class="ex-memory-list"><h2>Your notes (' + notes.length + ')</h2>'
-        + (notes.length ? '<ul class="ex-notes">' + notes.map(row).join('') + '</ul>' : '<p class="ex-muted">No notes yet. They appear here after a few turns, or add one above.</p>')
-        + '</section></div>';
+        + '</div>';
 }
 
 /** The lorebook panel: the entries that join the context, and the World Info file in and out. */
@@ -292,6 +295,7 @@ function lorebookPage({ card = {}, books = [], chat = null, problem = null, noti
         + '<p class="ex-lede">Entries that join the context when one of their keys appears in the recent turns, the highest priority first, within a token budget. Attach a book to your world, to <b>' + esc(card.name) + '</b>, or to this chat. The chat’s “What the model saw” panel lists the entries used for each answer.</p>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
         + (notice ? kit.notice({ kind: 'info', text: notice }) : '')
+        + (books.length ? books.map(bookSection).join('') : '<p class="ex-muted">No lorebooks yet. Make one below, or import a SillyTavern World Info file into it.</p>')
         + '<section class="ex-lorebook-new"><h2>Make a lorebook</h2><form class="ex-form" method="post" action="' + esc('/c/' + card.handle + '/' + card.slug + '/lorebook') + '">'
         + '<label class="ex-label" for="ex-book-name">Name</label><input id="ex-book-name" name="name" type="text" maxlength="120" required>'
         + '<label class="ex-label" for="ex-book-scope">Attach it to</label><select id="ex-book-scope" name="scope">'
@@ -299,7 +303,6 @@ function lorebookPage({ card = {}, books = [], chat = null, problem = null, noti
         + (chat ? '<option value="chat">This chat</option>' : '') + '</select>'
         + (chat ? '<input type="hidden" name="chat_id" value="' + esc(chat.id) + '">' : '')
         + '<button type="submit" class="ex-btn ex-btn-primary">Make the lorebook</button></form></section>'
-        + (books.length ? books.map(bookSection).join('') : '<p class="ex-muted">No lorebooks yet. Make one above, or import a SillyTavern World Info file into it.</p>')
         + '</div>';
 }
 
