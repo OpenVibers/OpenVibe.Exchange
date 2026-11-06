@@ -4,6 +4,14 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **Private AI.** Strict privacy is a switch on `/chat` and on the API page's keys. It sends AI the `private` preset:
+  only offers that keep nothing and train on nothing (or OpenVibe's own deployments) may answer, the router refuses
+  with a plain message when none can, and every answer's receipt carries its label (Private, No training, Anonymized,
+  Community, Standard).
+- **Sealed history.** A chat can be sealed with the person's Locker: the browser seals the whole conversation
+  (`ov-locker.js`, people-locked to the person) and Exchange stores only the envelope. The chat list shows a neutral
+  title until it is opened, the model still receives the turn it answers, and the page says so plainly. Account
+  export carries the envelope and deletion erases it.
 - **Theme palettes.** A Design theme's listing keeps the preview palette from Design's public API (background,
   surface, text, accent and up to two more), in a new `palette` array on the API; the card and the listing page draw
   it as small swatches. Only `#rrggbb` values are stored and painted; a second refresh leaves the row untouched.
