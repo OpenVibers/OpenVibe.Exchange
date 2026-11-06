@@ -158,6 +158,7 @@ function createPageRoutes(ctx) {
             newHref: '/chat/new', newLabel: 'New chat', findAction: '/chat', findPlaceholder: 'Find a chat',
             groups: thread.group(items.sort((a, b) => String(b.at).localeCompare(String(a.at))), (c) => c.at || Date.now()),
             nav: [
+                { href: '/chat/new?sealed=1', label: 'A sealed chat', icon: 'shield' },
                 { href: '/models', label: 'Models', icon: 'spark' },
                 { href: '/api', label: 'API', icon: 'code' },
                 { href: '/ai', label: 'AI in OpenVibe', icon: 'gear' },
@@ -167,6 +168,7 @@ function createPageRoutes(ctx) {
 
     function composerFor({ chat = null, models, problem = null, action = '/chat/send' }) {
         const selected = chat && chat.models.length ? chat.models : models.slice(0, 1).map((m) => m.slug);
+        const strict = Boolean(chat && chat.strict_privacy);
         const settings = `<details class="ovt-settings"><summary>Models, system prompt and temperature</summary>
 <div class="ovt-settings-body">
 ${kit.chips({ name: 'models', label: 'Compare up to three models', options: modelOptions(models, selected), single: false })}
@@ -174,6 +176,8 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
 <textarea id="sys" name="system" rows="2" maxlength="4000">${esc((chat && chat.system_prompt) || '')}</textarea>
 <label class="ex-label" for="temp">Temperature <span class="ex-muted">0 to 2</span></label>
 <input id="temp" name="temperature" type="number" min="0" max="2" step="0.1" value="${chat && chat.temperature != null ? esc(chat.temperature) : ''}">
+<label class="ex-check"><input type="checkbox" name="strict_privacy" value="1"${strict ? ' checked' : ''}> <span>Strict privacy: only offers that keep nothing and train on nothing</span></label>
+<p class="ex-muted ex-small">With strict privacy on, the router refuses when no private offer can answer, instead of falling back to one that keeps or trains on your prompt.</p>
 </div></details>${problem ? kit.notice({ kind: 'error', text: problem }) : ''}`;
         return thread.composer({
             action, name: 'text', placeholder: 'Ask anything…', top: settings, maxlength: config.chat.maxChars,
@@ -194,8 +198,13 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
             const body = m.error
                 ? thread.card({ tone: 'bad', title: 'Did not answer', text: m.error })
                 : thread.answer({ html: textOf(m.content), meta: [] });
+            const pv = m.meta && m.meta.privacy
+                ? views.answerPrivacy({ privacy: m.meta.privacy, privacy_detail: m.meta.privacy_detail })
+                : null;
             const receipt = `<details class="ex-receipt"><summary>Receipt</summary><dl>
 <dt>Offer</dt><dd>${esc(m.meta && m.meta.provider ? views.providerLabel({ provider: m.meta.provider }) : '—')}${m.meta && m.meta.answered_model ? ` · ${esc(m.meta.answered_model)}` : ''}</dd>
+<dt>Privacy</dt><dd>${pv ? `${kit.badge(pv.label, pv.kind)}${pv.facts ? ` · ${esc(pv.facts)}` : ''}` : '—'}</dd>
+${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''}
 <dt>Price</dt><dd>${cost == null ? '—' : Number(cost) === 0 ? 'free' : `$${Number(cost).toFixed(6)}`}</dd>
 <dt>Tokens</dt><dd>${m.meta && (m.meta.tokens_in != null || m.meta.tokens_out != null) ? `${Number(m.meta.tokens_in || 0).toLocaleString('en-US')} in · ${Number(m.meta.tokens_out || 0).toLocaleString('en-US')} out` : '—'}</dd>
 <dt>Latency</dt><dd>${latency == null ? '—' : `${Number(latency).toLocaleString('en-US')} ms`}</dd>
@@ -246,6 +255,114 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         return chats.list(owner(req));
     }
 
+    /**
+     * A chat whose history is sealed with the person's Locker: the page carries the shell, never a turn. The
+     * browser opens the envelope and draws it (public/js/exchange.js).
+     */
+    function sealedPage({ req, res, chat = null, models = [] }) {
+        const subject = req.viewer && req.viewer.kind === 'user' && req.viewer.subject ? req.viewer.subject : '';
+        return page(req, res, {
+            title: chat ? 'A sealed chat' : 'A new sealed chat', index: false,
+            class: 'ex-chat', app: true,
+            head: `<link rel="stylesheet" href="${require('openvibe-shared/serve').url('ov-locker.css')}"><script src="${require('openvibe-shared/serve').url('ov-locker.js')}" defer></script>`,
+            body: raw(views.sealedChat({ chat, models, networkUrl: config.networkUrl, subject })),
+        });
+    }
+
+    // ── Sealed chats: envelopes only ─────────────────────────
+    // The browser seals the conversation with the person's Locker (people-locked to them) and posts the envelope.
+    // Exchange stores it and nothing else: the plaintext of a sealed conversation never reaches this service, and
+    // a send carries the turns only for the run it makes (the model receives them; the database does not).
+    const sealedJson = express.json({ limit: '900kb' });
+    const envelopeOf = (body) => {
+        const envelope = body && typeof body.envelope === 'string' ? body.envelope.trim() : '';
+        if (!envelope || envelope.length > 700000 || !/^[A-Za-z0-9+/=]+$/.test(envelope)) return null;
+        const bytes = Buffer.from(envelope, 'base64');
+        return bytes.length >= 32 && bytes.length <= 520000 ? envelope : null;
+    };
+    const jsonRefusal = (res, status, error) => res.status(status).type('application/json').send(JSON.stringify({ error }));
+    const sameJson = (req, res) => {
+        if (!signedIn(req)) { jsonRefusal(res, 401, 'Sign in to OpenVibe first.'); return false; }
+        // A read is fine from this site; a write must come from it (never another origin).
+        if (req.method !== 'GET' && req.method !== 'HEAD' && !sameOrigin(req, config.baseUrl)) {
+            jsonRefusal(res, 403, 'That came from somewhere else.');
+            return false;
+        }
+        return true;
+    };
+
+    r.post('/chat/sealed/new', sealedJson, async (req, res) => {
+        if (!sameJson(req, res)) return;
+        const envelope = envelopeOf(req.body);
+        if (!envelope) return jsonRefusal(res, 422, 'A sealed chat needs the sealed envelope.');
+        const chat = await chats.createSealed({ owner: owner(req), envelope });
+        return res.status(201).json({ id: chat.id, url: `/chat/${chat.id}` });
+    });
+
+    r.get('/chat/:id/sealed', async (req, res) => {
+        if (!sameJson(req, res)) return;
+        const chat = await chats.get(owner(req), req.params.id);
+        if (!chat || !chat.sealed) return jsonRefusal(res, 404, 'No such sealed chat.');
+        const seal = await chats.sealGet(owner(req), chat.id);
+        return res.json({ id: chat.id, envelope: seal ? seal.envelope : null, updated_at: seal ? seal.updated_at : null, strict_privacy: Boolean(chat.strict_privacy) });
+    });
+
+    r.put('/chat/:id/sealed', sealedJson, async (req, res) => {
+        if (!sameJson(req, res)) return;
+        const envelope = envelopeOf(req.body);
+        if (!envelope) return jsonRefusal(res, 422, 'A sealed chat needs the sealed envelope.');
+        const seal = await chats.sealPut(owner(req), req.params.id, envelope);
+        if (!seal) return jsonRefusal(res, 404, 'No such sealed chat.');
+        return res.json({ ok: true, updated_at: seal.updated_at });
+    });
+
+    r.post('/chat/:id/sealed/send', sealedJson, async (req, res) => {
+        if (!sameJson(req, res)) return;
+        const chat = await chats.get(owner(req), req.params.id);
+        if (!chat || !chat.sealed) return jsonRefusal(res, 404, 'No such sealed chat.');
+        const body = req.body || {};
+        const model = String(body.model || '').slice(0, 256);
+        if (!model) return jsonRefusal(res, 422, 'Pick a model first.');
+        const messages = (Array.isArray(body.messages) ? body.messages : []).slice(-80)
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant' || m.role === 'system') && typeof m.content === 'string')
+            .map((m) => ({ role: m.role, content: m.content.slice(0, 32000) }));
+        if (!messages.length || !messages.some((m) => m.role === 'user')) return jsonRefusal(res, 422, 'Write something to send.');
+        const temperature = body.temperature == null || body.temperature === '' ? null : Math.max(0, Math.min(2, Number(body.temperature)));
+        const strict = body.strict_privacy === true || body.strict_privacy === '1' || body.strict_privacy === 'on';
+        try {
+            const out = await ai.chat({ model, messages, temperature, subject: owner(req), preset: strict ? 'private' : null });
+            return res.json({
+                answer: {
+                    content: out.content || '(no text)', model: out.model, provider: out.provider, run_id: out.run_id,
+                    cost_usd: out.cost_usd, tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms,
+                    why: out.why, privacy: out.privacy, privacy_detail: out.privacy_detail, preset: out.preset,
+                },
+            });
+        } catch (err) {
+            return res.status(err.status && err.status >= 400 && err.status < 600 ? err.status : 502)
+                .json({ error: err.message || 'The model did not answer.', code: err.code || null });
+        }
+    });
+
+    /** The person's strict-privacy switch on their API keys (an account "default" preset in OpenVibe.AI). */
+    r.post('/privacy/keys', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, `/auth/login?next=${encodeURIComponent('/api')}`);
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const on = Boolean(req.body && (req.body.strict === '1' || req.body.strict === 'on'));
+        let keyPrivacy = { on, available: true };
+        try {
+            const out = await ai.setKeyPrivacy(owner(req), on, { networkToken: (req.viewer && req.viewer.token) || null });
+            if (out && out.projects) {
+                keyPrivacy.note = `Set on your account${out.projects_set ? ` and ${out.projects_set} of your ${out.projects} project${out.projects === 1 ? '' : 's'}` : ''}: their keys now use the private preset unless a request names another.`
+                    + (out.projects_failed && out.projects_failed.length ? ` ${out.projects_failed.length} project${out.projects_failed.length === 1 ? '' : 's'} could not be written.` : '');
+            }
+        } catch (err) {
+            keyPrivacy = { on: !on, available: true, error: `The switch could not be saved: ${err.message || 'OpenVibe.AI did not answer'}` };
+        }
+        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+        return page(req, res, { title: 'The API', index: false, body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })) });
+    });
+
     r.get('/chat', async (req, res) => {
         const list = await loadChats(req);
         if (!list.length) return signInIfGuest(req, res, async () => {
@@ -262,13 +379,16 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
 
     r.get('/chat/new', async (req, res) => signInIfGuest(req, res, async () => {
         const [list, cat] = await Promise.all([chats.list(owner(req)), chatCatalog()]);
+        if (req.query.sealed === '1') return sealedPage({ req, res, models: cat.models });
         return chatPage({ req, res, chats: list, models: cat.models });
     }));
 
     r.get('/chat/:id', async (req, res) => signInIfGuest(req, res, async () => {
         const chat = await chats.get(owner(req), req.params.id);
         if (!chat) return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'chat', title: 'No such chat', text: 'It may have been deleted.', action: { href: '/chat', label: 'Your chats' } })}</div>`) }, 404);
-        const [messages, list, cat] = await Promise.all([chats.messages(owner(req), chat.id), chats.list(owner(req)), chatCatalog()]);
+        const [list, cat] = await Promise.all([chats.list(owner(req)), chatCatalog()]);
+        if (chat.sealed) return sealedPage({ req, res, chat, models: cat.models });
+        const messages = await chats.messages(owner(req), chat.id);
         return chatPage({ req, res, chat, chats: list, messages, models: cat.models });
     }));
 
@@ -284,9 +404,13 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         const chosen = wanted.length ? wanted : models.slice(0, 1).map((m) => m.slug);
         const system = body.system ? String(body.system).slice(0, 4000) : null;
         const temperature = body.temperature === '' || body.temperature == null ? null : Math.max(0, Math.min(2, Number(body.temperature)));
+        const strict = Boolean(body.strict_privacy && ['1', 'on', 'true', 'yes'].includes(String(body.strict_privacy)));
+        const preset = strict ? 'private' : null;
 
         let chat = chatId ? await chats.get(owner(req), chatId) : null;
         if (chatId && !chat) return page(req, res, { title: 'Not found', index: false, body: raw(kit.empty({ icon: 'chat', title: 'No such chat', text: 'It may have been deleted.', action: { href: '/chat', label: 'Your chats' } })) }, 404);
+        // A sealed chat is written by its own page: its turns never come through this form.
+        if (chat && chat.sealed) return res.redirect(303, `/chat/${chat.id}`);
         const uncensored = chosen.map((s) => models.find((m) => m.slug === s)).filter((m) => m && m.uncensored);
         if (uncensored.length && !(await adult.confirmed(owner(req)))) {
             const list = await loadChats(req);
@@ -307,8 +431,12 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         }
 
         const isNew = !chat;
-        if (!chat) chat = await chats.create({ owner: owner(req), models: chosen, title: text.replace(/\s+/g, ' ').slice(0, 60) });
-        else await chats.settings(owner(req), chat.id, { models: chosen, systemPrompt: system, temperature });
+        if (!chat) chat = await chats.create({ owner: owner(req), models: chosen, title: text.replace(/\s+/g, ' ').slice(0, 60), strictPrivacy: strict });
+        else {
+            await chats.settings(owner(req), chat.id, { models: chosen, systemPrompt: system, temperature });
+            await chats.setPrivacy(owner(req), chat.id, { strictPrivacy: strict });
+            chat.strict_privacy = strict;
+        }
         if (!isNew && (system !== chat.system_prompt || temperature !== chat.temperature)) {
             // settings stored above
         }
@@ -329,12 +457,13 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
                 { role: 'user', content: text },
             ];
             try {
-                const out = await ai.chat({ model: modelId, messages, temperature, subject: owner(req) });
+                const out = await ai.chat({ model: modelId, messages, temperature, subject: owner(req), preset });
                 await chats.append(owner(req), chat.id, {
                     role: 'assistant', model: slug, content: out.content || '(no text)',
                     meta: {
                         run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
                         tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
+                        privacy: out.privacy, privacy_detail: out.privacy_detail, preset: out.preset,
                     },
                 });
             } catch (err) {
@@ -379,11 +508,19 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
     // ── API ──────────────────────────────────────────────────
     r.get('/api', async (req, res) => {
         const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+        // The strict-privacy switch on a person's keys: their account's "default" preset in AI.
+        let keyPrivacy = null;
+        if (signedIn(req)) {
+            const presets = typeof ai.presetsFor === 'function' ? await ai.presetsFor(owner(req)) : null;
+            keyPrivacy = Array.isArray(presets)
+                ? { available: true, on: presets.some((p) => p && p.name === 'default' && p.policy && p.policy.data_policy === 'private') }
+                : { available: false };
+        }
         return page(req, res, {
-            index: true, cache: PUBLIC_CACHE, agentLayer: true,
+            index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
             title: 'The API',
             description: 'One OpenAI- and Anthropic-compatible endpoint for every model on OpenVibe.Exchange: keys, model ids, usage.',
-            body: raw(views.apiPage({ catalog, usage })),
+            body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })),
         });
     });
 

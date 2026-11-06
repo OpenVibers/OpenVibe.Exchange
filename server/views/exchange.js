@@ -51,18 +51,36 @@ function familyLabel(m) {
 }
 
 /**
- * The privacy label the design asks for, from facts only: a community machine sees the prompt; zero retention
- * and no training is Private; no training alone is said as that. "Anonymized" is never claimed, because no
- * offer here anonymises the request.
+ * The privacy label the design asks for, from facts only. AI's offer carries the label it read from the provider's
+ * own terms (`offer.privacy`, the same function the router filters on): Private when it keeps nothing and trains on
+ * nothing, Anonymized when it declares a policy that is weaker, Community for a person's machine. An offer that
+ * declares nothing is Standard. "No training" is said as that when the provider promises only that.
  */
 function privacyOf(offer) {
     if (!offer) return null;
     if (offer.trust === 'community') return { label: 'Community', kind: 'accent', short: 'Community' };
+    const label = offer.privacy && offer.privacy.label;
+    if (label === 'private') return { label: 'Private', kind: 'ok', short: 'Private' };
     const p = offer.data_policy;
     if (p && p.anonymized === true) return { label: 'Anonymized', kind: 'accent', short: 'Anonymized' };
-    if (p && p.trains === false && p.retention_days === 0) return { label: 'Private', kind: 'ok', short: 'Private' };
     if (p && p.trains === false) return { label: 'No training', kind: 'ok', short: 'No training' };
+    if (label === 'anonymized') return { label: 'Anonymized', kind: 'accent', short: 'Anonymized' };
     return { label: 'Standard', kind: '', short: 'Standard' };
+}
+
+/** The label of an answer, from the run's own explain (`privacy` in AI). */
+const ANSWER_LABELS = { private: ['Private', 'ok'], anonymized: ['Anonymized', 'accent'], community: ['Community', 'accent'] };
+function answerPrivacy(result) {
+    if (!result || !result.privacy) return null;
+    const [name, kind] = ANSWER_LABELS[result.privacy] || ['Standard', ''];
+    const d = result.privacy_detail || {};
+    const facts = [];
+    if (d.retention === 'none') facts.push('no retention');
+    if (d.training === false) facts.push('no training');
+    if (d.trust === 'own_machine') facts.push('your own machine');
+    if (d.trust === 'own_deployment') facts.push('OpenVibe’s own hardware');
+    if (d.trust === 'community') facts.push('a community machine sees the prompt');
+    return { label: name, kind, facts: facts.join(' · ') || (d.known === false ? 'the offer declared no policy' : '') };
 }
 
 const freeTier = (o) => Boolean(o && o.free_tier === true);
@@ -295,7 +313,38 @@ function presetsBox() {
 <p>${esc(text)}</p>
 </article>`).join('');
     return `<div class="ex-presets">${cards}</div>
-<p class="ex-prose">These four aliases work today. Saved presets (<code>model: "@preset/cheapest"</code>) add your own floor, ceiling, quantization, region, data policy and <code>max_price</code>; they arrive with the router’s presets.</p>`;
+<p class="ex-prose">These four aliases work today. A saved preset (<code>model: "@preset/private"</code>) is the router’s floor, ceiling, quantization, region and data policy written down once. The private preset is the strict one: only offers that keep nothing and train on nothing, or OpenVibe’s own deployments, may answer, and the router refuses rather than fall back.</p>`;
+}
+
+// ── A sealed chat ──────────────────────────────────────────
+/**
+ * The shell of a chat whose history is sealed with the person's Locker. The server never renders a turn: the page
+ * carries no conversation, the browser opens the envelope and draws it (public/js/exchange.js). Only the chat id
+ * and the model list are here, and neither is the history.
+ */
+function sealedChat({ chat = null, models = [], networkUrl = '', subject = '' }) {
+    const options = models.slice(0, 40).map((m) => `<option value="${esc(m.slug)}">${esc(m.name)}${m.uncensored ? ' · 18+' : ''}</option>`).join('');
+    return `<div class="ex-wrap ex-page ex-sealed" id="ex-sealed" data-chat="${chat ? esc(chat.id) : ''}" data-subject="${esc(subject)}" data-network="${esc(networkUrl)}">
+${kit.head({ title: chat ? 'A sealed chat' : 'A new sealed chat', sub: 'Your history is sealed with your Locker.', back: { href: '/chat', label: 'Chat' }, actions: [kit.button({ href: '/chat/new', label: 'A normal chat', kind: 'quiet' })] })}
+<noscript><p class="ex-prose">A sealed chat needs JavaScript: the sealing and the opening happen in your browser, and nowhere else.</p></noscript>
+<div class="ex-sealed-card">
+<p class="ex-sealed-title" data-sealed-title hidden></p>
+<p class="ex-sealed-status" data-sealed-status>Opening your Locker…</p>
+<div class="ex-sealed-turns" data-sealed-turns></div>
+<form class="ovk-form ex-sealed-form" data-sealed-form hidden>
+<label class="ex-label" for="sealed-text">Your message</label>
+<textarea id="sealed-text" name="text" rows="4" maxlength="8000" required placeholder="Ask anything…"></textarea>
+<div class="ex-sealed-row">
+<label class="ex-label" for="sealed-model">Model</label>
+<select id="sealed-model" name="model">${options}</select>
+<label class="ex-check"><input type="checkbox" name="strict_privacy" value="1" checked> <span>Strict privacy</span></label>
+</div>
+<div class="ex-try-row">${kit.button({ label: 'Send', type: 'submit' })}<span class="ex-muted">Sealed on this device before it leaves the page.</span></div>
+<p class="ovk-msg" data-sealed-msg aria-live="polite"></p>
+</form>
+</div>
+<p class="ex-sealed-note"><strong>Said plainly:</strong> OpenVibe stores only the sealed envelope and cannot read it. The model still receives the text of the turn you send, and the earlier turns your browser sends with it, while it answers; that is privacy at rest, not from the model. Your passphrase, recovery words and keys never leave this tab.</p>
+</div>`;
 }
 
 function tryBox(model, viewer, { result, problem, text, adult }) {
@@ -326,8 +375,10 @@ function policyText(p) {
 }
 
 function resultCard(result) {
+    const privacy = answerPrivacy(result);
     const facts = [
         ['Offer', result.provider ? (INTERNAL.test(String(result.provider)) ? 'OpenVibe' : result.provider) : '–'],
+        ['Privacy', privacy ? `${privacy.label}${privacy.facts ? ` · ${privacy.facts}` : ''}` : '–'],
         ['Cost', result.cost_usd == null ? '–' : `$${Number(result.cost_usd).toFixed(6)}`],
         ['Latency', result.latency_ms == null ? '–' : ms(result.latency_ms)],
         ['Tokens', `${count(result.tokens_in)} in · ${count(result.tokens_out)} out`],
@@ -341,11 +392,24 @@ function resultCard(result) {
 }
 
 // ── API ────────────────────────────────────────────────────
-function apiPage({ catalog, usage }) {
+function apiPage({ catalog, usage, viewer = null, keyPrivacy = null }) {
     const models = chatModels(catalog).filter((m) => !m.uncensored).slice(0, 12);
     const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, family: esc(familyLabel(m)), context: m.context || null }));
     const byDay = (usage.by_day || []).slice(-14).reverse();
     const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: count((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd).toFixed(4)}` }));
+    const signedIn = viewer && viewer.kind === 'user' && viewer.subject;
+    const switchBox = !signedIn
+        ? `<p class="ex-prose">Sign in to set strict privacy on your keys.</p>`
+        : (keyPrivacy && keyPrivacy.available === false
+            ? `<p class="ex-prose">The strict-privacy switch is not available right now. Requests can still name <code>model: "@preset/private"</code>.</p>`
+            : `<form class="ovk-form ex-switch" method="post" action="/privacy/keys">
+<input type="hidden" name="next" value="/api">
+${keyPrivacy && keyPrivacy.error ? kit.notice({ kind: 'error', text: keyPrivacy.error }) : ''}
+<label class="ex-check"><input type="checkbox" name="strict" value="1"${keyPrivacy && keyPrivacy.on ? ' checked' : ''}> <span>Strict privacy on my keys</span></label>
+${keyPrivacy && keyPrivacy.note ? kit.notice({ kind: 'info', text: keyPrivacy.note }) : ''}
+<p class="ex-prose">Every request one of your keys makes that names no preset then uses the private preset: only an offer that keeps nothing and trains on nothing, or OpenVibe’s own deployment, may answer. When none can, the router refuses with a plain message rather than falling back to an offer that keeps or trains on the prompt. The switch is your account’s and your own projects’ <code>default</code> preset in OpenVibe.AI, so their keys use it too.</p>
+<p>${kit.button({ label: 'Save the switch', type: 'submit', kind: 'quiet' })}</p>
+</form>`);
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${panel({ title: 'One endpoint', body: `
@@ -354,6 +418,8 @@ ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIB
 <h3 class="ex-h3">Keys</h3>
 <p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here.</p>
 <p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })}</p>
+<h3 class="ex-h3" id="strict">Strict privacy</h3>
+${switchBox}
 <h3 class="ex-h3">Model ids</h3>
 <p class="ex-prose"><code>openvibe/auto</code> lets the router pick by your floor, ceiling and policy, and the answer says which model ran and why. An exact id pins one artifact. Bring your own provider key and those requests pay the provider directly, at no fee from us.</p>
 ${kit.table({ columns: [{ key: 'model', label: 'Model', primary: true, html: true }, { key: 'family', label: 'Family' }, { key: 'context', label: 'Context', num: true }], rows, label: 'Model ids' })}
@@ -549,4 +615,4 @@ ${panel({ title: 'Where those things live now', body: `<ul class="ex-list">
 </div>`;
 }
 
-module.exports = { home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, privacyOf, providerLabel, familyLabel, chatModels, ENDPOINT };
+module.exports = { home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
