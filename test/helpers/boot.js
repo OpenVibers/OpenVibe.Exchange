@@ -41,7 +41,10 @@ async function boot(opts = {}) {
     const { createStore } = require('../../server/db');
     const testdb = await require('./db').testDb();
     const store = createStore(testdb.db, { now: opts.now });
-    const built = await createApp({ config, store, log, telemetrySink: opts.telemetrySink, accountSend: opts.accountSend, ai: opts.ai, aiFetchImpl: opts.aiFetchImpl, openapiFetch: opts.openapiFetch });
+    // The M2 memory client goes out with this fetch. A test that does not stand one up gets an empty store, so
+    // no test ever waits on the network (the notes tests inject their own, in test/helpers or the file itself).
+    const emptyMemory = async () => ({ ok: true, status: 200, text: async () => '{"items":[]}', json: async () => ({ items: [] }) });
+    const built = await createApp({ config, store, log, telemetrySink: opts.telemetrySink, accountSend: opts.accountSend, ai: opts.ai, aiFetchImpl: opts.aiFetchImpl || emptyMemory, openapiFetch: opts.openapiFetch });
     await built.ctx.keys.ensure();
     const server = await new Promise((resolve) => { const s = http.createServer(built.app); s.listen(0, '127.0.0.1', () => resolve(s)); });
     const base = `http://127.0.0.1:${server.address().port}`;

@@ -31,6 +31,13 @@ const TABLES = [
     { table: 'exchange_companion_messages', subject: 'owner', value: (usr) => usr, file: 'companion-messages.json', erase: 'delete' },
     { table: 'exchange_companion_chats', subject: 'owner', value: (usr) => usr, file: 'companion-chats.json', erase: 'delete' },
     { table: 'exchange_characters', subject: 'owner', value: (usr) => usr, file: 'characters.json', erase: 'delete' },
+    // Memory notes and lorebooks (stages 3 and 4, 2026-11-06). The note TEXT lives in the person's own
+    // OpenVibe memory (the M2 store, OpenVibe.AI), which its own account export and deletion carry; Exchange
+    // exports and erases the index (kind, pin, who wrote it) and every lorebook entry, which are ours.
+    { table: 'exchange_companion_notes', subject: 'owner', value: (usr) => usr, file: 'companion-notes.json', erase: 'delete' },
+    { table: 'exchange_lorebook_entries', subject: 'owner', value: (usr) => usr, file: 'lorebook-entries.json', erase: 'delete' },
+    { table: 'exchange_lorebooks', subject: 'owner', value: (usr) => usr, file: 'lorebooks.json', erase: 'delete' },
+    { table: 'exchange_companion_locks', subject: 'owner', value: (usr) => usr, file: 'companion-locks.json', erase: 'delete' },
 ];
 
 function create({ db, log = console } = {}) {
@@ -78,7 +85,7 @@ function create({ db, log = console } = {}) {
         service: 'exchange',
         tables: TABLES,
         extraErase,
-        note: 'Chats, messages, the characters and their companion chats and messages, and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts).',
+        note: 'Chats, messages, the characters and their companion chats and messages, the memory-note index, the lorebooks and the Locker rows, and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts). The text of a memory note is in the person’s own OpenVibe memory and is exported and erased there.',
         log,
     });
 }

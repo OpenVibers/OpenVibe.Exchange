@@ -42,7 +42,7 @@ async function startNetwork() {
     const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
     const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
     const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' });
-    const st = { users: new Map(), byUsername: new Map(), codes: new Map(), refresh: new Map(), requests: [], tokenRequests: [], down: false };
+    const st = { users: new Map(), byUsername: new Map(), codes: new Map(), refresh: new Map(), requests: [], tokenRequests: [], lockers: new Map(), down: false };
     let issuer = null;
     let nextUserId = 1;
 
@@ -142,6 +142,18 @@ async function startNetwork() {
         if (url.pathname === '/internal/identity/resolve-batch' && req.method === 'POST') return json(200, { results: {} });
         if (url.pathname === '/internal/notifications/push' && req.method === 'POST') return json(200, { ok: true });
 
+        // Network's Locker key directory (Network PR #577, server/locker/keys.js): a person's public keys
+        // and the fingerprint, by subject, for a signed-in caller. The private half never leaves the browser.
+        const keysMatch = /^\/api\/v1\/people\/([^/]+)\/keys$/.exec(url.pathname);
+        if (keysMatch && req.method === 'GET') {
+            const u = userFrom(req);
+            if (u === 'expired') return problem(json, 401, 'auth.expired', 'expired');
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            const keys = st.lockers.get(decodeURIComponent(keysMatch[1]));
+            if (!keys) return problem(json, 404, 'locker.no_keys', 'that person has no locker keys');
+            return json(200, keys);
+        }
+
         return json(404, { error: 'not found' });
     });
     issuer = srv.url;
@@ -150,6 +162,17 @@ async function startNetwork() {
         url: srv.url, publicPem, privatePem, state: st, requests: st.requests, tokenRequests: st.tokenRequests,
         addUser, userToken, user: (u) => st.users.get(u && u.id ? u.id : u), signJwt: (claims) => signJwt(claims, privatePem), issuer: () => issuer,
         issueCode(user, challenge) { const code = `code_${crypto.randomBytes(8).toString('hex')}`; st.codes.set(code, { user, challenge }); return code; },
+        /** Give a person a Locker: generate their keys and publish only the public halves, as Network holds them. */
+        async giveLocker(u) {
+            const locker = require('openvibe-sdk/locker');
+            const person = await locker.generatePersonKeys();
+            st.lockers.set(u.subject, {
+                subject: u.subject, ecdh_public: person.ecdhPublic, signing_public: person.signingPublic,
+                fingerprint: person.fingerprint, updated_at: new Date().toISOString(), changed_at: null,
+            });
+            u.locker = person;
+            return person;
+        },
         setDown(v) { st.down = v; },
         close: srv.close,
     };
