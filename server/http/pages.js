@@ -154,9 +154,12 @@ function createPageRoutes(ctx) {
     async function chatCatalog() {
         const catalog = await catalogOf();
         const notChat = new Set(['embedding', 'embeddings', 'stt', 'asr', 'tts', 'speech', 'image', 'images', 'rerank', 'moderation']);
-        return { catalog, models: (catalog.models || []).filter((m) => !notChat.has(String(m.kind || m.type || 'chat').toLowerCase())) };
+        const models = (catalog.models || []).filter((m) => !notChat.has(String(m.kind || m.type || 'chat').toLowerCase()));
+        // AI says when no chat model can serve the free allowance right now (free_available false).
+        models.freePaused = catalog.free_available === false;
+        return { catalog, models };
     }
-    const modelOptions = (models, selected) => models.slice(0, 40).map((m) => [m.slug, m.name + (m.uncensored ? ' · 18+' : '') + ((m.offers || []).some((o) => o.free_tier === true) ? ' · Free to try' : ''), (selected || []).includes(m.slug)]);
+    const modelOptions = (models, selected) => models.slice(0, 40).map((m) => [m.slug, m.name + (m.uncensored ? ' · 18+' : '') + ((m.offers || []).some((o) => (o.free_now !== undefined ? o.free_now === true : o.free_tier === true)) ? ' · Free to try' : ''), (selected || []).includes(m.slug)]);
 
     function chatSidebar(chats, current) {
         const items = chats.map((c) => ({ href: `/chat/${c.id}`, title: c.title, current: c.id === current, at: c.updated_at }));
@@ -190,7 +193,9 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         return thread.composer({
             action, name: 'text', placeholder: 'Ask anything…', top: settings, maxlength: config.chat.maxChars,
             hidden: { chat: chat ? chat.id : '' },
-            note: `Your free daily allowance. Models marked Free to try run on it; other models need your own balance or key. Each message may run up to ${config.chat.models} models.`,
+            note: models.freePaused
+                ? `Free messages are paused right now: the free model\u2019s provider is out of credit. Your own key or Balance still works. Each message may run up to ${config.chat.models} models.`
+                : `Your free daily allowance. Models marked Free to try run on it; other models need your own balance or key. Each message may run up to ${config.chat.models} models.`,
             starters: chat ? [] : ['Explain the difference between a mutex and a semaphore', 'Write a Python function that reads a CSV and sums a column', 'Which of you is cheaper for this?'],
         });
     }
