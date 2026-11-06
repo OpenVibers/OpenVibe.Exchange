@@ -50,6 +50,21 @@ function familyLabel(m) {
     return !name || INTERNAL.test(name) || name.length > 24 ? 'Other' : name;
 }
 
+/** The model families on sale now, most requested first ("GPT", "DeepSeek"); internal and unnamed ones are left out. */
+function familiesOnSale(models) {
+    const out = [];
+    for (const m of [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0))) {
+        const f = familyLabel(m);
+        if (f !== 'Other' && !out.includes(f)) out.push(f);
+    }
+    return out;
+}
+
+/** "A", "A and B", "A, B and C". */
+function listSaid(xs) {
+    return xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
 /**
  * The privacy label the design asks for, from facts only: a community machine sees the prompt; zero retention
  * and no training is Private; no training alone is said as that. "Anonymized" is never claimed, because no
@@ -116,6 +131,8 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
     const paid = models.map((m) => ({ m, o: cheapest(m) })).filter((x) => x.o).sort((a, b) => blended(a.o.price) - blended(b.o.price));
     const popular = [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 8);
     const bestPrice = paid[0] && paid[0].o;
+    // The hero names only the families on sale now, most requested first: never one no provider sells yet.
+    const families = familiesOnSale(models);
     const preview = (paid.length >= 2 ? paid.slice(0, 2) : models.slice(0, 2).map((m) => ({ m, o: cheapest(m) })));
 
     const stats = [];
@@ -130,8 +147,8 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 <div class="ex-hero-copy">
 <p class="ex-kicker">OpenVibe.Exchange</p>
 <h1>Every AI model, one account.</h1>
-<p class="ex-lead">DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds: the live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
-${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model: DeepSeek, Qwen, Kimi, GLM…', value: q, icon: 'search' })}
+<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
+${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
 <p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/api', label: 'The API', kind: 'ghost' })}</p>
 </div>
 ${preview.length === 2 ? previewCard(preview) : ''}
@@ -163,9 +180,18 @@ ${panel({
 
 /** The hero's side-by-side chat preview: real models and prices, example words, said as an example. */
 function previewCard(preview) {
+    // Two models of one family would say the same example words; the second takes another wording, so the preview
+    // never shows two identical answers.
+    const said = [];
+    const answerFor = (m) => {
+        let text = EXAMPLE_ANSWER[familyLabel(m)] || EXAMPLE_ANSWER.Default;
+        if (said.includes(text)) text = Object.values(EXAMPLE_ANSWER).find((t) => !said.includes(t)) || text;
+        said.push(text);
+        return text;
+    };
     const cells = preview.map(({ m, o }) => `<article class="ex-preview-cell">
 <header>${mark(familyLabel(m), { size: 22, label: false })}<b>${esc(m.name)}</b></header>
-<p>${esc(EXAMPLE_ANSWER[familyLabel(m)] || EXAMPLE_ANSWER.Default)}</p>
+<p>${esc(answerFor(m))}</p>
 <footer>${o ? `${money(o.price.in)} in · ${money(o.price.out)} out · ${ms(o.speed.p50_ms)}` : 'free capacity'}</footer>
 </article>`).join('');
     return `<aside class="ex-preview" aria-label="A preview of the side-by-side chat">
@@ -224,7 +250,7 @@ ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provi
 <div class="ex-chips" role="group" aria-label="Sort">${links}</div>
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
 ${unavailable(catalog)}
-${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family (DeepSeek, Qwen, Kimi, GLM) or a provider.' }) })}
+${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family or a provider.' }) })}
 <p class="ex-more"><a href="/status">Uptime and incidents →</a></p>
 </div>`;
 }

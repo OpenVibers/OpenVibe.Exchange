@@ -12,7 +12,7 @@ const cache = require('openvibe-shared/cache-policy');
 const { asyncRouter } = require('./router');
 
 const SITE_NAME = 'OpenVibe.Exchange';
-const DESCRIPTION = 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
+const DESCRIPTION = 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
 const DISALLOW = ['/auth/', '/api/', '/internal', '/metrics', '/chat', '/listings', '/submit', '/sandbox', '/installs', '/offers'];
 
 const PUBLIC_PAGES = [
