@@ -99,6 +99,17 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
         const bCompanion = await t.ctx.companionChats.create({ owner: B, characterId: bCharacter.id, title: 'Bob’s chat' });
         await t.ctx.companionChats.append({ owner: B, chatId: bCompanion.id, role: 'user', content: 'Bob’s words', turnId: 'ext_2' });
 
+        // The memory-note index, a lorebook with an entry, and a Locker row: stages 3 and 4, exported and erased.
+        const noteId = `exn_${ids.ulid()}`;
+        const m2Id = `mem_${ids.ulid()}`;
+        await db.exec(`INSERT INTO exchange_companion_notes (id, owner, character_id, m2_id, kind, pinned, sealed, origin)
+            VALUES ($1, $2, $3, $4, 'fact', true, false, 'person')`, [noteId, A, aCharacter.id, m2Id]);
+        const bookId = `exb_${ids.ulid()}`;
+        await db.exec(`INSERT INTO exchange_lorebooks (id, owner, name, scope, character_id) VALUES ($1, $2, 'Clock lore', 'character', $3)`, [bookId, A, aCharacter.id]);
+        const entryId = `exe_${ids.ulid()}`;
+        await db.exec(`INSERT INTO exchange_lorebook_entries (id, lorebook_id, owner, name, keys, content, priority) VALUES ($1, $2, $3, 'The engine', '["engine"]', 'The engine computes numbers.', 3)`, [entryId, bookId, A]);
+        await db.exec(`INSERT INTO exchange_companion_locks (owner, character_id, fingerprint) VALUES ($1, $2, 'word word word word')`, [A, aCharacter.id]);
+
         const chat = await t.ctx.chats.create({ owner: A, models: ['deepseek/deepseek-chat'], title: 'A question for the models' });
         await t.ctx.chats.append(A, chat.id, { role: 'user', content: 'What is a mutex?' });
         await t.ctx.chats.append(A, chat.id, { role: 'assistant', model: 'deepseek/deepseek-chat', content: 'A lock.', meta: { run_id: 'run_x' } });
@@ -114,7 +125,7 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(part.auth, 'Bearer tok_exchange');
             assert.strictEqual(part.body.subject, A);
             assert.deepStrictEqual(part.body.files.map((f) => f.name).sort(),
-                ['adult-confirmation.json', 'characters.json', 'chat-messages.json', 'chats.json', 'companion-chats.json', 'companion-messages.json', 'installs.json', 'listings.json', 'offers.json', 'sandbox-trials.json']);
+                ['adult-confirmation.json', 'characters.json', 'chat-messages.json', 'chats.json', 'companion-chats.json', 'companion-locks.json', 'companion-messages.json', 'companion-notes.json', 'installs.json', 'listings.json', 'lorebook-entries.json', 'lorebooks.json', 'offers.json', 'sandbox-trials.json']);
             const all = JSON.stringify(part.body);
             assert.ok(all.includes('Alice\'s listed theme'));
             assert.ok(all.includes('Alice\'s draft theme'));
@@ -124,6 +135,9 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(part.body.files.find((f) => f.name === 'sandbox-trials.json').content[0].id, trial);
             assert.match(all, /I would like Bob/);
             assert.ok(all.includes('A keeper of clocks'), 'the character and the companion chat are exported');
+            assert.ok(all.includes(noteId) && all.includes(m2Id), 'the note index is exported (its text is in the person’s own memory)');
+            assert.ok(all.includes('Clock lore') && all.includes('The engine computes numbers.'), 'the lorebook and its entry are exported');
+            assert.ok(all.includes('word word word word'), 'the Locker row is exported');
             assert.ok(!all.includes('Bob’s words'), 'nobody else’s companion chat');
         });
 
@@ -152,6 +166,10 @@ async function seedListing(db, { owner, title, status = 'listed', kind = 'theme'
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [A])), 0, 'the character is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [A])), 0, 'the companion chat is erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_messages WHERE owner = $1', [A])), 0, 'its companion messages are erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_notes WHERE owner = $1', [A])), 0, 'the note index is erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_lorebooks WHERE owner = $1', [A])), 0, 'the lorebooks are erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_lorebook_entries WHERE owner = $1', [A])), 0, 'their entries are erased');
+            assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_locks WHERE owner = $1', [A])), 0, 'the Locker rows are erased');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_characters WHERE owner = $1', [B])), 1, 'Bob keeps his character');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM exchange_companion_chats WHERE owner = $1', [B])), 1, 'Bob keeps his chat');
             assert.strictEqual(Number(await db.value('SELECT COUNT(*)::int AS n FROM share_members WHERE subject = $1::jsonb', [JSON.stringify({ type: 'user', id: A })])), 0, 'the sharing rows go with the account');
