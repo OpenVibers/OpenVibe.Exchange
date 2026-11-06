@@ -177,7 +177,10 @@ function createPageRoutes(ctx) {
     function composerFor({ chat = null, models, problem = null, action = '/chat/send' }) {
         const selected = chat && chat.models.length ? chat.models : models.slice(0, 1).map((m) => m.slug);
         const strict = Boolean(chat && chat.strict_privacy);
-        const settings = `<details class="ovt-settings"><summary>Models, system prompt and temperature</summary>
+        // The model you are talking to is said on the fold itself, so the main choice is seen without opening it.
+        const nameOf = (slug) => { const m = models.find((x) => x.slug === slug); return m ? m.name : slug; };
+        const talking = selected.slice(0, 3).map(nameOf).filter(Boolean);
+        const settings = `<details class="ovt-settings"><summary>${talking.length ? `<b>${esc(talking.join(' · '))}</b> · change models, system prompt, temperature` : 'Models, system prompt and temperature'}</summary>
 <div class="ovt-settings-body">
 ${kit.chips({ name: 'models', label: 'Compare up to three models', options: modelOptions(models, selected), single: false })}
 <label class="ex-label" for="sys">System prompt (optional)</label>
@@ -242,7 +245,7 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
                 }
             }
         }
-        const empty = `<div class="ovt-welcome"><h2>Every model, one chat</h2><p>Pick one model, or up to three to compare side by side. The floor applies always: no sexual content involving minors, no non-consensual sexual content (fiction included) and no incest, no help with mass harm.</p></div>`;
+        const empty = `<div class="ovt-welcome"><h2>Every model, one chat</h2><p>Pick one model, or up to three to compare side by side.</p><p class="ex-muted ex-small">The floor applies on every model: no sexual content involving minors, no non-consensual sexual content (fiction included) and no incest, no help with mass harm.</p></div>`;
         return page(req, res, {
             title: chat ? chat.title : 'Chat', index: false,
             class: 'ex-chat', app: true,
