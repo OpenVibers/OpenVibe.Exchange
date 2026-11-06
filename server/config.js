@@ -84,6 +84,13 @@ function load(env = process.env) {
         companions: {
             perDay: Math.max(1, int(env.EXCHANGE_COMPANIONS_PER_DAY, 40)),
             maxCostUsd: Math.max(0.001, Number(env.EXCHANGE_COMPANIONS_MAX_COST_USD) || 0.05),
+            // The memory notes (stage 3): how many tokens of notes may join a chat's context, how often the
+            // cheap model takes notes, and which model takes them (the router's economy alias).
+            memoryBudgetTokens: Math.max(100, int(env.EXCHANGE_COMPANIONS_MEMORY_BUDGET_TOKENS, 800)),
+            notesEveryTurns: Math.max(1, int(env.EXCHANGE_COMPANIONS_NOTES_EVERY_TURNS, 4)),
+            noteModel: String(env.EXCHANGE_COMPANIONS_NOTE_MODEL || 'openvibe/economy').slice(0, 120),
+            // The lorebook entries (stage 4): how many tokens of entries may join a chat's context.
+            lorebookBudgetTokens: Math.max(100, int(env.EXCHANGE_COMPANIONS_LOREBOOK_BUDGET_TOKENS, 1200)),
         },
 
         // /chat: how many messages a signed-in person may send a day (each one may run up to three models).

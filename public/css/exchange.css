@@ -459,3 +459,36 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
     .ex-act { min-height: 44px; }
     .ex-branch-arrow { min-width: 44px; min-height: 44px; }
 }
+
+/* ── Companions: memory and lorebooks ─────────────────────────────────── */
+.ex-chat-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 12px; }
+.ex-locked { margin: 0 0 8px; font-size: .88rem; color: var(--ovk-muted); }
+.ex-sealed { display: inline-block; padding: 2px 8px; border: 1px dashed var(--ovk-line); border-radius: 8px; color: var(--ovk-muted); font-style: italic; }
+.ex-memory-lock, .ex-memory-add, .ex-memory-list { margin: 22px 0; }
+.ex-memory-lock h2, .ex-memory-add h2, .ex-memory-list h2 { font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ovk-muted); margin: 0 0 8px; }
+.ex-notes, .ex-entries { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ex-note, .ex-entry, .ex-lorebook { border: 1px solid var(--ovk-line); border-radius: 14px; padding: 12px 14px; background: var(--ovk-panel); }
+.ex-note-head, .ex-entry-head, .ex-lorebook-head { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; margin-bottom: 6px; }
+.ex-note-text, .ex-entry-text { margin: 0 0 8px; line-height: 1.55; overflow-wrap: anywhere; }
+.ex-note-acts { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.ex-entry-keys { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.ex-lorebook { margin: 18px 0; }
+.ex-lorebook-head h2 { margin: 0; font-size: 1.05rem; }
+.ex-lorebook .ex-menu-body, .ex-note .ex-menu-body { margin-top: 10px; }
+.ex-menu-body input[type=text], .ex-menu-body input[type=number], .ex-menu-body select {
+    width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px;
+    border-radius: 10px; border: 1px solid var(--ovk-line); background: var(--ovk-input, var(--ovk-panel));
+    color: var(--ovk-text); font: inherit;
+}
+.ex-menu-body input[type=file] { max-width: 100%; }
+.ex-check { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: .9rem; }
+.ex-check input { width: 20px; height: 20px; }
+.ex-saw-list { margin: 0; padding-left: 18px; font-size: .82rem; line-height: 1.5; }
+@media (max-width: 420px) {
+    .ex-note, .ex-entry, .ex-lorebook { padding: 10px 12px; }
+    .ex-note-acts .ex-act, .ex-note-acts .ex-act-form button { min-height: 44px; }
+}
+
+.ex-back { display: inline-flex; align-items: center; min-height: 44px; }
+.ex-menu-body input[type=file] { min-height: 44px; }
+.ex-memory-lock a { display: inline-flex; align-items: center; min-height: 44px; }
