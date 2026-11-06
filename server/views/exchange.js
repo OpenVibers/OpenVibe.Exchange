@@ -370,9 +370,9 @@ function resultCard(result) {
 // ── API ────────────────────────────────────────────────────
 function apiPage({ catalog, usage }) {
     const models = chatModels(catalog).filter((m) => !m.uncensored).slice(0, 12);
-    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, family: esc(familyLabel(m)), context: m.context || null }));
+    const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, context: m.context || null }));
     const byDay = (usage.by_day || []).slice(-14).reverse();
-    const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: count((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd).toFixed(4)}` }));
+    const usageRows = byDay.map((d) => ({ day: d.day, requests: count(d.requests), tokens: shortCount((d.tokens_in || 0) + (d.tokens_out || 0)), cost: d.cost_usd == null ? '–' : `$${Number(d.cost_usd) < 0.1 ? Number(d.cost_usd).toFixed(4) : Number(d.cost_usd).toFixed(2)}` }));
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${panel({ title: 'One endpoint', body: `
@@ -383,11 +383,17 @@ ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIB
 <p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })}</p>
 <h3 class="ex-h3">Model ids</h3>
 <p class="ex-prose"><code>openvibe/auto</code> lets the router pick by your floor, ceiling and policy, and the answer says which model ran and why. An exact id pins one artifact. Bring your own provider key and those requests pay the provider directly, at no fee from us.</p>
-${kit.table({ columns: [{ key: 'model', label: 'Model', primary: true, html: true }, { key: 'family', label: 'Family' }, { key: 'context', label: 'Context', num: true }], rows, label: 'Model ids' })}
+${kit.table({ columns: [{ key: 'model', label: 'Model id', primary: true, html: true }, { key: 'context', label: 'Context', num: true }], rows, label: 'Model ids', stack: false })}
 ` })}
-${panel({ title: 'Usage', note: 'Aggregate, from OpenVibe.AI: no prompt and no person.', id: 'usage', body: usage.unavailable ? kit.notice({ kind: 'info', text: 'Usage is not available right now.' }) : (usageRows.length ? kit.table({ columns: [{ key: 'day', label: 'Day', primary: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens' }, { key: 'cost', label: 'Cost' }], rows: usageRows, label: 'Usage by day', caption: 'The last 14 days, all products and people.' }) : kit.empty({ icon: 'spark', title: 'No requests yet', text: 'The first call through the endpoint will show here.' })) })}
+${panel({ title: 'Usage', note: 'Aggregate, from OpenVibe.AI: no prompt and no person.', id: 'usage', body: usage.unavailable ? kit.notice({ kind: 'info', text: 'Usage is not available right now.' }) : (usageRows.length ? kit.table({ columns: [{ key: 'day', label: 'Day', primary: true }, { key: 'requests', label: 'Requests' }, { key: 'tokens', label: 'Tokens' }, { key: 'cost', label: 'Cost' }], rows: usageRows, label: 'Usage by day', caption: 'The last 14 days, all products and people.', stack: false }) : kit.empty({ icon: 'spark', title: 'No requests yet', text: 'The first call through the endpoint will show here.' })) })}
 ${panel({ title: 'What it costs', body: '<p class="ex-prose">Every price is the offer\'s own, per million tokens, and the answer carries the exact cost of that run. A small free daily allowance comes with every account; it grows with account age and contribution. Paid use, when the owner turns money on, is at cost plus a margin and shown before the request.</p>' })}
 </div>`;
+}
+
+/** 2832475 → "2.83M", 48210 → "48.2k": short enough that a four-column table fits a phone. */
+function shortCount(n) {
+    const v = Number(n) || 0;
+    return v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e4 ? `${(v / 1e3).toFixed(1)}k` : count(v);
 }
 
 // ── Sell compute ───────────────────────────────────────────
