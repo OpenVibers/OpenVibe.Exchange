@@ -99,7 +99,7 @@ const { sanitizeNext } = require('../server/auth/sso');
     });
 
     await check('public pages are complete without JavaScript', async () => {
-        for (const p of ['/', '/listings', '/safety', '/developers', '/submit']) {
+        for (const p of ['/', '/models', '/api', '/sell', '/uncensored', '/ai']) {
             const r = await t.get(p);
             assert.strictEqual(r.status, 200, p);
             assert.match(r.text, /<noscript><nav/);
@@ -108,14 +108,15 @@ const { sanitizeNext } = require('../server/auth/sso');
         }
     });
 
-    await check('the API answers /ping and unknown routes are problem+json 404', async () => {
-        const ping = await t.get('/api/v1/ping');
-        assert.strictEqual(ping.status, 200);
-        assert.deepStrictEqual(ping.json(), { ok: true, service: 'exchange' });
-        const gone = await t.get('/api/v1/nope');
-        assert.strictEqual(gone.status, 404);
+    await check('v1’s API answers 410 with a pointer, and unknown routes are problem+json 404', async () => {
+        const gone = await t.get('/api/v1/ping');
+        assert.strictEqual(gone.status, 410);
         assert.match(gone.headers.get('content-type'), /application\/problem\+json/);
-        assert.strictEqual(gone.json().code, 'route.not_found');
+        assert.strictEqual(gone.json().code, 'exchange.retired');
+        assert.match(gone.json().detail, /every model, one account|api\.openvibe\.exchange/);
+        const missing = await t.get('/api/nope');
+        assert.strictEqual(missing.status, 404);
+        assert.strictEqual(missing.json().code, 'route.not_found');
     });
 
     await check('a FedCM assertion and an app token are not sessions', async () => {

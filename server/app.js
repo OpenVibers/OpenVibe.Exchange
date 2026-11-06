@@ -4,16 +4,15 @@
  * OpenVibe.Exchange — Express app factory; server/index.js listens, tests build their own instance with a temp
  * database and a mock Network.
  *
- *   /, /listings, /listings/:slug, /submit, /sandbox/:id, /installs, /offers, /safety, /developers
- *                                                          the pages (http/pages.js)
- *   /api/v1/*                                              the API (http/api.js)
- *   /auth/*                                                Network SSO with PKCE (auth/sso.js)
- *   /api/health, /api/ready, /release.json, /metrics       (loopback only)
- *   /internal/events                                       account export/deletion (loopback only)
+ *   /, /models, /m/:org/:model, /chat, /api, /sell, /uncensored, /ai   the pages (http/pages.js)
+ *   /api/v1/*                                                         410: Exchange v1 is retired
+ *   /auth/*                                                           Network SSO with PKCE (auth/sso.js)
+ *   /api/health, /api/ready, /release.json, /metrics                  (loopback only)
+ *   /internal/events                                                  account export/deletion (loopback only)
  *
- * Sandbox trials run on request and expire by timestamp; the Search relay is not wired. The only background job is
- * the first-party catalogue refresh (server/jobs/first-party.js), started by server/index.js and off under
- * EXCHANGE_DRILL.
+ * The site is a read of OpenVibe.AI (server/ai.js): the catalog, the usage, and the chat runs it makes for a
+ * person. Exchange keeps two things of its own: a person's chats and their 18+ confirmation. Nothing is
+ * written to Exchange v1's tables any more: they stay as they are, read-only.
  */
 const path = require('path');
 const express = require('express');
@@ -28,17 +27,15 @@ const { openStore } = require('./db');
 const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
-const { createApi } = require('./http/api');
+const { createAi } = require('./ai');
+const { createOpenApi } = require('./openapi');
+const { createChatStore, createAdultStore } = require('./chat/store');
 const { createPageRoutes } = require('./http/pages');
 const { createServiceReadiness } = require('./observability');
 const { assetVersion, send } = require('./render/layout');
 const { raw } = require('./render/html');
 
 const accountDataLib = require('./identity/account-data');
-const { createStore } = require('./store');
-const { createSearchIndex } = require('./search');
-const { createSearchRelay } = require('openvibe-publishing/search-relay');
-const { createFirstParty } = require('./jobs/first-party');
 const { createNetworkSender } = require('openvibe-sdk/account-data');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -47,8 +44,8 @@ const { createHttpTelemetry } = require('openvibe-sdk/service');
 const { createPgTelemetrySink } = require('openvibe-sdk/telemetry');
 
 /**
- * opts: config, store, now (clock), fetchImpl (Network), log, valkey, accountSend (a stand-in for Network's internal
- * routes; tests only), telemetrySink.
+ * opts: config, store, now (clock), fetchImpl (Network), ai (a stand-in client) / aiFetchImpl, log, valkey,
+ * accountSend (a stand-in for Network's internal routes; tests only), telemetrySink.
  */
 async function createApp(opts = {}) {
     const config = opts.config || configLib.load();
@@ -60,18 +57,9 @@ async function createApp(opts = {}) {
     const sso = createSso({ config, keys, fetchImpl, now: s.now, log });
     const principal = createPrincipal({ config, keys });
 
-    // The queued Search documents (exchange_outbox) go to OpenVibe.Search's owner API with this service's token;
-    // off without EXCHANGE_SEARCH_URL or the client secret. Started by server/index.js, never under EXCHANGE_DRILL.
-    const searchRelay = createSearchRelay({
-        db: s.db, table: 'exchange_outbox', owner: 'exchange', searchUrl: config.search.url, fetchImpl, now: s.now, log,
-        auth: config.search.url && config.oauth.clientSecret ? contracts.serviceAuth.createTokenClient({
-            tokenUrl: `${config.networkInternalUrl}/oauth/token`, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
-            audience: 'openvibe.search', scope: 'search.document.write', fetchImpl,
-        }) : null,
-    });
-    const search = createSearchIndex({ config, s, onQueued: () => searchRelay.kick() });
-    const entries = createStore(s, { search, config });
-    const firstParty = createFirstParty({ config, s, entries, fetchImpl, log, now: s.now });
+    const ai = opts.ai || createAi({ config, fetchImpl: opts.aiFetchImpl || globalThis.fetch, log, now: s.now });
+    const chats = createChatStore(s);
+    const adult = createAdultStore(s);
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -80,7 +68,8 @@ async function createApp(opts = {}) {
         ? createNetworkSender({ networkInternalUrl: config.networkInternalUrl, clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret, fetch: fetchImpl })
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
-    const ctx = { config, s, keys, sso, principal, search, searchRelay, entries, firstParty, accountData, accountSend, log };
+    const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
+    const ctx = { config, s, keys, sso, principal, ai, openapi, chats, adult, accountData, accountSend, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -105,7 +94,7 @@ async function createApp(opts = {}) {
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://openvibe.network', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
                 fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
                 imgSrc: ["'self'", 'data:', 'https://openvibe.network', 'https://openvibe.media'],
-                connectSrc: ["'self'", 'https://openvibe.network', 'https://cloudflareinsights.com', 'https://openvibe.events'],
+                connectSrc: ["'self'", 'https://openvibe.network', 'https://cloudflareinsights.com', 'https://openvibe.events', 'https://ai.openvibe.services'],
                 frameSrc: ["'self'", 'https://openvibe.network'],
                 frameAncestors: ["'none'"],
                 objectSrc: ["'none'"],
@@ -123,7 +112,7 @@ async function createApp(opts = {}) {
     // ── Machine endpoints ───────────────────────────────────
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-exchange', name: 'OpenVibe.Exchange', version: VERSION }));
     release.mount(app, { registry: metrics.registry });
-    const readiness = createServiceReadiness({ s, config, release: release.release, valkey, sso});
+    const readiness = createServiceReadiness({ s, config, release: release.release, valkey, sso });
     app.get('/api/ready', readiness.handler);
 
     // ── Who is asking (verified offline; refreshed when expired) ──
@@ -155,22 +144,19 @@ async function createApp(opts = {}) {
         },
     }));
 
-    // ── API ─────────────────────────────────────────────────
-    app.use('/api/v1', rateLimit({ windowMs: 60_000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 240, standardHeaders: true, legacyHeaders: false, handler: (req, res) => contracts.http.sendProblem(res, 429, 'rate_limited', { detail: 'too many requests from this address; retry shortly', ctx: req.ov }) }));
-    app.use('/api/v1', createApi(ctx));
-    // GET /openapi.json (SEO-3): the API as OpenAPI 3.1. It is not in openvibe-contracts, so the document is read from
-    // the routes this app mounts under /api/, with the summaries the API files' header comments give them
-    // (server/http/openapi-routes.js).
-    {
-        const d = require('./agent-descriptor');
-        const site = String(config.baseUrl).replace(/\/+$/, '');
-        app.get('/openapi.json', require('./http/openapi-routes').openapiRoute(app, {
-            title: `${d.name} API`, description: d.purpose, version: require('../package.json').version, baseUrl: site,
-            docs: `${site}/developers`,
-            files: ['http/api.js'].map((f) => require('path').join(__dirname, f)),
-        }));
-    }
-    app.use('/api', (req, res) => contracts.http.sendProblem(res, 404, 'route.not_found', { detail: 'No such API route', ctx: req.ov }));
+    // ── Exchange v1's JSON API: gone ────────────────────────
+    app.use('/api/v1', (req, res) => {
+        res.set('Cache-Control', 'public, max-age=86400');
+        return contracts.http.sendProblem(res, 410, 'exchange.retired', {
+            detail: 'Exchange v1 is retired. Its API was free and swap listings; the new Exchange is the network\'s AI: every model, one account. The public API is https://api.openvibe.exchange/v1 and the site is /api.',
+            ctx: req.ov,
+        });
+    });
+    app.use('/api', (req, res, next) => {
+        // GET /api is the site's API page (http/pages.js), not a route of this catch-all.
+        if (req.path === '/' && (req.method === 'GET' || req.method === 'HEAD')) return next();
+        return contracts.http.sendProblem(res, 404, 'route.not_found', { detail: 'No such API route', ctx: req.ov });
+    });
 
     // ── Pages ───────────────────────────────────────────────
     app.use(rateLimit({ windowMs: 60_000, limit: Number(process.env.EXCHANGE_RATE_LIMIT_PER_MIN) || 300, standardHeaders: true, legacyHeaders: false }));
@@ -191,10 +177,6 @@ async function createApp(opts = {}) {
         app.use(agent);
     }
     app.use(createPageRoutes(ctx));
-    app.use((req, res) => send(res, 404, {
-        viewer: req.viewer, config, path: req.originalUrl, title: 'Not found',
-        body: raw(require('./views').notFound()),
-    }));
 
     // eslint-disable-next-line no-unused-vars
     app.use((err, req, res, _next) => {
