@@ -176,7 +176,7 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
 <textarea id="sys" name="system" rows="2" maxlength="4000">${esc((chat && chat.system_prompt) || '')}</textarea>
 <label class="ex-label" for="temp">Temperature <span class="ex-muted">0 to 2</span></label>
 <input id="temp" name="temperature" type="number" min="0" max="2" step="0.1" value="${chat && chat.temperature != null ? esc(chat.temperature) : ''}">
-<label class="ex-check"><input type="checkbox" name="strict_privacy" value="1"${strict ? ' checked' : ''}> <span>Strict privacy: only offers that keep nothing and train on nothing</span></label>
+<label class="ex-check ovk-check"><input type="checkbox" name="strict_privacy" value="1"${strict ? ' checked' : ''}> <span>Strict privacy: only offers that keep nothing and train on nothing</span></label>
 <p class="ex-muted ex-small">With strict privacy on, the router refuses when no private offer can answer, instead of falling back to one that keeps or trains on your prompt.</p>
 </div></details>${problem ? kit.notice({ kind: 'error', text: problem }) : ''}`;
         return thread.composer({

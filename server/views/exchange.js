@@ -364,7 +364,7 @@ ${kit.head({ title: chat ? 'A sealed chat' : 'A new sealed chat', sub: 'Your his
 <div class="ex-sealed-row">
 <label class="ex-label" for="sealed-model">Model</label>
 <select id="sealed-model" name="model">${options}</select>
-<label class="ex-check"><input type="checkbox" name="strict_privacy" value="1" checked> <span>Strict privacy</span></label>
+<label class="ex-check ovk-check"><input type="checkbox" name="strict_privacy" value="1" checked> <span>Strict privacy</span></label>
 </div>
 <div class="ex-try-row">${kit.button({ label: 'Send', type: 'submit' })}<span class="ex-muted">Sealed on this device before it leaves the page.</span></div>
 <p class="ovk-msg" data-sealed-msg aria-live="polite"></p>
@@ -432,7 +432,7 @@ function apiPage({ catalog, usage, viewer = null, keyPrivacy = null }) {
             : `<form class="ovk-form ex-switch" method="post" action="/privacy/keys">
 <input type="hidden" name="next" value="/api">
 ${keyPrivacy && keyPrivacy.error ? kit.notice({ kind: 'error', text: keyPrivacy.error }) : ''}
-<label class="ex-check"><input type="checkbox" name="strict" value="1"${keyPrivacy && keyPrivacy.on ? ' checked' : ''}> <span>Strict privacy on my keys</span></label>
+<label class="ex-check ovk-check"><input type="checkbox" name="strict" value="1"${keyPrivacy && keyPrivacy.on ? ' checked' : ''}> <span>Strict privacy on my keys</span></label>
 ${keyPrivacy && keyPrivacy.note ? kit.notice({ kind: 'info', text: keyPrivacy.note }) : ''}
 <p class="ex-prose">Every request one of your keys makes that names no preset then uses the private preset: only an offer that keeps nothing and trains on nothing, or OpenVibe’s own deployment, may answer. When none can, the router refuses with a plain message rather than falling back to an offer that keeps or trains on the prompt. The switch is your account’s and your own projects’ <code>default</code> preset in OpenVibe.AI, so their keys use it too.</p>
 <p>${kit.button({ label: 'Save the switch', type: 'submit', kind: 'quiet' })}</p>
@@ -523,7 +523,7 @@ function uncensoredPage({ catalog, adult, signedIn }) {
     const gate = !signedIn
         ? kit.section({ title: 'Adults only', body: `<p class="ex-prose">The uncensored tier is for adults. Sign in first (the confirmation sits on your account), then confirm you are 18 or over.</p><p>${kit.button({ href: '/auth/login?next=%2Funcensored', label: 'Sign in with OpenVibe' })}</p>` })
         : !adult
-            ? kit.section({ title: 'Confirm you are 18 or over', body: `<p class="ex-prose">Uncensored models are abliterated builds. They will answer what a filtered model refuses. The floor below applies to every request, and a breach ends the account.</p>${floorText()}<form method="post" action="/uncensored/confirm" class="ovk-form ex-confirm"><label class="ex-check"><input type="checkbox" name="adult" value="yes" required> <span>I am 18 or over and I accept the floor.</span></label>${kit.button({ label: 'Confirm', type: 'submit' })}</form>` })
+            ? kit.section({ title: 'Confirm you are 18 or over', body: `<p class="ex-prose">Uncensored models are abliterated builds. They will answer what a filtered model refuses. The floor below applies to every request, and a breach ends the account.</p>${floorText()}<form method="post" action="/uncensored/confirm" class="ovk-form ex-confirm"><label class="ex-check ovk-check"><input type="checkbox" name="adult" value="yes" required> <span>I am 18 or over and I accept the floor.</span></label>${kit.button({ label: 'Confirm', type: 'submit' })}</form>` })
             : '';
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Uncensored', sub: 'Abliterated models, for adults. The same floor, always.', actions: [kit.badge('18+', 'bad')] })}
