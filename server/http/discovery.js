@@ -118,7 +118,7 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
                 { title: 'OpenVibe.AI', url: 'https://ai.openvibe.services', note: 'the router and the run API every product uses' },
-                { title: 'OpenVibe.Node', url: 'https://openvibe.node', note: 'offer a machine to the network' },
+                { title: 'OpenVibe.Node', url: 'https://node.openvibe.network', note: 'offer a machine to the network' },
             ],
         }));
     });

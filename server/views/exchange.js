@@ -376,16 +376,16 @@ function sellPage({ catalog, usage }) {
         uptime: offer.uptime == null ? '–' : pct(offer.uptime),
     }));
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'Sell your compute', sub: 'Turn a GPU or a spare machine into credits.', actions: [kit.button({ href: 'https://openvibe.node', label: 'Get Node', kind: 'quiet' })] })}
+${kit.head({ title: 'Sell your compute', sub: 'Turn a GPU or a spare machine into credits.', actions: [kit.button({ href: 'https://node.openvibe.network', label: 'Get Node', kind: 'quiet' })] })}
 ${panel({ title: 'A machine on the network', id: 'seller', body: `${seller}<p class="ex-prose">Every offer shows this card: the machine, what it runs, how fast it answers, its uptime, and whether it is verified.</p>` })}
 ${panel({ title: 'Turn it on', body: `
-<p class="ex-prose">Install <a href="https://openvibe.node">OpenVibe Node</a> on the machine, open the AI plugin, and turn on <strong>Offer to the network</strong>. Choose the models it serves, the hours, how many requests at once, a price (0 to volunteer), and who may use it: everyone, your followers, or a group.</p>
+<p class="ex-prose">Install <a href="https://node.openvibe.network">OpenVibe Node</a> on the machine, open the AI plugin, and turn on <strong>Offer to the network</strong>. Choose the models it serves, the hours, how many requests at once, a price (0 to volunteer), and who may use it: everyone, your followers, or a group.</p>
 <p class="ex-prose"><strong>Idle-only:</strong> it pauses while you game, stream or render, so the machine stays yours. Flip it back when you are done.</p>
 <p class="ex-prose">A new machine serves the free tier until it is trusted: canary prompts with known answers, a model fingerprint that proves the declared model and quantization, and spot re-runs (about 1% of requests) compared on a trusted machine. Uptime and latency build your reputation score. Verified tokens earn credits, usable across OpenVibe.</p>
 <p class="ex-prose"><strong>Kudos for volunteers:</strong> an offer at 0 earns kudos that never expire and buy queue priority and bigger free limits. Kudos are never cash.</p>
 <p class="ex-prose"><strong>Privacy, said plainly:</strong> a community machine sees the prompt. Only requests that allow community capacity ever go there, and the answer is labelled Community.</p>
 <div class="ex-steps"><ol><li>Install Node and sign in.</li><li>Open the AI plugin and pick the models it can serve.</li><li>Set hours, concurrency, price, idle-only and who may use it.</li><li>Watch tokens served, earnings and verification on this page.</li></ol></div>
-<p>${kit.button({ href: 'https://openvibe.node', label: 'Install OpenVibe Node' })}</p>` })}
+<p>${kit.button({ href: 'https://node.openvibe.network', label: 'Install OpenVibe Node' })}</p>` })}
 ${panel({ title: 'Your dashboard', id: 'dashboard', body: kit.empty({ icon: 'spark', title: 'No machine offered yet', text: 'When Node is offering capacity, its tokens served, credits, uptime, verification and reputation show here.' }) })}
 ${panel({ title: 'What is not sold here', note: 'Said plainly, because it gets accounts banned elsewhere.', id: 'not-sold', body: `
 <ul class="ex-list">
