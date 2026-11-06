@@ -150,7 +150,7 @@ function createPageRoutes(ctx) {
         const notChat = new Set(['embedding', 'embeddings', 'stt', 'asr', 'tts', 'speech', 'image', 'images', 'rerank', 'moderation']);
         return { catalog, models: (catalog.models || []).filter((m) => !notChat.has(String(m.kind || m.type || 'chat').toLowerCase())) };
     }
-    const modelOptions = (models, selected) => models.slice(0, 40).map((m) => [m.slug, m.name + (m.uncensored ? ' · 18+' : ''), (selected || []).includes(m.slug)]);
+    const modelOptions = (models, selected) => models.slice(0, 40).map((m) => [m.slug, m.name + (m.uncensored ? ' · 18+' : '') + ((m.offers || []).some((o) => o.free_tier === true) ? ' · Free to try' : ''), (selected || []).includes(m.slug)]);
 
     function chatSidebar(chats, current) {
         const items = chats.map((c) => ({ href: `/chat/${c.id}`, title: c.title, current: c.id === current, at: c.updated_at }));
@@ -178,7 +178,7 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         return thread.composer({
             action, name: 'text', placeholder: 'Ask anything…', top: settings, maxlength: config.chat.maxChars,
             hidden: { chat: chat ? chat.id : '' },
-            note: `Your free daily allowance. Each message may run up to ${config.chat.models} models.`,
+            note: `Your free daily allowance. Models marked Free to try run on it; other models need your own balance or key. Each message may run up to ${config.chat.models} models.`,
             starters: chat ? [] : ['Explain the difference between a mutex and a semaphore', 'Write a Python function that reads a CSV and sums a column', 'Which of you is cheaper for this?'],
         });
     }

@@ -65,10 +65,13 @@ function privacyOf(offer) {
     return { label: 'Standard', kind: '', short: 'Standard' };
 }
 
+const freeTier = (o) => Boolean(o && o.free_tier === true);
+
 function badgesOf(m, best) {
     const out = [
         m.uncensored ? kit.badge('18+', 'bad') : '',
         m.community ? kit.badge('Community', 'accent') : '',
+        (m.offers || []).some(freeTier) ? kit.badge('Free to try') : '',
         m.capabilities && m.capabilities.tools ? kit.badge('Tools') : '',
     ];
     const p = privacyOf(best);
@@ -230,7 +233,7 @@ ${panel({ title: '', body: modelList(models, { empty: 'No model matches that sea
 function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false }) {
     const offers = model.offers || [];
     const best = cheapest(model);
-    const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : ''].join('');
+    const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : ''].join('');
     const stats = [
         best ? [money(best.price.in), 'cheapest in, per M'] : null,
         best ? [money(best.price.out), 'cheapest out, per M'] : null,
@@ -251,7 +254,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
     const rows = offers.map((o) => {
         const p = privacyOf(o);
         return {
-            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}`,
+            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}${freeTier(o) ? ` ${kit.badge('Free to try')}` : ''}`,
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             uptime: o.uptime == null ? '–' : pct(o.uptime),

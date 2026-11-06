@@ -17,7 +17,7 @@ function createFakeAi({ chat = null } = {}) {
                 offers: [
                     {
                         provider: 'deepseek', provider_name: 'DeepSeek', model: 'deepseek-chat', id: 'deepseek/deepseek-chat@v1',
-                        trust: 'first-party', access: 'OWN_DEPLOYMENT', free: false,
+                        trust: 'first-party', access: 'OWN_DEPLOYMENT', free: false, free_tier: true,
                         price: { in: 0.28, out: 0.42, cached: 0.028, per: '1M tokens', currency: 'USD' },
                         speed: { p50_ms: 400, p95_ms: 900 }, uptime: 0.99, requests_7d: 100, requests_today: 15,
                         data_policy: { trains: false, retention_days: 0, region: 'cn' }, updated_at: null,

@@ -98,6 +98,19 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('$0.0002'), 'the cost per day (0.006 over 30 days)');
         });
 
+        await check('Free to try is shown only where an offer says free_tier', async () => {
+            const u = t.network.addUser('free');
+            for (const p of ['/', '/models', '/m/deepseek/deepseek-chat']) {
+                const r = await t.get(p);
+                assert.ok(r.text.includes('Free to try'), `${p} shows the badge`);
+            }
+            const paid = await t.get('/m/qwen/qwen3-32b');
+            assert.ok(!paid.text.includes('Free to try'), 'no badge when the field is absent');
+            const chat = await t.get('/chat/new', { as: u });
+            assert.ok(chat.text.includes('Free to try'), 'the picker marks the free-tier models');
+            assert.ok(chat.text.includes('need your own balance or key'), 'and says what the others need');
+        });
+
         await check('status: uptime per offer, the changelog and incidents', async () => {
             const r = await t.get('/status');
             assert.strictEqual(r.status, 200);
