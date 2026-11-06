@@ -59,6 +59,11 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(page.text.includes('An answer from deepseek/deepseek-chat@v1.'));
             assert.ok(page.text.includes('An answer from openvibe/auto.'));
             assert.match(page.headers.get('cache-control'), /private|no-store/);
+            assert.ok(page.text.includes('ex-answer-grid') && page.text.includes('data-count="2"'), 'the two answers sit in one round');
+            assert.ok(page.text.includes('ex-receipt') && page.text.includes('Why this offer'), 'a folded receipt under each answer');
+            assert.ok(page.text.includes('$0.000120') && page.text.includes('420 ms'), 'the receipt shows the price and latency');
+            assert.ok(page.text.includes('ex-mk--deepseek') && page.text.includes('ex-mk--llama'), 'answers carry family marks');
+            assert.ok(!page.text.includes('class="ovt-avatar"'), 'no stray empty avatar above an answer');
         });
 
         await check('the next message carries the history, and a second model’s answers never bleed across', async () => {

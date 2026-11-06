@@ -21,7 +21,8 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/api` | The endpoint, model ids (`deepseek/deepseek-chat`, `openvibe/auto`), keys from Network, aggregate usage. |
 | `/sell` | OpenVibe Node's "Offer to the network", the dashboard, and what is **not** sold here (personal plans, personal API keys), said plainly. |
 | `/uncensored` | The 18+ gate on the account, the abliterated models and the hard floor. |
-| `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day. |
+| `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
+| `/status` | Uptime per offer, the model changelog and incidents. |
 
 Every page is server-rendered with openvibe-shared/kit and complete without JavaScript. A page rendered for a
 signed-in person is `private, no-store`; a public page is `public, max-age=60`.

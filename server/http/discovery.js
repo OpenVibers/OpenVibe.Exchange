@@ -22,6 +22,7 @@ const PUBLIC_PAGES = [
     { path: '/sell', changefreq: 'weekly', priority: 0.6, title: 'Sell your compute', text: 'OpenVibe Node offers a GPU or a spare machine to the network for credits; what is not sold here, said plainly.' },
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
+    { path: '/status', changefreq: 'hourly', priority: 0.5, title: 'Status', text: 'Uptime per offer, the model changelog, and incidents.' },
 ];
 
 function dayOf(ts) {

@@ -4,7 +4,7 @@
   "stage": "product",
   "code": true,
   "wave": "W21",
-  "plan": "OpenVibe.Exchange, remade (2026-11-06): every AI model, one account — live prices, speed and uptime from OpenVibe.AI, model pages with every offer, a three-model chat on the shared conversation UI, one OpenAI/Anthropic-compatible endpoint, selling compute through Node, the uncensored tier with its floor, and AI in OpenVibe. Exchange v1 is retired: pages answer 410 with a pointer, tables read-only.",
+  "plan": "OpenVibe.Exchange, remade (2026-11-06, round two per the design review): every AI model, one account — live prices, speed and uptime from OpenVibe.AI, model pages with every offer, a three-model chat on the shared conversation UI, one OpenAI/Anthropic-compatible endpoint, selling compute through Node, the uncensored tier with its floor, and AI in OpenVibe. Exchange v1 is retired: pages answer 410 with a pointer, tables read-only.",
   "runtime": "node 22, express 4, PostgreSQL 18 (openvibe-sdk/db, async) + Valkey 9",
   "port": "5150",
   "domain": "openvibe.exchange",
@@ -18,17 +18,13 @@
   ],
   "summary": "OpenVibe.Exchange is the network's AI front. It reads OpenVibe.AI's public catalog and aggregate usage and renders: the home (popular now, cheapest per million, uncensored, community machines, live numbers), /models and /m/<org>/<model> (every offer with price in/out, measured p50/p95, uptime and data policy, a Try it box, curl and the SDK), /chat (one to three models side by side, system prompt, temperature, history in the account, on openvibe-shared/thread), /api, /sell (Node's offer to the network; what is not sold, said plainly), /uncensored (an 18+ confirmation on the account and the hard floor) and /ai (which products run which models, and the daily cost). Chat and Try it are ai.complete runs on the person's behalf (on_behalf_of) with the service's ai.run.create token. Exchange v1 (free/swap listings, passports, sandboxes, installs, offers) is retired: every v1 page answers 410 with a pointer, its JSON API answers 410 exchange.retired, and its tables stay read-only; its tests live in test/retired/.",
   "works": [
-    "A live home, model list and model page read from OpenVibe.AI's /api/v1/exchange/catalog: price in/out/cached per million, p50/p95, uptime, requests, context, data policy",
-    "Every offer that serves a model on one page, with BYOK and restricted capacity excluded and prepaid capacity shown as free",
-    "A Try it box on a model page (one ai.complete run on the person's own allowance) with curl and the OpenAI SDK line",
-    "/chat on openvibe-shared/thread: one to three models side by side, system prompt, temperature, history in the account, a daily allowance and the 18+ gate for an uncensored model",
-    "/api: the OpenAI- and Anthropic-compatible endpoint, model ids, keys from Network, aggregate usage by day",
-    "/sell: Node's offer-to-the-network flow, the dashboard's empty state, and what is not sold (personal plans, personal API keys)",
-    "/uncensored: sign-in, an 18+ confirmation stored on the account, the abliterated models and the hard floor",
-    "/ai: product → model usage and daily cost from usage_daily.requester",
-    "Exchange v1 retired: 410 on every v1 page and on /api/v1 with a pointer, tables read-only, no job or relay writes them",
-    "Account export/deletion covers the chats, chat messages and 18+ confirmation, and still covers the v1 rows",
-    "Menus and the Network launcher move Exchange into the AI neighbourhood, and Network grants it ai.run.create (ns ai.complete)"
+    "A live home in one centred column: popular models (mark, badges, price, speed, uptime, Try it), a three-line product strip, the endpoint and AI in OpenVibe; a side-by-side answer preview with live prices marked as an example",
+    "Model family marks drawn as inline SVG glyphs on theme tokens, with the family name as the label; products use their own app marks and full names (OpenVibe.Live)",
+    "/models and /m/<org>/<model>: privacy label per offer (Private, Community, Standard), measured refusal rate when one exists, uptime, data policy, presets and a Try it box",
+    "/chat on openvibe-shared/thread: two or three answers in columns at 1024 px, each with its model mark, price, latency and a folded receipt (offer, price, tokens, latency, why)",
+    "/sell: seller card, idle-only, kudos, the privacy sentence, the dashboard and what is not sold",
+    "/status: uptime per offer, the model changelog and incidents",
+    "Exchange v1 retired (410 with a pointer, tables read-only); account export/deletion covers chats and the 18+ confirmation"
   ],
   "notYet": [
     "The Network grant write/revoke: v1 keeps the install as an Exchange record; network.grants.write and network.grants.revoke are proposed and not in contracts v0.229.0",

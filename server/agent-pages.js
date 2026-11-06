@@ -52,6 +52,10 @@ function createAgentPages(ctx) {
             const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
             return page(p, { index: true, title: 'AI in OpenVibe', description: 'Which OpenVibe products use which models, and what each costs a day.', body: raw(views.aiPage({ catalog, usage })) });
         }
+        if (p === '/status') {
+            const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
+            return page(p, { index: true, title: 'Status', description: 'Uptime per offer, the model changelog, and incidents.', body: raw(views.statusPage({ catalog, usage })) });
+        }
         return null;
     }
 

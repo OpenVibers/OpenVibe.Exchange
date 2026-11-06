@@ -23,6 +23,7 @@ const { asyncRouter } = require('./router');
 const { createDiscoveryRoutes, homeJsonLd } = require('./discovery');
 const { sameOrigin } = require('./principal');
 const { esc, raw } = require('../render/html');
+const marks = require('../views/marks');
 const { send } = require('../render/layout');
 const views = require('../views/exchange');
 
@@ -66,7 +67,7 @@ function createPageRoutes(ctx) {
             title: null,
             description: 'Every AI model, one account: live prices, speed and uptime for DeepSeek, Qwen, Kimi, GLM, MiniMax, Llama and the uncensored builds. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
-            body: raw(views.home({ catalog, usage, viewer: req.viewer, q })),
+            body: raw(views.home({ catalog, usage, viewer: req.viewer, q, config })),
         });
     });
 
@@ -172,18 +173,45 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
         });
     }
 
+    /** One turn's answers side by side: each column is the model, its price and latency, its answer and a folded receipt. */
+    function answerRound(list, bySlug) {
+        const cells = list.map((m) => {
+            const model = bySlug.get(m.model);
+            const cost = m.meta && m.meta.cost_usd;
+            const latency = m.meta && m.meta.latency_ms;
+            const asked = model ? model.name : (m.meta && m.meta.answered_model) || m.model || 'OpenVibe';
+            const head = `<header class="ex-answer-head">${marks.mark(model ? model.family : 'Other', { size: 22, label: false })}<b>${esc(asked)}</b><span class="ex-answer-cost">${cost == null ? '—' : Number(cost) === 0 ? 'free' : `$${Number(cost).toFixed(6)}`}${latency == null ? '' : ` · ${latency < 1000 ? `${Math.round(latency)} ms` : `${(latency / 1000).toFixed(1)} s`}`}</span></header>`;
+            const body = m.error
+                ? thread.card({ tone: 'bad', title: 'Did not answer', text: m.error })
+                : thread.answer({ html: textOf(m.content), meta: [] });
+            const receipt = `<details class="ex-receipt"><summary>Receipt</summary><dl>
+<dt>Offer</dt><dd>${esc((m.meta && m.meta.provider) || '—')}${m.meta && m.meta.answered_model ? ` · ${esc(m.meta.answered_model)}` : ''}</dd>
+<dt>Price</dt><dd>${cost == null ? '—' : Number(cost) === 0 ? 'free' : `$${Number(cost).toFixed(6)}`}</dd>
+<dt>Tokens</dt><dd>${m.meta && (m.meta.tokens_in != null || m.meta.tokens_out != null) ? `${Number(m.meta.tokens_in || 0).toLocaleString('en-US')} in · ${Number(m.meta.tokens_out || 0).toLocaleString('en-US')} out` : '—'}</dd>
+<dt>Latency</dt><dd>${latency == null ? '—' : `${Number(latency).toLocaleString('en-US')} ms`}</dd>
+<dt>Why this offer</dt><dd>${m.meta && Array.isArray(m.meta.why) && m.meta.why.length ? esc(m.meta.why.join(' · ')) : 'The router picked the healthiest offer for your floor, ceiling and policy.'}</dd>
+</dl></details>`;
+            return `<article class="ex-answer-col">${head}${body}${receipt}</article>`;
+        }).join('');
+        return `<li class="ovt-turn ex-round"><div class="ex-answer-grid" data-count="${list.length}">${cells}</div></li>`;
+    }
+
     function chatPage({ req, res, chat = null, chats = [], messages = [], models, problem = null, status = 200 }) {
+        const bySlug = new Map((models || []).map((m) => [m.slug, m]));
         const turns = [];
         if (chat) {
-            for (const m of messages) {
+            let i = 0;
+            while (i < messages.length) {
+                const m = messages[i];
                 if (m.role === 'user') {
-                    turns.push(thread.turn({ id: m.id, you: { text: m.content } }));
+                    turns.push(thread.turn({ id: m.id, you: { text: m.content }, reply: null }));
+                    i += 1;
+                    const answers = [];
+                    while (i < messages.length && messages[i].role === 'assistant') { answers.push(messages[i]); i += 1; }
+                    if (answers.length) turns.push(answerRound(answers, bySlug));
                 } else {
-                    const meta = [m.model, m.meta && m.meta.provider, m.meta && m.meta.cost_usd != null ? `$${Number(m.meta.cost_usd).toFixed(6)}` : null].filter(Boolean);
-                    turns.push(thread.turn({
-                        id: m.id, who: { name: m.model || 'OpenVibe', sub: m.error ? 'did not answer' : (m.meta && m.meta.answered_model) || undefined },
-                        reply: m.error ? thread.card({ tone: 'bad', title: 'Did not answer', text: m.error }) : thread.answer({ html: textOf(m.content), meta }),
-                    }));
+                    turns.push(answerRound([m], bySlug));
+                    i += 1;
                 }
             }
         }
@@ -294,7 +322,10 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
                 const out = await ai.chat({ model: modelId, messages, temperature, subject: owner(req) });
                 await chats.append(owner(req), chat.id, {
                     role: 'assistant', model: slug, content: out.content || '(no text)',
-                    meta: { run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd },
+                    meta: {
+                        run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
+                        tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
+                    },
                 });
             } catch (err) {
                 await chats.append(owner(req), chat.id, { role: 'assistant', model: slug, error: err.message || 'The model did not answer.', meta: { code: err.code || null } });
@@ -383,6 +414,16 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
             title: 'AI in OpenVibe',
             description: 'Which OpenVibe products use which models through the same router, and what each costs a day.',
             body: raw(views.aiPage({ catalog, usage })),
+        });
+    });
+
+    // ── Status ───────────────────────────────────────────────
+    r.get('/status', async (req, res) => {
+        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+        return page(req, res, {
+            index: true, cache: PUBLIC_CACHE, agentLayer: true,
+            title: 'Status', description: 'Uptime per offer, the model changelog and incidents on OpenVibe.Exchange.',
+            body: raw(views.statusPage({ catalog, usage })),
         });
     });
 

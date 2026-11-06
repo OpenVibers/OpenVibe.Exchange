@@ -6,8 +6,8 @@
 function createFakeAi({ chat = null } = {}) {
     const calls = [];
     const catalog = {
-        generated_at: '2026-11-06T09:00:00.000Z', window_days: 7, count: 2,
-        families: [{ name: 'DeepSeek', models: 1, offers: 2 }, { name: 'Llama', models: 1, offers: 1 }],
+        generated_at: '2026-11-06T09:00:00.000Z', window_days: 7, count: 3,
+        families: [{ name: 'DeepSeek', models: 1, offers: 2 }, { name: 'Qwen', models: 1, offers: 1 }, { name: 'Llama', models: 1, offers: 1 }],
         models: [
             {
                 slug: 'deepseek/deepseek-chat', canonical: 'deepseek/deepseek-chat', name: 'DeepSeek Chat', family: 'DeepSeek',
@@ -30,6 +30,19 @@ function createFakeAi({ chat = null } = {}) {
                         data_policy: null, updated_at: null,
                     },
                 ],
+            },
+            {
+                slug: 'qwen/qwen3-32b', canonical: 'qwen/qwen3-32b', name: 'Qwen3 32B', family: 'Qwen',
+                variant: null, uncensored: false, type: 'chat', context: 131072, max_output: 8192,
+                capabilities: { tools: true, json: true, vision: false, stream: true }, modalities: ['text'], description: null,
+                requests_7d: 40, requests_today: 3, community: false,
+                offers: [{
+                    provider: 'novita', provider_name: 'Novita', model: 'qwen3-32b', id: 'qwen/qwen3-32b@v1',
+                    trust: 'first-party', access: 'AUTHORIZED_WHOLESALE', free: false,
+                    price: { in: 0.4, out: 0.9, cached: 0.04, per: '1M tokens', currency: 'USD' },
+                    speed: { p50_ms: 520, p95_ms: 1200 }, uptime: 0.97, requests_7d: 40, requests_today: 3,
+                    data_policy: { trains: false, retention_days: 30, region: 'sg' }, updated_at: '2026-11-06T00:00:00.000Z',
+                }],
             },
             {
                 slug: 'meta-llama/llama-3-8b-abliterated', canonical: 'meta-llama/llama-3-8b-abliterated', name: 'Llama 3 8B abliterated',
@@ -61,7 +74,7 @@ function createFakeAi({ chat = null } = {}) {
         async chat(args) {
             calls.push(args);
             if (chat) return chat(args);
-            return { content: `An answer from ${args.model}.`, model: args.model, provider: 'deepseek', run_id: 'run_TEST', cost_usd: 0.00012, usage: { tokens_in: 10, tokens_out: 20 } };
+            return { content: `An answer from ${args.model}.`, model: args.model, provider: 'deepseek', run_id: 'run_TEST', cost_usd: 0.00012, usage: { tokens_in: 10, tokens_out: 20 }, tokens_in: 10, tokens_out: 20, latency_ms: 420, why: ['cheapest healthy offer within your ceiling'] };
         },
         catalogData: catalog,
         usageData: usage,

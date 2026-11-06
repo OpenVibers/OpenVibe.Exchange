@@ -121,13 +121,25 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         }
         const choice = run.output && Array.isArray(run.output.choices) ? run.output.choices[0] : null;
         const content = choice && choice.message && typeof choice.message.content === 'string' ? choice.message.content : '';
+        const usage = run.usage || null;
+        const started = run.started_at ? Date.parse(run.started_at) : NaN;
+        const finished = run.finished_at ? Date.parse(run.finished_at) : NaN;
+        const explain = run.explain || null;
+        const why = explain && typeof explain === 'object'
+            ? (Array.isArray(explain.reasons) && explain.reasons.length ? explain.reasons.slice(0, 4).map(String)
+                : (explain.selected || explain.policy || explain.objective || null))
+            : null;
         return {
             content,
             model: (run.output && run.output.model) || (run.provenance && run.provenance.model) || null,
             provider: (run.provenance && run.provenance.provider) || null,
             run_id: run.id,
-            cost_usd: run.usage ? run.usage.cost_usd : null,
-            usage: run.usage || null,
+            cost_usd: usage ? usage.cost_usd : null,
+            usage,
+            tokens_in: usage ? usage.tokens_in || 0 : 0,
+            tokens_out: usage ? usage.tokens_out || 0 : 0,
+            latency_ms: Number.isFinite(started) && Number.isFinite(finished) && finished >= started ? finished - started : null,
+            why: why == null ? null : (Array.isArray(why) ? why : [String(why)]),
         };
     }
 

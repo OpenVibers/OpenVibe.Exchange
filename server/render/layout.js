@@ -26,6 +26,7 @@ const NAV = [
     { label: 'Sell compute', href: '/sell' },
     { label: 'Uncensored', href: '/uncensored' },
     { label: 'AI in OpenVibe', href: '/ai' },
+    { label: 'Status', href: '/status' },
 ];
 
 const hashes = new Map();
