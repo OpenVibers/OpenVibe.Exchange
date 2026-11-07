@@ -19,7 +19,7 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/models`, `/m/<org>/<model>` | Every model and every offer that serves it: price in, out and cached per million, measured p50/p95, uptime, data policy, a **Try it** box, curl and the SDK line. |
 | `/chat` | One model, or up to three side by side; system prompt, temperature, history in the account. The shared conversation UI (`openvibe-shared/thread`, `ov-thread.js`). |
 | `/api` | The endpoint, model ids (`deepseek/deepseek-chat`, `openvibe/auto`), keys from Network, aggregate usage. |
-| `/sell` | OpenVibe Node's "Offer to the network", the dashboard, and what is **not** sold here (personal plans, personal API keys), said plainly. |
+| `/sell` | OpenVibe Node's "Offer to the network", "Pool your machines" for a signed-in person (the four steps: choose the machines, what fits, approve on each, offer it), the dashboard, and what is **not** sold here (personal plans, personal API keys), said plainly. |
 | `/uncensored` | The 18+ gate on the account, the abliterated models and the hard floor. |
 | `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
 | `/status` | Uptime per offer, the model changelog and incidents. |
@@ -35,8 +35,15 @@ signed-in person is `private, no-store`; a public page is `public, max-age=60`.
   never an offer.
 - `GET .../api/v1/exchange/usage?days=30` — aggregate requests, tokens and spend by day, model and product
   (`usage_daily`; never a prompt, an answer or a person).
-- `POST .../api/v1/runs` with `workflow: ai.complete` and `on_behalf_of` — one chat turn or Try it, on the
-  person's allowance, with this service's token (`ai.run.create`, namespace `ai.complete`).
+- `POST .../api/v1/runs` with `workflow: ai.complete` and `on_behalf_of` — one chat
+  turn or Try it, on the person's allowance, with this service's token (`ai.run.create`, namespace `ai.complete`).
+- `GET .../api/v1/community/offers` — the live community offers; a pool says how many machines serve it (never
+  which ones), so the offer card can say "Community pool (N machines)" without naming a machine.
+- `GET https://openvibe.network/api/v1/machines` and `/api/v1/machine-pools` — the person's own machines, their
+  pools and the machines they can pool, with the person's Network token: names, free VRAM and RAM, the local
+  network key, and each member's approval and readiness. `POST /api/v1/machine-pools` proposes a pool and
+  `POST /api/v1/machine-pools/:id/revoke` stops it. Node measures the links and the fit; Exchange shows what
+  Network carries and says "not measured yet" when it carries nothing.
 
 AI unreachable is said, not papered over: the catalog read keeps the last good copy for five minutes and the
 pages carry an honest notice; no number is invented.
@@ -71,7 +78,7 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.312.0
-- openvibe-sdk: v0.93.0
-- openvibe-shared: v4.126.0
+- openvibe-sdk: v0.94.0
+- openvibe-shared: v4.124.0
 - openvibe-publishing: v1.5.0
 <!-- versions:end -->

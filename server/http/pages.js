@@ -34,7 +34,7 @@ const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sand
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
 
 function createPageRoutes(ctx) {
-    const { config, ai, history, openapi, chats, adult, sharing, log } = ctx;
+    const { config, ai, network, history, openapi, chats, adult, sharing, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
@@ -45,6 +45,8 @@ function createPageRoutes(ctx) {
         title, index: false,
         body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'person', title, text, action: { href: `/auth/login?next=${encodeURIComponent(next || req.originalUrl)}`, label: 'Sign in with OpenVibe' } })}</div>`),
     }, status);
+    // The live community offers (AI's public read): a pool says how many machines serve it, never which ones.
+    const communityOffers = async () => (typeof ai.communityOffers === 'function' ? ai.communityOffers() : null);
     // The catalogue is also the day's changelog row: the first read of a UTC day records what every model
     // costs, so /status can say what is new, gone or repriced without keeping a second catalogue.
     const catalogOf = async () => {
@@ -89,7 +91,7 @@ function createPageRoutes(ctx) {
 
     // ── Models ───────────────────────────────────────────────
     r.get('/models', async (req, res) => {
-        const catalog = await catalogOf();
+        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
         const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 120) : '';
         const family = typeof req.query.family === 'string' ? req.query.family.slice(0, 60) : '';
         const sort = ['cheap', 'fast'].includes(req.query.sort) ? req.query.sort : '';
@@ -97,7 +99,7 @@ function createPageRoutes(ctx) {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: q ? `Models: ${q}` : 'Models',
             description: 'Every model on OpenVibe.Exchange with its live offers: price in and out per million tokens, measured speed and uptime, context length and data policy.',
-            body: raw(views.modelsPage({ catalog, q, family, sort })),
+            body: raw(views.modelsPage({ catalog, q, family, sort, community })),
         });
     });
 
@@ -108,7 +110,7 @@ function createPageRoutes(ctx) {
     const modelPath = (m) => `/m/${m.slug.split('/').map(encodeURIComponent).join('/')}`;
 
     async function renderModel(req, res, { result = null, problem = null, text = '', status = 200 } = {}) {
-        const catalog = await catalogOf();
+        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
         const model = await modelFrom(catalog, req.params.org, req.params.model);
         if (!model) {
             if (catalog.unavailable) {
@@ -125,7 +127,7 @@ function createPageRoutes(ctx) {
             index: true, cache: req.method === 'GET' ? PUBLIC_CACHE : null, agentLayer: true,
             title: model.name, description: `${model.name}: price, speed, uptime and data policy of every offer.`,
             jsonLd: [jsonLd], head: '',
-            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult })),
+            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community })),
         }, status);
     }
 
@@ -135,11 +137,11 @@ function createPageRoutes(ctx) {
         if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
         const text = String((req.body && req.body.text) || '').slice(0, config.chat.maxChars);
         if (!text.trim()) return renderModel(req, res, { problem: 'Write something to send.', status: 422 });
-        const catalog = await catalogOf();
+        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
         const model = await modelFrom(catalog, req.params.org, req.params.model);
         if (!model) return renderModel(req, res);
         if (model.uncensored && !(await adult.confirmed(owner(req)))) {
-            return page(req, res, { title: model.name, index: false, body: raw(views.modelPage({ model, viewer: req.viewer, problem: 'Confirm you are 18 or over first.', adult: false })) }, 403);
+            return page(req, res, { title: model.name, index: false, body: raw(views.modelPage({ model, viewer: req.viewer, problem: 'Confirm you are 18 or over first.', adult: false, community })) }, 403);
         }
         const best = model.offers.find((o) => o.id) || model.offers[0];
         const modelId = (best && best.id) || 'openvibe/auto';
@@ -629,14 +631,66 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
     });
 
     // ── Sell ─────────────────────────────────────────────────
-    r.get('/sell', async (req, res) => {
-        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+    // The person's machines and pools come from Network with their own token (never a service token); the live
+    // community offers come from AI's public read. Exchange measures nothing and keeps no pool of its own.
+    async function sellState(req) {
+        const [catalog, usage, community] = await Promise.all([catalogOf(), ai.usage(30), communityOffers()]);
+        let pool = null;
+        if (signedIn(req)) {
+            const token = req.token || (req.viewer && req.viewer.token);
+            try {
+                const [machines, pools] = await Promise.all([network.machines(token), network.pools(token)]);
+                pool = { machines, ...pools };
+            } catch (err) {
+                log.warn('[OpenVibe.Exchange] your machines read failed:', (err && err.message) || err);
+                pool = { machines: [], candidates: [], pools: [], error: 'Your machines could not be read right now. Reload in a moment.' };
+            }
+        }
+        return { catalog, usage, community, pool };
+    }
+
+    async function renderSell(req, res, { error = null } = {}) {
+        const state = await sellState(req);
+        if (error && state.pool) state.pool = { ...state.pool, error };
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: 'Sell your compute',
             description: 'Turn a GPU or a spare machine into credits with OpenVibe Node: offer models, hours, concurrency and a price. What is not sold here, said plainly.',
-            body: raw(views.sellPage({ catalog, usage, viewer: req.viewer })),
+            body: raw(views.sellPage({ ...state, viewer: req.viewer, signedIn: signedIn(req) })),
         });
+    }
+
+    r.get('/sell', (req, res) => renderSell(req, res));
+
+    // "1. Choose the machines": Network holds the pool (it refuses another owner's machine, another network, or a
+    // machine already in a pool), and each machine approves it on itself afterwards.
+    r.post('/sell/pool', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fsell');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const machines = [...new Set([].concat((req.body && req.body.machines) || [])
+            .map(String).filter((id) => /^dev_[0-9A-HJKMNP-TV-Z]{26}$/.test(id)))].slice(0, 8);
+        if (machines.length < 2) return renderSell(req, res, { error: 'Choose two or more of your machines on the same network.' });
+        const head = /^dev_[0-9A-HJKMNP-TV-Z]{26}$/.test(String((req.body && req.body.head) || '')) ? String(req.body.head) : null;
+        const token = req.token || (req.viewer && req.viewer.token);
+        try {
+            await network.proposePool(token, { machines, ...(head ? { head } : {}) });
+            return res.redirect(303, '/sell#pool');
+        } catch (err) {
+            return renderSell(req, res, { error: (err && err.message) || 'The pool could not be created.' });
+        }
+    });
+
+    // "Stop pooling": the offer goes offline and each machine drops its private link and its key.
+    r.post('/sell/pool/:id/stop', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fsell');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const token = req.token || (req.viewer && req.viewer.token);
+        try {
+            await network.revokePool(token, String(req.params.id));
+            return res.redirect(303, '/sell#pool');
+        } catch (err) {
+            return renderSell(req, res, { error: (err && err.message) || 'The pool could not be stopped.' });
+        }
     });
 
     // ── Your own endpoint ────────────────────────────────────

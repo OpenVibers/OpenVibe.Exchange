@@ -267,7 +267,7 @@ function productsSummary(usage) {
 }
 
 // ── Models ─────────────────────────────────────────────────
-function modelsPage({ catalog, q = '', family = '', sort = '' }) {
+function modelsPage({ catalog, q = '', family = '', sort = '', community = null }) {
     let models = chatModels(catalog);
     const families = [...new Set(models.map(familyLabel))].filter((f) => f !== 'Other').sort();
     if (family) models = models.filter((m) => familyLabel(m) === family);
@@ -289,12 +289,13 @@ ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provi
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
 ${unavailable(catalog)}
 ${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family or a provider.' }) })}
+${communityPools(community)}
 <p class="ex-more"><a href="/status">Uptime and incidents →</a></p>
 </div>`;
 }
 
 // ── One model ──────────────────────────────────────────────
-function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false }) {
+function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null }) {
     const offers = model.offers || [];
     const best = cheapest(model);
     const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : (offers.some(freePaused) ? kit.badge('Free paused') : '')].join('');
@@ -317,9 +318,14 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
     ];
     const rows = offers.map((o) => {
         const p = privacyOf(o);
+        // A pool's head is the offer: the label says how many machines serve it, never which ones (the count is public).
+        const pools = poolOffersFor(community, o.model);
+        const communityBadge = pools.length
+            ? kit.badge(poolLabel((pools[0].pool && pools[0].pool.machines && pools[0].pool.machines.length) || 0), 'accent')
+            : (o.trust === 'community' ? kit.badge('Community', 'accent') : '');
         const refuses = refusalText(o);
         return {
-            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a>${o.trust === 'community' ? ` ${kit.badge('Community', 'accent')}` : ''}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
+            provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             uptime: o.uptime == null ? '–' : pct(o.uptime),
@@ -493,10 +499,165 @@ function modelLabel(id) {
     return known[bare] || require('../ai').displayName(bare);
 }
 
+// ── Pooled machines ────────────────────────────────────────
+// The pooled machines design (2026-11-06), part 4: "Pool your machines" under the single-machine card on /sell,
+// and the pool's offer card. Exchange reads the person's machines, their pools, the link checks and the fit table
+// from Network and AI; it never measures a link and never keeps a pool of its own. A number appears only when
+// Node measured it; a model nobody measured says "not measured yet".
+const NEAR_MS = 5;            // a pool needs under 5 ms round trip
+const NEAR_MBPS = 300;        // 1 Gb/s for models over 30B; 300 Mb/s below
+const gb = (mb) => (mb == null || !Number.isFinite(Number(mb)) ? '–' : `${(Number(mb) / 1024).toFixed(Number(mb) < 1024 ? 1 : 0)} GB`);
+const poolLabel = (n) => `Community pool (${Number(n) || 0} machine${Number(n) === 1 ? '' : 's'})`;
+const isPoolOffer = (o) => Boolean(o && (o.kind === 'pool' || (o.pool && Array.isArray(o.pool.machines)))) && Boolean(o.pool);
+
+/** The public pool offers that serve a model: AI names the members only by pseudonym, so only the count is shown. */
+function poolOffersFor(community, modelName) {
+    return ((community && community.offers) || []).filter((o) => isPoolOffer(o) && (o.models || []).includes(modelName));
+}
+
+/** A link as Node measured it, in words: the number and the limit when it fails. Null when nobody measured it.
+ *  Without an id, every link is read: the head answers over all of them, so its worst one is its own. */
+function linkWords(links, id) {
+    const mine = (links || []).filter((l) => l && (id == null || l.machine === id) && l.rtt_ms != null && l.mbps != null && Number.isFinite(Number(l.rtt_ms)) && Number.isFinite(Number(l.mbps)));
+    if (!mine.length) return null;
+    const slow = mine.find((l) => !(Number(l.rtt_ms) < NEAR_MS));
+    if (slow) return { good: false, text: `${Math.round(Number(slow.rtt_ms))} ms; a pool needs under ${NEAR_MS} ms` };
+    const thin = mine.find((l) => !(Number(l.mbps) >= NEAR_MBPS));
+    if (thin) return { good: false, text: `${Math.round(Number(thin.mbps))} Mb/s; a pool needs ${NEAR_MBPS} Mb/s or more` };
+    const best = mine.reduce((a, b) => (Number(a.rtt_ms) <= Number(b.rtt_ms) && Number(a.mbps) >= Number(b.mbps) ? a : b));
+    return { good: true, text: `${Math.round(Number(best.rtt_ms))} ms, ${Math.round(Number(best.mbps))} Mb/s: good` };
+}
+
+/** The public card for a pool: the count and what it serves, never a machine's name. */
+function communityPools(community) {
+    const offers = ((community && community.offers) || []).filter(isPoolOffer);
+    if (!offers.length) return '';
+    const rows = offers.map((o) => ({
+        pool: `${esc(poolLabel(o.pool.machines.length))}${o.free_only ? ` ${kit.badge('Free tier only', '')}` : ''}`,
+        models: (o.models || []).map(String).join(', '),
+        price: o.price ? `${money(o.price.in_per_million)} / ${money(o.price.out_per_million)} per million` : 'volunteer (free)',
+        state: o.ready && o.open_now !== false ? 'offering now' : 'offline',
+    }));
+    return panel({
+        title: 'Community pools', id: 'pools',
+        note: 'One model served by several of a person’s machines on their own home network.',
+        body: `${kit.table({ columns: [{ key: 'pool', label: 'Pool', primary: true, html: true }, { key: 'models', label: 'Serves' }, { key: 'price', label: 'Price' }, { key: 'state', label: 'State' }], rows, label: 'Community pools' })}
+<p class="ex-prose">The pool’s head sees the prompt; the other machines see only numbers in transit. A new pool serves the free tier until the same canary checks as one machine pass.</p>`,
+    });
+}
+
+/**
+ * The pool's four steps (Opus's design, part 4). `pool` is what Network answered for this person:
+ * { machines, candidates, pools, error }. A pool record may carry `links` and `fit`, Node's own measurements on
+ * the head; when it does not, the page says "not measured yet" instead of inventing a number.
+ */
+function poolPanel({ pool, community }) {
+    const active = (pool.pools || [])[0] || null;
+    const machines = pool.machines || [];
+    const byId = new Map(machines.map((m) => [m.id, m]));
+    const nameOf = (id) => (byId.get(id) && byId.get(id).name) || 'your machine';
+    const candidates = (pool.candidates || []).filter((c) => c && c.id);
+    const links = (active && Array.isArray(active.links) ? active.links : pool.links) || [];
+
+    const head = () => {
+        if (active) return active.head;
+        const same = candidates.filter((c) => c.network === mainKey);
+        return ([...same].sort((a, b) => (Number(b.free_vram) || 0) - (Number(a.free_vram) || 0))[0] || {}).id || null;
+    };
+    // The network most of the machines are on: the one a pool would use. Another network is listed, greyed, with why.
+    const groups = new Map();
+    for (const c of candidates) {
+        const k = String(c.network || 'unknown');
+        groups.set(k, (groups.get(k) || []).concat([c]));
+    }
+    const mainKey = [...groups.entries()].sort((a, b) => b[1].length - a[1].length)[0] ? [...groups.entries()].sort((a, b) => b[1].length - a[1].length)[0][0] : null;
+    const mainMachines = candidates.filter((c) => c.network === mainKey);
+    const reference = [...mainMachines].sort((a, b) => (Number(b.free_vram) || 0) - (Number(a.free_vram) || 0))[0];
+    const headId = head();
+    const headMachine = candidates.find((c) => c.id === headId) || null;
+    const headName = nameOf(headId);
+
+    const row = (c, { selectable }) => {
+        const sameNetwork = c.network === mainKey;
+        // The head answers over every link, so its row reads the worst of them (all of them when it has no id of its own).
+        const link = sameNetwork ? linkWords(links, c.id === headId ? null : c.id) : null;
+        const detail = `${esc(c.hardware || 'hardware not reported')} · ${gb(c.free_vram)} free VRAM · ${gb(c.free_ram)} free RAM`;
+        const linkLine = !sameNetwork
+            ? `<p class="ex-pool-why">Not on the same network as ${esc(reference ? nameOf(reference.id) : 'your other machines')}: pools work on one home network, not across the internet</p>`
+            : `<p class="ex-pool-link${link ? (link.good ? ' is-good' : ' is-bad') : ''}">${link ? esc(link.text) : 'link not measured yet'}</p>`;
+        const pick = selectable && sameNetwork
+            ? `<label class="ex-pool-pick"><input type="checkbox" name="machines" value="${esc(c.id)}" checked> <span><b>${esc(nameOf(c.id))}</b></span></label>`
+            : `<div class="ex-pool-pick"><b>${esc(nameOf(c.id))}</b>${active && active.machines.some((m) => m.id === c.id && m.id === active.head) ? ' <span class="ex-kind">head</span>' : ''}</div>`;
+        return `<li class="ex-pool-machine${sameNetwork ? '' : ' is-off'}">${pick}<p class="ex-pool-detail">${detail}</p>${linkLine}</li>`;
+    };
+
+    const steps = [];
+    if (active) {
+        // A pool is never edited: a change is a new pool with new approvals (Network's rule).
+        const rows = active.machines.map((m) => {
+            const c = candidates.find((x) => x.id === m.id);
+            return c ? row(c, { selectable: false }) : `<li class="ex-pool-machine"><div class="ex-pool-pick"><b>${esc(nameOf(m.id))}</b></div><p class="ex-pool-detail">no longer announcing itself</p></li>`;
+        }).join('');
+        steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">1. Choose the machines</h3>
+<ul class="ex-pool-machines">${rows}</ul>
+<p class="ex-pool-note">A pool is never edited: to change the head or the machines, stop it and pool again.</p>
+<form method="post" action="/sell/pool/${encodeURIComponent(active.id)}/stop" class="ex-pool-stop">
+<p class="ex-prose">The offer goes offline and each machine stops sharing its memory with the others.</p>
+${kit.button({ label: 'Stop pooling', type: 'submit', kind: 'quiet' })}
+</form></article>`);
+    } else {
+        const rows = candidates.map((c) => row(c, { selectable: true })).join('');
+        const headOptions = mainMachines
+            .sort((a, b) => (Number(b.free_vram) || 0) - (Number(a.free_vram) || 0))
+            .map((c) => `<option value="${esc(c.id)}"${headMachine && c.id === headMachine.id ? ' selected' : ''}>${esc(nameOf(c.id))}${c.free_vram != null ? ` · ${gb(c.free_vram)} free VRAM` : ''}</option>`).join('');
+        steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">1. Choose the machines</h3>
+<form method="post" action="/sell/pool" class="ex-pool-form">
+<ul class="ex-pool-machines">${rows}</ul>
+<label class="ex-field"><span>Head (the machine that answers)</span><select name="head">${headOptions}</select></label>
+<p class="ex-pool-note">Each machine approves the pool on itself, in OpenVibe Node.</p>
+${kit.button({ label: 'Pool these machines', type: 'submit' })}
+</form></article>`);
+    }
+
+    // 2. What fits: only measured speeds; the head is the machine with the most free VRAM.
+    const fit = (active && Array.isArray(active.fit) ? active.fit : []).filter((f) => f && f.model && f.fits !== false);
+    const speedWords = (f) => (f.tokens_per_second != null && Number.isFinite(Number(f.tokens_per_second)) ? `about ${Math.round(Number(f.tokens_per_second))} tokens a second` : 'not measured yet');
+    const fitBody = fit.length
+        ? kit.table({ columns: [{ key: 'model', label: 'Model', primary: true }, { key: 'speed', label: 'Measured speed' }], rows: fit.map((f) => ({ model: String(f.model), speed: speedWords(f) })), label: 'What fits' })
+        : '<p class="ex-prose">No model has been measured on these machines yet. Run the fit check on the head in OpenVibe Node; a model that has not been measured says so here.</p>';
+    steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">2. What fits</h3>
+<p class="ex-pool-head">Head: <b>${esc(headName)}</b>, the machine with the most free VRAM.${active ? ' Change it on your machines page: a new head is a new pool, and every machine approves it.' : ''}</p>
+${fitBody}</article>`);
+
+    // 3. Approve on each machine.
+    const members = active ? active.machines : [];
+    const approval = members.length
+        ? `<ul class="ex-pool-approvals">${members.map((m) => `<li class="ex-pool-approval"><span>${m.approved ? `<b>${esc(nameOf(m.id))}</b>` : `Waiting for approval on <b>${esc(nameOf(m.id))}</b>`}</span>${m.approved ? kit.badge('Approved', 'ok') : kit.badge('Waiting', '')}</li>`).join('')}</ul>
+<p class="ex-pool-note">Approve in OpenVibe Node on that machine, or on its machine page on OpenVibe.Network.</p>`
+        : '<p class="ex-prose">Approve on each machine, in OpenVibe Node or on its machine page on OpenVibe.Network. Each machine makes its own key there.</p>';
+    steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">3. Approve on each machine</h3>${approval}</article>`);
+
+    // 4. Offer it: the same controls as a single machine, and nothing until every member approves.
+    const allApproved = members.length >= 2 && members.every((m) => m.approved);
+    const controls = `<dl class="ex-pool-controls">
+<div><dt>Price</dt><dd>one price for the whole pool, set with the offer on the head in OpenVibe Node.</dd></div>
+<div><dt>Who may use it</dt><dd>everyone, your followers or a group: the same audience as a single machine, applied to the pool.</dd></div>
+<div><dt>Idle only</dt><dd>the whole pool pauses while any member is in use.</dd></div>
+</dl>
+<p class="ex-pool-note">Prompts reach your head machine (${esc(headName)}); the others only see numbers in transit.</p>`;
+    steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">4. Offer it</h3>${allApproved ? controls : '<p class="ex-prose">Nothing is offered until every member approves.</p>'}</article>`);
+
+    return panel({
+        title: 'Pool your machines', id: 'pool',
+        body: `<p class="ex-prose">Machines on the same home network can run one bigger model together. OpenVibe checks the link between them first.</p>
+<div class="ex-pool ex-pool-steps">${steps.join('')}</div>`,
+    });
+}
+
 // ── Sell compute ───────────────────────────────────────────
 const HOUSE_SERVER = /^local\d*$/;
 
-function sellPage({ catalog, usage }) {
+function sellPage({ catalog, usage, pool = null, community = null, signedIn = false }) {
     // OpenVibe's own model servers on its hosts (`local`, `local2`) carry community trust so the router treats their
     // privacy conservatively, but nobody sells them: only machines people offer through Node are listed here.
     const offers = (catalog.models || []).flatMap((m) => m.offers.filter((o) => o.trust === 'community' && !HOUSE_SERVER.test(String(o.provider || ''))).map((o) => ({ model: m, offer: o })));
@@ -509,9 +670,17 @@ function sellPage({ catalog, usage }) {
         price: offer.price ? `${money(offer.price.in)} / ${money(offer.price.out)}` : 'volunteer (free)',
         uptime: offer.uptime == null ? '–' : pct(offer.uptime),
     }));
+    // The pool card sits under the single-machine one, only for a signed-in person. With fewer than two machines
+    // it is one line and the install link (part 4 of the design).
+    const poolSection = !signedIn || !pool ? '' : pool.error
+        ? panel({ title: 'Pool your machines', id: 'pool', body: kit.notice({ kind: 'warn', text: esc(pool.error) }) })
+        : (pool.candidates || []).length < 2
+            ? panel({ title: 'Pool your machines', id: 'pool', body: `<p class="ex-prose">Pooling needs two or more of your machines on the same network. Add one with <a href="https://node.openvibe.network">OpenVibe Node</a>.</p>` })
+            : poolPanel({ pool, community });
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Sell your compute', sub: 'Turn a GPU or a spare machine into credits.', actions: [kit.button({ href: 'https://node.openvibe.network', label: 'Get Node', kind: 'quiet' })] })}
 ${panel({ title: 'A machine on the network', id: 'seller', body: `${seller}<p class="ex-prose">Every offer shows this card: the machine, what it runs, how fast it answers, its uptime, and whether it is verified.</p>` })}
+${poolSection}
 ${panel({ title: 'Turn it on', body: `
 <div class="ex-steps"><ol>
 <li>Install <a href="https://node.openvibe.network">OpenVibe Node</a> on the machine and sign in.</li>
