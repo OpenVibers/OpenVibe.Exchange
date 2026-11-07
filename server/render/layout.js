@@ -25,10 +25,13 @@ const NAV = [
     { label: 'Arena', href: '/arena' },
     { label: 'Rankings', href: '/rankings' },
     { label: 'API', href: '/api' },
+    { label: 'Start', href: '/start' },
+    { label: 'Why this model', href: '/why' },
     { label: 'Sell compute', href: '/sell' },
     { label: 'Your endpoint', href: '/own' },
     { label: 'Uncensored', href: '/uncensored' },
     { label: 'AI in OpenVibe', href: '/ai' },
+    { label: 'Questions', href: '/faq' },
     { label: 'Status', href: '/status' },
 ];
 

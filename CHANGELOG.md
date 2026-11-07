@@ -4,6 +4,16 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **The public pages of ai.openvibe.services are here now (2026-11-07).** The old site's home, prices and latency,
+  changelog, legal pages and discovery files answer 301 on an exact page map; every API route there is unchanged.
+  Three pages carry the content: `/start` (the endpoint, four steps, OpenAI/Anthropic/Node samples, AI's six
+  operations and app-token path, the sandbox and production table, and the links to the session pages `/you` and
+  `/runs/:id`), `/why` (the router's own explanation, with a signed-in one-question demo that prints a real run's
+  `explain`: objective, selected, every candidate's cost and latency, and why each was passed over) and `/faq` (AI's
+  six questions merged with Exchange's, with FAQPage JSON-LD). Sitemap, llms.txt, llms-full.txt and the Markdown
+  twins (`/start.md`, `/why.md`, `/faq.md`) carry them; `openvibe-shared/indexnow` pings the new pages on deploy when
+  `INDEXNOW_KEY` is set. `/api` and `/start` link to AI's own provider-keys page (`/you`) because it needs the
+  person's session.
 - **Pooled machines (`/sell`).** Under the single-machine card, a signed-in person with two or more of their
   machines sees "Pool your machines": the four steps of the design as stacked cards. **Choose the machines** lists
   each machine with its GPU, free VRAM and RAM and Node's measured link in words ("2 ms, 940 Mb/s: good"; a failed

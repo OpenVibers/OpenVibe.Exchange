@@ -78,7 +78,20 @@ function createFakeAi({ chat = null, community = [] } = {}) {
         async chat(args) {
             calls.push(args);
             if (chat) return chat(args);
-            return { content: `An answer from ${args.model}.`, model: args.model, provider: 'deepseek', run_id: 'run_TEST', cost_usd: 0.00012, usage: { tokens_in: 10, tokens_out: 20 }, tokens_in: 10, tokens_out: 20, latency_ms: 420, why: ['cheapest healthy offer within your ceiling'] };
+            return {
+                content: `An answer from ${args.model}.`, model: args.model, provider: 'deepseek', run_id: 'run_TEST', cost_usd: 0.00012,
+                usage: { tokens_in: 10, tokens_out: 20 }, tokens_in: 10, tokens_out: 20, latency_ms: 420,
+                why: ['cheapest healthy offer within your ceiling'],
+                explain: {
+                    objective: 'balanced',
+                    reasons: ['cheapest healthy offer within your ceiling', 'the provider answered and the latency is measured'],
+                    selected: 'deepseek/deepseek-chat',
+                    candidates: [
+                        { provider: 'deepseek', model: 'deepseek-chat', eligible: true, excluded_reason: null, cost: 0.00012, latency: 420 },
+                        { provider: 'deepinfra', model: 'deepseek-chat', eligible: false, excluded_reason: 'over your price ceiling', cost: 0.0003, latency: 700 },
+                    ],
+                },
+            };
         },
         catalogData: catalog,
         usageData: usage,

@@ -634,3 +634,16 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
     .ex-pool-approval { align-items: flex-start; }
     .ex-pool .ex-field select { width: 100%; }
 }
+
+/* Why this model, Start building and the merged FAQ (moved from ai.openvibe.services, 2026-11-07). */
+.ex-why-answer { margin: 16px 0; padding: 16px; border-radius: 16px; border: 1px solid var(--border, #1f2d47); background: var(--bg-secondary, #101828); min-width: 0; }
+.ex-answer-body { margin: 8px 0 12px; }
+.ex-answer-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.ex-why-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; margin: 12px 0; font-size: .9rem; }
+.ex-why-facts dt { font-weight: 800; color: var(--text-muted, #7386a3); }
+.ex-why-facts dd { margin: 0; color: var(--text-secondary, #96a7c2); overflow-wrap: anywhere; }
+.ex-why-form { display: grid; gap: 10px; }
+.ex-why-form textarea { width: 100%; min-height: 96px; }
+.ex-why-gate { margin: 8px 0; }
+.ex-faq { display: grid; gap: 10px; }
+.ex-faq .ovk-fold { margin: 0; }
