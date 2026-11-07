@@ -25,6 +25,8 @@ function load(env = process.env) {
         nodeEnv,
         isProduction,
         baseUrl,
+        // Where a published voice is borrowed from: OpenVibe.Actor's borrow page.
+        actorUrl: trim(env.OV_ACTOR_URL || 'https://openvibe.actor'),
         trustProxy: env.TRUST_PROXY != null ? Number(env.TRUST_PROXY) : 2,
         drill: env.EXCHANGE_DRILL === '1' || env.EXCHANGE_DRILL === 'true',
         limits: {

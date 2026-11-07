@@ -44,6 +44,7 @@ const { createLorebooks } = require('./companions/lorebook');
 const { createLocker } = require('./companions/locker');
 const { createNoteTaker } = require('./companions/taking-notes');
 const { createPageRoutes } = require('./http/pages');
+const { createVoiceRoutes } = require('./http/voices');
 const { createArenaRoutes } = require('./http/arena');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
@@ -249,6 +250,8 @@ async function createApp(opts = {}) {
     app.use(createCompanionRoutes(ctx));
     // The Arena and the rankings: /arena, /arena/:id and /rankings.
     app.use(createArenaRoutes(ctx));
+    // An agent's voice published here (actor.voice@1): the listing kind "agent voice", free in v1.
+    app.use(createVoiceRoutes(ctx));
     app.use(createPageRoutes(ctx));
 
     // eslint-disable-next-line no-unused-vars
