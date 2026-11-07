@@ -110,6 +110,20 @@ function load(env = process.env) {
             noteModel: String(env.EXCHANGE_COMPANIONS_NOTE_MODEL || 'openvibe/economy').slice(0, 120),
             // The lorebook entries (stage 4): how many tokens of entries may join a chat's context.
             lorebookBudgetTokens: Math.max(100, int(env.EXCHANGE_COMPANIONS_LOREBOOK_BUDGET_TOKENS, 1200)),
+            // The images (step 6): off until an image provider is configured for this service. While the switch
+            // is off no provider is ever called, and the route refuses with the reason.
+            images: {
+                enabled: String(env.EXCHANGE_COMPANIONS_IMAGES_ENABLED || '').toLowerCase() === 'true',
+                provider: String(env.EXCHANGE_COMPANIONS_IMAGES_PROVIDER || '').slice(0, 60),
+            },
+        },
+
+        // OpenVibe.Chat (server/companions/voice.js): the answers are read aloud in the character's own
+        // voice. The call carries the person's own Network token, so the read-aloud is on their own allowance
+        // and on Chat's per-person rate limit; no service token of ours is involved.
+        tts: {
+            url: trim(env.OV_CHAT_URL || 'https://openvibe.chat'),
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_TTS_TIMEOUT_MS, 20_000)),
         },
 
         // /chat: how many messages a signed-in person may send a day (each one may run up to three models).

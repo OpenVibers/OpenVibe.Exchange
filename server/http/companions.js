@@ -32,13 +32,15 @@ const floor = require('../companions/floor');
 const codec = require('../companions/codec');
 const { tokensOf, KINDS: NOTE_KINDS } = require('../companions/memory');
 const { readTurns } = require('../companions/store');
+const groupLib = require('../companions/group');
+const groupViews = require('../views/companion-groups');
 const multer = require('multer');
 
 const handleOf = (name) => String(name || 'someone').toLowerCase().replace(/[^a-z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'someone';
 const tagsOf = (s) => String(s || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 5);
 
 function createCompanionRoutes(ctx) {
-    const { config, ai, adult, adultAccount, characters, companionChats, sharing, memory, notes, lorebooks, locker, noteTaker, log } = ctx;
+    const { config, ai, adult, adultAccount, characters, companionChats, groups, voice, sharing, memory, notes, lorebooks, locker, noteTaker, log } = ctx;
     const db = ctx.s && ctx.s.db;
     const r = asyncRouter();
     // A card may arrive as a file (a PNG with the card inside, or plain JSON).
@@ -221,6 +223,8 @@ function createCompanionRoutes(ctx) {
             rating: (imported ? (src.rating === 'adult' ? 'adult' : 'everyone') : (b.rating === 'adult' ? 'adult' : 'everyone')),
             age: b.age != null && String(b.age).trim() !== '' ? Number(b.age) : (imported && src.age != null ? Number(src.age) : null),
             model: String(b.model || '').slice(0, 120),
+            // The voice the card names: the answer is read aloud in it (step 6).
+            voice: pick('voice', 'voice').slice(0, 120),
             tags,
         };
     }
@@ -847,6 +851,8 @@ function createCompanionRoutes(ctx) {
                     meta: [], copy: false,
                 })
                 + receiptFor(turn.answer)
+                + (turn.answer.meta && turn.answer.meta.clip ? groupViews.clipAudio(turn.answer.meta.clip) : '')
+                + (turn.answer.meta && turn.answer.meta.voice ? '<p class="ex-voice-name">voice: ' + esc(turn.answer.meta.voice) + '</p>' : '')
                 + '</article>'
             : '';
         const acts = turn.answer
@@ -936,6 +942,11 @@ function createCompanionRoutes(ctx) {
             + '<input id="ex-context" name="context_size" form="ovt-composer" type="number" min="2000" max="200000" step="1000" value="' + (chat.context_size == null ? '' : esc(chat.context_size)) + '">'
             + '<label class="ex-label" for="ex-persona">The persona you play</label>'
             + '<textarea id="ex-persona" name="persona" form="ovt-composer" rows="2" maxlength="2000">' + esc(chat.persona || '') + '</textarea>'
+            + '<label class="ex-label" for="ex-speak">The voice</label>'
+            + '<select id="ex-speak" name="speak" form="ovt-composer">'
+            + '<option value="1"' + (chat.speak === false ? '' : ' selected') + '>Read the answers aloud</option>'
+            + '<option value="0"' + (chat.speak === false ? ' selected' : '') + '>Keep them written</option>'
+            + '</select>'
             + '<div class="ex-chat-links">'
             + '<a class="ex-chip" href="' + esc(base + '/memory') + '">Memory' + (chat.locked ? ' · locked' : '') + '</a>'
             + '<a class="ex-chip" href="' + esc(base + '/lorebook?chat=' + encodeURIComponent(chat.id)) + '">Lorebook</a>'
@@ -955,6 +966,7 @@ function createCompanionRoutes(ctx) {
             + chatSettings(chat, models, card)
             + '<a class="ovt-btn ex-chat-new" href="/companions" aria-label="Characters">' + thread.icon('plus') + '</a>'
             + '<button type="button" class="ovt-btn ovt-panel-open" data-ovt-panel-open aria-controls="ovt-panel" aria-expanded="false" aria-label="What the model saw" title="What the model saw">' + thread.icon('panel') + '</button>'
+            + '<form class="ex-act-form" method="post" action="/talk/' + encodeURIComponent(chat.id) + '/image"><button type="submit" class="ex-chip" title="Make an image of this chat">Image</button></form>'
             + '</header>';
     }
 
@@ -1010,6 +1022,39 @@ function createCompanionRoutes(ctx) {
     }
 
     /** Save the settings the composer carries, and answer. */
+    /** The meta of a row, as an object: the run, the receipt, the voice clip. */
+    const parseMeta = (v) => { try { return v ? JSON.parse(v) : {}; } catch (e) { return {}; } };
+
+    /**
+     * Read one answer aloud in the card's own voice, once, and keep the sound with the message.
+     *
+     * The call goes to OpenVibe.Chat with the person's own token, so it is on the person's own allowance and
+     * on Chat's per-person rate limit. When the rate limit says no, the answer stays a written one: the chat
+     * never breaks because the voice was busy.
+     */
+    async function readAloud(subject, token, messageId, card, text, kind) {
+        const table = kind === 'group' ? 'exchange_group_messages' : 'exchange_companion_messages';
+        try {
+            const said = await voice.speak(token, text, card.voice);
+            if (!said.ok) {
+                log.warn('[Companions] the answer was not read aloud:', String(said.error || said.code).slice(0, 200));
+                return null;
+            }
+            const clipId = ctx.s.newId('exv');
+            await db.prepare('INSERT INTO exchange_voice_clips (id, owner, message_id, character_id, voice, mime_type, audio) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                .run(clipId, subject, String(messageId), String(card.id), String(card.voice), said.mimeType, said.audio);
+            const row = await db.prepare('SELECT meta FROM ' + table + ' WHERE id = ? AND owner = ?').get(String(messageId), subject);
+            const meta = parseMeta(row && row.meta);
+            meta.voice = card.voice;
+            meta.clip = { id: clipId, voice: card.voice, mime_type: said.mimeType };
+            await db.prepare('UPDATE ' + table + ' SET meta = ? WHERE id = ? AND owner = ?').run(JSON.stringify(meta), String(messageId), subject);
+            return clipId;
+        } catch (err) {
+            log.warn('[Companions] the answer was not read aloud:', String((err && err.message) || err).slice(0, 200));
+            return null;
+        }
+    }
+
     /** Turn a flat list of messages into the pairs the note taker reads. */
     function pairsOf(flat) {
         const out = [];
@@ -1034,6 +1079,8 @@ function createCompanionRoutes(ctx) {
             temperature: req.body && req.body.temperature !== undefined ? (req.body.temperature === '' ? null : Number(req.body.temperature)) : chat.temperature,
             context_size: req.body && req.body.context_size !== undefined ? (req.body.context_size === '' ? null : Number(req.body.context_size)) : chat.context_size,
             persona: req.body && req.body.persona !== undefined ? String(req.body.persona || '').slice(0, 2000) : chat.persona,
+            // Read the answers aloud (step 6): on by default, and the person can say no in the header.
+            speak: req.body && req.body.speak !== undefined ? (req.body.speak === '1' || req.body.speak === 'true') : chat.speak,
         });
         const userText = plainText != null ? String(plainText) : String(userMessage.content == null ? '' : userMessage.content);
         const messages = await companionChats.messages(chat.id);
@@ -1100,16 +1147,22 @@ function createCompanionRoutes(ctx) {
                 return renderChat(req, res, chat, card, { problem: 'That answer broke the hard floor, so it was not delivered. The chat has ended and the account is reviewed.', status: 403 });
             }
             const stored = locked ? await locker.seal(answer, keys) : answer;
-            await companionChats.append({
+            const answerMeta = {
+                run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
+                tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
+                sealed: locked,
+                saw: { ...sawBase, model: out.model || model, system: locked ? null : system, context: locked ? [] : asked },
+            };
+            const answerId = await companionChats.append({
                 owner: subject, chatId: chat.id, role: 'assistant', content: stored,
                 turnId, variant, parentId: userMessage.id, model: settings.model || null,
-                meta: {
-                    run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
-                    tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
-                    sealed: locked,
-                    saw: { ...sawBase, model: out.model || model, system: locked ? null : system, context: locked ? [] : asked },
-                },
+                meta: answerMeta,
             });
+            // The voice (step 6): the answer is read aloud once, in the card's own voice, on the person's own
+            // allowance (Chat's per-person rate limit). A sealed answer is never read aloud.
+            if (!locked && card.voice && settings.speak !== false) {
+                await readAloud(subject, token, answerId, card, answer, 'chat');
+            }
             // After every few turns, the cheap model writes short notes into the person's own memory.
             try {
                 const after = await companionChats.messages(chat.id);
@@ -1241,7 +1294,236 @@ function createCompanionRoutes(ctx) {
         return res.redirect(303, '/companions');
     });
 
+    // ── Group chats (step 5) ─────────────────────────────────────────────────
+    /** The characters of the person: the ones a group may be built from. */
+    async function ownCards(req) {
+        return await characters.listByOwner(owner(req));
+    }
+
+    /** The cards of a group, in the order the characters joined. */
+    async function groupCards(req, group) {
+        const rows = await groups.members(group.id);
+        const cards = [];
+        for (const row of rows) {
+            const card = await characters.get(owner(req), row.character_id);
+            if (card) cards.push(card);
+        }
+        return cards;
+    }
+
+    /** The shared conversation, as one character sees it: its own answers are its own, the others are named. */
+    function groupContext(messages, cardId, names) {
+        const out = [];
+        for (const m of messages) {
+            const text = String(m.content == null ? '' : m.content);
+            if (m.role === 'user') { out.push({ role: 'user', content: text }); continue; }
+            if (!text) continue;
+            if (m.character_id === cardId) out.push({ role: 'assistant', content: text });
+            else out.push({ role: 'user', content: '[' + ((names && names[m.character_id]) || 'Someone') + '] ' + text });
+        }
+        return out;
+    }
+
+    r.get('/groups', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in for group chats', text: 'Your group chats stay in your account.', next: req.originalUrl });
+        const list = await groups.list(owner(req));
+        const mine = await ownCards(req);
+        return page(req, res, { title: 'Group chats', index: false, body: raw(groupViews.groupsPage({ groups: list, characters: mine })) });
+    });
+
+    r.post('/groups/new', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in for group chats', text: 'Your group chats stay in your account.', next: req.originalUrl });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const mine = await ownCards(req);
+        const allowed = new Set(mine.map((c) => c.id));
+        const chosen = []
+            .concat(req.body && req.body.members ? [].concat(req.body.members) : [])
+            .map((m) => String(m))
+            .filter((id) => allowed.has(id));
+        const members = [...new Set(chosen)].slice(0, groupLib.MAX_MEMBERS);
+        if (members.length < groupLib.MIN_MEMBERS) {
+            const list = await groups.list(owner(req));
+            return page(req, res, { title: 'Group chats', index: false, body: raw(groupViews.groupsPage({ groups: list, characters: mine, problem: 'A group chat needs at least two of your own characters.' })) }, 422);
+        }
+        const group = await groups.create({
+            owner: owner(req),
+            title: String((req.body && req.body.title) || '').slice(0, 120) || 'Group chat',
+            mode: String((req.body && req.body.mode) || 'round_robin'),
+            turns: Number((req.body && req.body.turns) || 1),
+            members,
+        });
+        return res.redirect(303, '/talk/group/' + group.id);
+    });
+
+    /** The group chat page: everybody's words, each character in its own face and its own voice. */
+    async function renderGroup(req, res, group, { problem = null, status = 200 } = {}) {
+        const cards = await groupCards(req, group);
+        const map = {};
+        for (const c of cards) map[c.id] = c;
+        const messages = await groups.messages(group.id);
+        const list = await groups.list(owner(req));
+        const items = list.map((g) => ({ href: '/talk/group/' + g.id, title: g.title, current: g.id === group.id, at: g.updated_at }));
+        const sidebar = thread.sidebar({
+            newHref: '/groups', newLabel: 'Group chats', findAction: '/companions', findPlaceholder: 'Find a character',
+            groups: thread.group(items, (g) => g.at || Date.now()),
+            nav: [{ href: '/companions', label: 'Characters', icon: 'person' }, { href: '/groups', label: 'Group chats', icon: 'person' }],
+        });
+        const empty = '<div class="ovt-welcome"><h2>' + esc(group.title || 'Group chat') + '</h2><p>'
+            + esc(cards.map((c) => c.name).join(', ')) + ' are here. Say something.</p></div>';
+        const body = thread.page({
+            sidebar,
+            head: groupViews.groupHead(group, cards),
+            turns: groupViews.groupTurns(messages, map),
+            empty,
+            composer: group.ended_at ? '' : thread.composer({
+                action: '/talk/group/' + encodeURIComponent(group.id) + '/send',
+                name: 'text',
+                placeholder: 'Say something…',
+                id: 'ovt-composer',
+                top: problem ? kit.notice({ kind: 'error', text: problem }) : '',
+                maxlength: config.chat.maxChars,
+                note: 'Everyone hears what the others say. Each character keeps its own memory and its own voice.',
+            }),
+            panel: '',
+        });
+        return page(req, res, {
+            title: group.title || 'Group chat', index: false, class: 'ex-chat ex-companion-chat', app: true,
+            bodyClass: 'ex-app ex-companion-shell',
+            head: '<link rel="stylesheet" href="' + require('openvibe-shared/serve').url('thread.css') + '"><script src="' + require('openvibe-shared/serve').url('ov-thread.js') + '" defer></script>',
+            body: raw(body),
+        }, status);
+    }
+
+    /** The group's own settings: who answers, how many times, and whether the answers are read aloud. */
+    r.post('/talk/group/:id/settings', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to talk', text: 'Your chat stays in your account.', next: req.originalUrl });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const group = await groups.get(owner(req), req.params.id);
+        if (!group) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such group chat' }) + '</div>') }, 404);
+        await groups.settings(owner(req), group.id, {
+            mode: String((req.body && req.body.mode) || group.mode),
+            turns: Number((req.body && req.body.turns) || group.turns),
+            speak: req.body && req.body.speak !== undefined ? (req.body.speak === '1' || req.body.speak === 'true') : group.speak,
+            title: req.body && req.body.title !== undefined ? String(req.body.title || '').slice(0, 120) : group.title,
+        });
+        return res.redirect(303, '/talk/group/' + group.id);
+    });
+
+    r.get('/talk/group/:id', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to talk', text: 'Your chat stays in your account.', next: req.originalUrl });
+        const group = await groups.get(owner(req), req.params.id);
+        if (!group) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such group chat' }) + '</div>') }, 404);
+        return renderGroup(req, res, group);
+    });
+
+    /** The person speaks; the characters answer by the group's rule, each in its own voice and memory. */
+    r.post('/talk/group/:id/send', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to talk', text: 'Your chat stays in your account.', next: req.originalUrl });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const group = await groups.get(owner(req), req.params.id);
+        if (!group) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such group chat' }) + '</div>') }, 404);
+        if (group.ended_at) return renderGroup(req, res, group, { problem: 'This group chat ended.', status: 403 });
+        const text = String((req.body && req.body.text) || '').slice(0, config.chat.maxChars).trim();
+        if (!text) return renderGroup(req, res, group, { problem: 'Write something to send.', status: 422 });
+        const input = floor.check(text);
+        if (!input.ok) return renderGroup(req, res, group, { problem: 'That request is refused: ' + input.detail + ' (' + input.label + ').', status: 422 });
+        const used = await companionChats.countToday(owner(req)) + await groups.countToday(owner(req));
+        if (used >= config.companions.perDay) {
+            return renderGroup(req, res, group, { problem: 'That is today&#39;s ' + config.companions.perDay + ' answers. The allowance resets at midnight UTC.', status: 429 });
+        }
+        const cards = await groupCards(req, group);
+        const members = cards.map((c) => ({ character_id: c.id, name: c.name }));
+        const plan = groupLib.planAnswers({ mode: group.mode, turns: group.turns, members, text });
+        if (!plan.length) return renderGroup(req, res, group, { problem: 'This group has no characters left.', status: 422 });
+        const names = {};
+        for (const c of cards) names[c.id] = c.name;
+        const token = tokenOf(req);
+        const adultOk = await isAdult(req);
+        const model = await modelIdOf(group.model || (cards[0] && cards[0].model));
+        const turnId = ctx.s.newId('ext');
+        const userMessageId = await groups.append({ owner: owner(req), groupId: group.id, role: 'user', content: text, turnId, seq: 0 });
+        let seq = 1;
+        for (const who of plan) {
+            const card = cards.find((c) => c.id === who.character_id);
+            if (!card) continue;
+            // This character's own notes, from its own memory scope: nobody else's notes join its answer.
+            const noteResult = await contextNotes(req, card);
+            const others = members.filter((m) => m.character_id !== card.id).map((m) => m.name);
+            const system = groupLib.groupPromptFor(card, group, { notes: noteResult.notes, others });
+            const history = (await groups.messages(group.id)).filter((m) => m.id !== userMessageId);
+            const asked = groupContext(history, card.id, names).concat([{ role: 'user', content: text }]);
+            let out = null;
+            try {
+                out = await ai.chat({
+                    model,
+                    messages: [{ role: 'system', content: system }].concat(asked),
+                    temperature: group.temperature,
+                    subject: owner(req),
+                    policy: card.rating === 'adult' && adultOk ? 'uncensored' : 'standard',
+                    preset: group.preset || null,
+                    max_cost_usd: config.companions.maxCostUsd,
+                });
+            } catch (err) {
+                log.warn('[Companions] the group answer failed:', String((err && err.message) || err).slice(0, 200));
+            }
+            const answer = (out && out.content) || '(no text)';
+            const check = floor.check(answer);
+            if (!check.ok) {
+                await groups.append({ owner: owner(req), groupId: group.id, role: 'assistant', characterId: card.id, content: null, turnId, seq: seq++, meta: { error: 'floor', rule: check.rule, label: check.label, review: true } });
+                await db.prepare('UPDATE exchange_group_chats SET ended_at = now() WHERE id = ? AND owner = ?').run(group.id, owner(req));
+                log.warn('[Companions] a group answer broke the hard floor (' + check.rule + '); the chat ended and the account is reviewed.');
+                return renderGroup(req, res, group, { problem: 'That answer broke the hard floor, so it was not delivered. The chat has ended and the account is reviewed.', status: 403 });
+            }
+            const meta = {
+                run_id: out && out.run_id, answered_model: out && out.model, cost_usd: out && out.cost_usd,
+                tokens_in: out && out.tokens_in, tokens_out: out && out.tokens_out, latency_ms: out && out.latency_ms,
+                voice: card.voice || null,
+                // The notes this character answered with: its own, never another's.
+                notes: noteResult.notes.map((n) => ({ kind: n.kind, text: n.text })),
+            };
+            const messageId = await groups.append({ owner: owner(req), groupId: group.id, role: 'assistant', characterId: card.id, content: answer, turnId, seq: seq++, model, meta });
+            if (card.voice && group.speak !== false) await readAloud(owner(req), token, messageId, card, answer, 'group');
+        }
+        return res.redirect(303, '/talk/group/' + group.id);
+    });
+
+    /** The sound of an answer, read aloud in a character's own voice. */
+    r.get('/voice/:id', async (req, res) => {
+        if (!signedIn(req)) return res.status(401).send('Sign in to hear the answer.');
+        const row = await db.prepare('SELECT * FROM exchange_voice_clips WHERE id = ? AND owner = ?').get(String(req.params.id), owner(req));
+        if (!row) return res.status(404).send('No such sound.');
+        res.set('Cache-Control', 'private, no-store');
+        res.type(String(row.mime_type || 'audio/mpeg'));
+        return res.send(Buffer.from(String(row.audio || ''), 'base64'));
+    });
+
+    /**
+     * The images (step 6) are switched off: this build has no image provider key, so the route refuses and
+     * says why. Nothing is ever sent to a provider while the switch is off.
+     */
+    const IMAGE_OFF = 'Images are switched off on OpenVibe.Exchange: no image provider is configured '
+        + '(EXCHANGE_COMPANIONS_IMAGES_ENABLED). Nothing was sent to any provider and no image was made.';
+
+    r.post('/talk/:id/image', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to talk', text: 'Your chat stays in your account.', next: req.originalUrl });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const chat = await companionChats.get(owner(req), req.params.id);
+        if (!chat) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such chat' }) + '</div>') }, 404);
+        const card = await characters.get(owner(req), chat.character_id);
+        if (!card) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such character' }) + '</div>') }, 404);
+        return renderChat(req, res, chat, card, { problem: IMAGE_OFF, status: 422 });
+    });
+
+    r.post('/talk/group/:id/image', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to talk', text: 'Your chat stays in your account.', next: req.originalUrl });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const group = await groups.get(owner(req), req.params.id);
+        if (!group) return page(req, res, { title: 'Not found', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'chat', title: 'No such group chat' }) + '</div>') }, 404);
+        return renderGroup(req, res, group, { problem: IMAGE_OFF, status: 422 });
+    });
+
     return r;
+
 }
 
 module.exports = { createCompanionRoutes };

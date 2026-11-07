@@ -34,6 +34,8 @@ const { createArenaStore } = require('./arena/store');
 const { createCatalogHistory } = require('./catalog-history');
 const { createChatStore, createAdultStore } = require('./chat/store');
 const { createCharacterStore, createCompanionChatStore } = require('./companions/store');
+const { createGroupStore } = require('./companions/group');
+const { createVoiceClient } = require('./companions/voice');
 const { createSharing } = require('./sharing');
 const { createAdultAccount } = require('./companions/adult');
 const { createMemoryClient, createCompanionNotes } = require('./companions/memory');
@@ -80,6 +82,10 @@ async function createApp(opts = {}) {
     // Companions (2026-11-06): the cards, their chats, and the one sharing system they use.
     const characters = createCharacterStore(s);
     const companionChats = createCompanionChatStore(s);
+    // Group chats (step 5) and the voice (step 6): the groups of the person, and the client that asks
+    // OpenVibe.Chat for the sound of an answer in the character's own voice.
+    const groups = createGroupStore(s);
+    const voice = createVoiceClient({ config, fetchImpl, log });
     const sharing = createSharing({ db: s.db, config, fetchImpl, log });
     // The 18+ confirmation, read from the account on Network (Network PR #587).
     const adultAccount = createAdultAccount({ config, fetchImpl, log, now: s.now });
@@ -100,7 +106,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
+    const ctx = { config, s, keys, sso, principal, ai, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
 
     const app = express();
     app.disable('x-powered-by');
