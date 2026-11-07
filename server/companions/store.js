@@ -195,11 +195,12 @@ function createCompanionChatStore(s) {
     async function settings(owner, chatId, next) {
         const sets = [];
         const values = [];
-        for (const f of ['model', 'preset', 'temperature', 'context_size', 'persona', 'title']) {
+        for (const f of ['model', 'preset', 'temperature', 'context_size', 'persona', 'title', 'speak']) {
             if (!(f in next)) continue;
             sets.push(f + ' = ?');
             if (f === 'temperature') values.push(next[f] == null || next[f] === '' ? null : Number(next[f]));
             else if (f === 'context_size') values.push(next[f] == null || next[f] === '' ? null : Number(next[f]));
+            else if (f === 'speak') values.push(next[f] === false || next[f] === '0' ? false : true);
             else values.push(next[f] == null || next[f] === '' ? null : String(next[f]).slice(0, 2000));
         }
         if (sets.length) {

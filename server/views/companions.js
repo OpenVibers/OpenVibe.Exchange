@@ -122,6 +122,7 @@ function characterPage({ card, tags = [], viewer = null, mine = false, problem =
         + section('First message', card.first_message)
         + section('Example dialogue', card.example_dialogue)
         + (card.model ? '<p class="ex-companion-model">Works best on <b>' + esc(card.model) + '</b>. You can pick any model or preset when you talk.</p>' : '')
+        + (card.voice ? '<p class="ex-companion-voice">Speaks in the voice <b>' + esc(card.voice) + '</b>: its answers are read aloud in it.</p>' : '')
         + '<p class="ex-companion-meta">' + remixes + ' remix' + (remixes === 1 ? '' : 'es')
         + ' · <a class="ex-companion-export" href="/companions/' + esc(card.id) + '/export?format=json">Export JSON</a>'
         + ' · <a class="ex-companion-export" href="/companions/' + esc(card.id) + '/export?format=png">Export PNG</a></p>'
@@ -166,6 +167,8 @@ function cardForm({ card = null, action = '/companions/new', title = 'Make a cha
         + '<p class="ex-hint">A card rated 18+ whose stated age is under 18 is refused at save. The hard floor applies to every card: no sexual content involving minors, no non-consensual sexual content (fiction included) or incest, no help with weapons of mass harm or attacks on others.</p>'
         + field('avatar_url', 'Avatar image URL (optional)', c.avatar_url, 'maxlength="400"')
         + field('model', 'Model this card recommends (optional)', c.model, 'maxlength="120"')
+        + field('voice', 'Voice (optional)', c.voice, 'maxlength="120" placeholder="the voice this character speaks in"')
+        + '<p class="ex-hint">A voice is a voice id of OpenVibe.Chat (for example <b>gary</b>). When the card names one, its answers are read aloud in it.</p>'
         + '<label class="ex-label" for="ex-import">Import a card instead (JSON or PNG)</label>'
         + '<input id="ex-import" type="file" name="import" accept=".json,.png,application/json,image/png">'
         + '<button type="submit" class="ex-btn ex-btn-primary">Save the card</button>'
