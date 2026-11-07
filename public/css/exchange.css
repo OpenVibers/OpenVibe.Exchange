@@ -604,3 +604,33 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-back { display: inline-flex; align-items: center; min-height: 44px; }
 .ex-menu-body input[type=file] { min-height: 44px; }
 .ex-memory-lock a { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* Pooled machines (design 2026-11-06, part 4): four stacked steps, every control 44 px on a phone, nothing wider
+   than the screen. The numbers are Node's measurements; a machine that cannot join is greyed, never hidden. */
+.ex-pool-steps { display: grid; gap: 14px; margin-top: 14px; }
+.ex-pool-step { padding: 14px 16px; border-radius: 16px; border: 1px solid var(--border, #1f2d47); background: var(--bg-primary, #0a0f1c); min-width: 0; }
+.ex-pool-h { margin: 0 0 10px; font-size: 1rem; font-weight: 800; overflow-wrap: anywhere; }
+.ex-pool-form { display: grid; gap: 12px; }
+.ex-pool-machines { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ex-pool-machine { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); background: var(--bg-card, #0f1729); min-width: 0; }
+.ex-pool-machine.is-off { opacity: .6; }
+.ex-pool-pick { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; overflow-wrap: anywhere; }
+.ex-pool-pick input { width: 20px; height: 20px; flex: none; }
+.ex-pool-detail, .ex-pool-link, .ex-pool-why, .ex-pool-note, .ex-pool-head { margin: 0; font-size: .9rem; line-height: 1.5; color: var(--text-secondary, #96a7c2); overflow-wrap: anywhere; }
+.ex-pool-why, .ex-pool-note { color: var(--text-muted, #7386a3); }
+.ex-pool-link.is-good { color: var(--success-text, #22c55e); font-weight: 700; }
+.ex-pool-link.is-bad { color: var(--error, #ef4444); font-weight: 700; }
+.ex-pool-head b { color: var(--text-primary, #e6edf7); }
+.ex-pool-approvals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ex-pool-approval { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 6px 10px; border-radius: 12px; border: 1px solid var(--border, #1f2d47); }
+.ex-pool-controls { display: grid; gap: 10px; margin: 0 0 10px; }
+.ex-pool-controls dt { font-weight: 800; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted, #7386a3); }
+.ex-pool-controls dd { margin: 2px 0 0; line-height: 1.5; color: var(--text-secondary, #96a7c2); }
+.ex-pool-stop { margin-top: 12px; }
+.ex-pool .ex-field select, .ex-pool .ex-btn, .ex-pool .ovk-btn { min-height: 44px; }
+.ex-pool .ex-field select { width: 100%; max-width: 100%; }
+@media (max-width: 560px) {
+    .ex-pool-step { padding: 12px; }
+    .ex-pool-approval { align-items: flex-start; }
+    .ex-pool .ex-field select { width: 100%; }
+}

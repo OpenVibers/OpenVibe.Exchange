@@ -28,6 +28,7 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
+const { createNetwork } = require('./network');
 const { createBench } = require('./bench');
 const { createOpenApi } = require('./openapi');
 const { createArenaStore } = require('./arena/store');
@@ -74,6 +75,8 @@ async function createApp(opts = {}) {
     const principal = createPrincipal({ config, keys });
 
     const ai = opts.ai || createAi({ config, fetchImpl: opts.aiFetchImpl || globalThis.fetch, log, now: s.now });
+    // Network, read and changed with the person's own token: their machines and their machine pools.
+    const network = opts.network || createNetwork({ config, fetchImpl, log });
     const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
     const arenaStore = createArenaStore(s);
     const history = createCatalogHistory({ s, log });
@@ -106,7 +109,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
+    const ctx = { config, s, keys, sso, principal, ai, network, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
 
     const app = express();
     app.disable('x-powered-by');
