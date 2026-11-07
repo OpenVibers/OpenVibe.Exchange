@@ -21,6 +21,17 @@ function createChatStore(s) {
         return row ? { ...row, models: parseModels(row.models) } : null;
     }
 
+    /** A chat without its owner in the query, for the sharing check to decide who may read it. */
+    async function find(id) {
+        const row = await db.prepare('SELECT * FROM exchange_chats WHERE id = ?').get(String(id || ''));
+        return row ? { ...row, models: parseModels(row.models) } : null;
+    }
+
+    async function allMessages(chatId) {
+        const rows = await db.prepare('SELECT * FROM exchange_chat_messages WHERE chat_id = ? ORDER BY created_at, id').all(String(chatId || ''));
+        return rows.map((r) => ({ ...r, meta: parseJson(r.meta) }));
+    }
+
     async function list(owner, limit = 60) {
         const rows = await db.prepare('SELECT id, title, models, sealed, strict_privacy, updated_at FROM exchange_chats WHERE owner = ? ORDER BY updated_at DESC LIMIT ?')
             .all(owner, Math.max(1, Math.min(200, limit)));
@@ -101,7 +112,7 @@ function createChatStore(s) {
         return Number(row && row.n) || 0;
     }
 
-    return { create, get, list, messages, append, rename, settings, clear, remove, countToday, setPrivacy, sealGet, sealPut, createSealed };
+    return { create, get, find, list, messages, allMessages, append, rename, settings, clear, remove, countToday, setPrivacy, sealGet, sealPut, createSealed };
 }
 
 function createAdultStore(s) {

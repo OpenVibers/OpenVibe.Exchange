@@ -42,6 +42,8 @@ const TABLES = [
     { table: 'exchange_lorebook_entries', subject: 'owner', value: (usr) => usr, file: 'lorebook-entries.json', erase: 'delete' },
     { table: 'exchange_lorebooks', subject: 'owner', value: (usr) => usr, file: 'lorebooks.json', erase: 'delete' },
     { table: 'exchange_companion_locks', subject: 'owner', value: (usr) => usr, file: 'companion-locks.json', erase: 'delete' },
+    // The person's default audience for new items (design 2026-11-06): what their next chat, card or round starts as.
+    { table: 'exchange_share_defaults', subject: 'owner', value: (usr) => usr, file: 'share-defaults.json', erase: 'delete' },
 ];
 
 function create({ db, log = console } = {}) {
@@ -52,7 +54,10 @@ function create({ db, log = console } = {}) {
         const forms = subjects.map((s) => JSON.stringify({ type: 'user', id: s }));
         const members = await t.exec(`DELETE FROM share_members WHERE subject = ANY($1::jsonb[])`, [forms]);
         const requests = await t.exec(`DELETE FROM share_access_requests WHERE subject = ANY($1::jsonb[])`, [forms]);
-        if (Number(members) || Number(requests)) add(erased, 'share_rows', Number(members) + Number(requests));
+        const owned = await t.exec("DELETE FROM shares WHERE service = 'exchange' AND owner_subject = ANY($1::jsonb[])", [forms]);
+        if (Number(members) || Number(requests) || Number(owned)) {
+            add(erased, 'share_rows', Number(members) + Number(requests) + Number(owned));
+        }
 
         // The table map anonymised every v1 listing whose owner is one of the subjects; close the public ones and
         // delete the drafts outright. Nothing is published anywhere any more (the Search relay left with v1).

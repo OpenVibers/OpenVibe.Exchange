@@ -37,7 +37,7 @@ function panel({ title, note = '', id, body, cls = '' }) {
 }
 
 // ── The Arena ──────────────────────────────────────────────
-function arenaHome({ viewer, catalog, rounds = [], problem = null, config }) {
+function arenaHome({ viewer, catalog, rounds = [], problem = null, config, defaults = '' }) {
     const signedIn = viewer && viewer.kind === 'user' && viewer.subject;
     const models = (catalog.models || []).filter((m) => !m.uncensored);
     const ask = signedIn
@@ -65,6 +65,7 @@ ${panel({ title: 'How it works', id: 'how', body: `<ol class="ex-list ex-arena-s
 </ol><p class="ex-prose">The rankings put those ratings beside the price per million tokens, the measured speed and the uptime, so “worth it” is visible. One vote is one sample: the board marks a model provisional until it has enough games.</p>
 <p class="ex-prose"><strong>It is public.</strong> An arena prompt and both answers are recorded in Bench's open arena dataset, without your name, so anyone can check a vote. Do not paste anything private.</p>` })}
 ${recent ? panel({ title: 'Your last rounds', id: 'recent', body: recent }) : ''}
+${defaults}
 ${models.length ? `<p class="ex-muted ex-arena-count">${models.length} models in the catalogue; two are chosen for each prompt.</p>` : ''}
 </div>`;
 }
@@ -90,11 +91,14 @@ ${receipt}
 </article>`;
 }
 
-function arenaRound({ round, vote = null, revealed = false, problem = null, config }) {
+function arenaRound({ round, vote = null, revealed = false, problem = null, config, shared = false, action = '' }) {
     const [left, right] = round.models || [];
     const voted = Boolean(vote);
     const outcome = vote ? vote.outcome : null;
-    const voteForm = voted
+    const voteForm = shared
+        ? `<p class="ex-muted">This round was shared with you${
+            round.shared_by ? ` by <strong>${esc(round.shared_by)}</strong>` : ''}. Its owner voted; only their vote counts.</p>`
+        : voted
         ? `<p class="ex-arena-voted">${kit.badge(outcome === 'left' ? 'You chose A' : outcome === 'right' ? 'You chose B' : outcome === 'tie' ? 'You called it a tie' : 'You said both were bad', 'ok')} It is counted. ${kit.button({ href: '/arena', label: 'Ask another', kind: 'quiet' })}</p>`
         : `<form class="ex-arena-vote" method="post" action="/arena/${esc(round.id)}/vote">
 ${problem ? kit.notice({ kind: 'error', text: problem }) : ''}
@@ -109,13 +113,13 @@ ${problem ? kit.notice({ kind: 'error', text: problem }) : ''}
 </form>`;
 
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: voted ? 'Your vote, revealed' : 'Which one is better?', sub: `Filed under ${labelOf(round.category)}. One prompt, two answers, no names until you vote.`, back: { href: '/arena', label: 'Arena' } })}
+${kit.head({ title: shared ? 'A shared Arena round' : voted ? 'Your vote, revealed' : 'Which one is better?', sub: shared ? `Filed under ${labelOf(round.category)}. One prompt, two answers, both names and receipts.` : `Filed under ${labelOf(round.category)}. One prompt, two answers, no names until you vote.`, back: { href: '/arena', label: 'Arena' }, actions: action ? [action] : [] })}
 ${panel({ title: 'Your prompt', id: 'prompt', body: `<p class="ex-arena-prompt">${esc(round.prompt).replace(/\n/g, '<br>')}</p><p class="ex-muted">${kit.badge(labelOf(round.category))} ${voted ? '' : 'The models are unnamed until you vote.'}</p>` })}
 ${panel({ title: 'Two answers', id: 'pair', body: `<div class="ex-arena-grid" data-count="2">
 ${answerColumn({ side: 'left', answer: left && left.answer, model: left, revealed, index: 0 })}
 ${answerColumn({ side: 'right', answer: right && right.answer, model: right, revealed, index: 1 })}
 </div>${voteForm}` })}
-${voted ? panel({ title: 'What it counted as', id: 'counted', body: `<p class="ex-prose">This vote is a <strong>Bench human_pairwise judgement</strong> for your account, in the <strong>${esc(labelOf(round.category))}</strong> category. It moves both models' Elo on <a href="/rankings?category=${encodeURIComponent(round.category)}">the rankings</a>, beside their price per million and their measured speed and uptime.</p>` }) : ''}
+${voted && !shared ? panel({ title: 'What it counted as', id: 'counted', body: `<p class="ex-prose">This vote is a <strong>Bench human_pairwise judgement</strong> for your account, in the <strong>${esc(labelOf(round.category))}</strong> category. It moves both models' Elo on <a href="/rankings?category=${encodeURIComponent(round.category)}">the rankings</a>, beside their price per million and their measured speed and uptime.</p>` }) : ''}
 </div>`;
 }
 

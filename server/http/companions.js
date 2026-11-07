@@ -20,12 +20,14 @@
  */
 const express = require('express');
 const kit = require('openvibe-shared/kit');
+const ovServe = require('openvibe-shared/serve');
 const thread = require('openvibe-shared/thread');
 const { asyncRouter } = require('./router');
 const { sameOrigin } = require('./principal');
 const { esc, raw } = require('../render/html');
 const { send } = require('../render/layout');
 const views = require('../views/companions');
+const exchangeViews = require('../views/exchange');
 const floor = require('../companions/floor');
 const codec = require('../companions/codec');
 const { tokensOf, KINDS: NOTE_KINDS } = require('../companions/memory');
@@ -46,6 +48,18 @@ function createCompanionRoutes(ctx) {
     const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
     const signedIn = (req) => Boolean(req.viewer && req.viewer.kind === 'user' && req.viewer.subject);
     const owner = (req) => req.viewer.subject;
+    const shareHead = `<link rel="stylesheet" href="${ovServe.url('ov-share.css')}"><script src="${ovServe.url('ov-share.js')}" defer></script>`;
+    /** Specific people, and this reader is not on the list: the audience, never the card's text. */
+    function gatePage(req, res, id) {
+        const signedInAs = signedIn(req) ? (req.viewer.username || '') : '';
+        const signInUrl = `/auth/login?next=${encodeURIComponent(req.originalUrl)}`;
+        return page(req, res, {
+            title: 'Shared with specific people', index: false, head: shareHead,
+            // The gate draws itself from this markup (openvibe-shared 4.123.0's [data-ov-share-gate]): no inline
+            // script, so a strict CSP needs nothing, and every value is escaped like any other attribute.
+            body: raw(`<div class="ex-wrap ex-narrow"><div id="share-gate" data-ov-share-gate data-kind="character" data-id="${esc(id)}" data-signed-in-as="${esc(signedInAs)}" data-sign-in-url="${esc(signInUrl)}">This character is shared with specific people. Sign in with the OpenVibe account it was shared with, or ask its creator for access.</div></div>`),
+        }, 404);
+    }
     const handle = (req) => handleOf(req.viewer && (req.viewer.username || req.viewer.displayName));
     const notFromHere = (req, res) => page(req, res, {
         title: 'Not from this site', index: false,
@@ -227,8 +241,24 @@ function createCompanionRoutes(ctx) {
             index: true,
             title: q ? 'Characters: ' + q : 'Characters',
             description: 'Character cards on OpenVibe.Exchange: bring a card in as Character Card V2 or V3, talk to it, and take it with you again.',
-            body: raw(views.galleryPage({ items: gallery.items, total: gallery.total, q, tags, sort, tagList, viewer: req.viewer, adult: adultOk, mine })),
+            body: raw(views.galleryPage({
+                items: gallery.items, total: gallery.total, q, tags, sort, tagList, viewer: req.viewer, adult: adultOk, mine,
+                defaults: signedIn(req) ? exchangeViews.audienceDefaults({
+                    kind: 'character', label: 'characters', action: '/companions/defaults', signedIn: true,
+                    current: await sharing.defaultOf(owner(req), 'character').catch(() => 'private'),
+                }) : '',
+            })),
         });
+    });
+
+    /** The creator's default for new cards ("New characters: Only me"), and what to do with the existing ones. */
+    r.post('/companions/defaults', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fcompanions');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const body = req.body || {};
+        const audience = ['private', 'people', 'link', 'public'].includes(body.audience) ? body.audience : 'private';
+        await sharing.setDefault(owner(req), 'character', audience, { applyAll: String(body.apply_all || '') === '1' }).catch((err) => log.warn('[Companions] the card default was not saved:', err.message));
+        return res.redirect(303, '/companions');
     });
 
     // ── Make a card ──────────────────────────────────────────────────────
@@ -272,7 +302,7 @@ function createCompanionRoutes(ctx) {
         }
         const made = await characters.create({ owner: owner(req), handle: handle(req), ...card });
         try {
-            await sharing.register({ subject: owner(req) }, made.id, 'private');
+            await sharing.register({ subject: owner(req) }, 'character', made.id, await sharing.defaultOf(owner(req), 'character').catch(() => 'private'));
         } catch (err) {
             log.warn('[Companions] the card was saved but not registered with the sharing system:', err.message);
         }
@@ -302,7 +332,7 @@ function createCompanionRoutes(ctx) {
         const audience = ['private', 'unlisted', 'public'].includes(req.body && req.body.audience) ? req.body.audience : 'private';
         const allowRemix = !!(req.body && req.body.allow_remix);
         try {
-            await sharing.setAudience({ subject: owner(req) }, card.id, audience);
+            await sharing.setAudience({ subject: owner(req) }, 'character', card.id, audience);
         } catch (err) {
             log.warn('[Companions] the audience could not be changed:', err.message);
         }
@@ -332,7 +362,7 @@ function createCompanionRoutes(ctx) {
             tags: original.tags, remix_of: original.id, original_author: original.handle,
         });
         try {
-            await sharing.register({ subject: owner(req) }, copy.id, 'private');
+            await sharing.register({ subject: owner(req) }, 'character', copy.id, await sharing.defaultOf(owner(req), 'character').catch(() => 'private'));
         } catch (err) {
             log.warn('[Companions] the remix was saved but not registered with the sharing system:', err.message);
         }
@@ -362,9 +392,11 @@ function createCompanionRoutes(ctx) {
             return page(req, res, { title: '18+', index: false, body: raw(views.adultGate()) }, 403);
         }
         const mine = signedIn(req) && card.owner === owner(req);
-        const canSee = await sharing.canView(req.viewer, card.id).catch(() => false);
+        const canSee = await sharing.canView(req.viewer, 'character', card.id).catch(() => false);
         if (!canSee && !mine) {
             res.set('X-Robots-Tag', 'noindex, nofollow');
+            const audience = await sharing.audienceOf('character', card.id).catch(() => null);
+            if (audience === 'people') return gatePage(req, res, card.id);
             return page(req, res, { title: 'Private', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'shield', title: 'This character is private', text: 'Its creator has not shared it yet.' }) + '</div>') }, 403);
         }
         await characters.addView(card.id, signedIn(req) ? owner(req) : null);
@@ -373,7 +405,11 @@ function createCompanionRoutes(ctx) {
             index: card.rating !== 'adult',
             title: card.name,
             description: String(card.description || card.name).slice(0, 160),
-            body: raw(views.characterPage({ card, tags, viewer: req.viewer, mine, remixes, allowRemix: card.allow_remix })),
+            head: shareHead,
+            body: raw(views.characterPage({
+                card, tags, viewer: req.viewer, mine, remixes, allowRemix: card.allow_remix,
+                share: mine ? `<button type="button" class="ex-btn" data-ov-share-sheet data-kind="character" data-id="${esc(card.id)}" data-title="${esc(card.name)}">Share</button>` : '',
+            })),
         });
     });
 
@@ -409,7 +445,7 @@ function createCompanionRoutes(ctx) {
             return null;
         }
         const mine = signedIn(req) && card.owner === owner(req);
-        const canSee = await sharing.canView(req.viewer, card.id).catch(() => false);
+        const canSee = await sharing.canView(req.viewer, 'character', card.id).catch(() => false);
         if (!canSee && !mine) {
             res.set('X-Robots-Tag', 'noindex, nofollow');
             page(req, res, { title: 'Private', index: false, body: raw('<div class="ex-wrap ex-narrow">' + kit.empty({ icon: 'shield', title: 'This character is private', text: 'Its creator has not shared it yet.' }) + '</div>') }, 403);

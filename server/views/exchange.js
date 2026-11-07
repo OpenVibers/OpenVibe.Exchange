@@ -377,6 +377,7 @@ ${kit.head({ title: chat ? 'A sealed chat' : 'A new sealed chat', sub: 'Your his
 <p class="ovk-msg" data-sealed-msg aria-live="polite"></p>
 </form>
 </div>
+<p class="ex-sealed-note"><strong>Only me, always.</strong> This chat has no Share sheet: it stays yours, because only your Locker can read it. Sharing it would send people a conversation they could not open.</p>
 <p class="ex-sealed-note"><strong>Said plainly:</strong> OpenVibe stores only the sealed envelope and cannot read it. The model still receives the text of the turn you send, and the earlier turns your browser sends with it, while it answers; that is privacy at rest, not from the model. Your passphrase, recovery words and keys never leave this tab.</p>
 </div>`;
 }
@@ -677,6 +678,30 @@ ${panel({ title: 'Requests today', body: usage.unavailable ? '<p class="ex-prose
 </div>`;
 }
 
+
+// ── A person's default audience, on their product page (design rule 1) ──
+const AUDIENCE_TEXT = { public: 'Everyone', link: 'Anyone with the link', people: 'Specific people', private: 'Only me' };
+/**
+ * "New chats: Only me ▾", with "Apply to all my existing chats". The Share sheet still changes one item; this is
+ * only what the next one starts as.
+ *   kind, label (plural noun), current, action, signedIn
+ */
+function audienceDefaults({ kind, label, current = 'private', action, signedIn = false }) {
+    if (!signedIn) return '';
+    const options = ['private', 'people', 'link', 'public']
+        .map((a) => `<option value="${a}"${a === current ? ' selected' : ''}>${AUDIENCE_TEXT[a]}</option>`).join('');
+    return `<form class="ex-share-defaults ovk-form" method="post" action="${esc(action)}">
+<input type="hidden" name="kind" value="${esc(kind)}">
+<label class="ex-label" for="share-default-${esc(kind)}">New ${esc(label)}</label>
+<div class="ex-share-defaults-row">
+<select id="share-default-${esc(kind)}" name="audience">${options}</select>
+${kit.button({ label: 'Save', type: 'submit', kind: 'quiet' })}
+<label class="ex-check ovk-check"><input type="checkbox" name="apply_all" value="1"> <span>Apply to all my existing ${esc(label)}</span></label>
+</div>
+<p class="ex-muted ex-small">The Share sheet on an item changes just that one. Only me until you choose otherwise.</p>
+</form>`;
+}
+
 // ── Retired v1 ─────────────────────────────────────────────
 function retired(pathName) {
     return `<div class="ex-wrap ex-page ex-narrow">
@@ -693,4 +718,4 @@ ${panel({ title: 'Where those things live now', body: `<ul class="ex-list">
 </div>`;
 }
 
-module.exports = { home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
+module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
