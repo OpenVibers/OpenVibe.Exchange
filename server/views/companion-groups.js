@@ -91,7 +91,6 @@ function clipAudio(clip) {
     if (!clip || !clip.id) return '';
     return '<p class="ex-voice"><audio class="ex-voice-audio" controls preload="none" src="/voice/' + encodeURIComponent(clip.id) + '">'
         + 'Your browser cannot play this sound. <a href="/voice/' + encodeURIComponent(clip.id) + '">Download it</a>.</audio>'
-        + (clip.voice ? ' <span class="ex-chip">voice: ' + esc(clip.voice) + '</span>' : '')
         + '</p>';
 }
 
