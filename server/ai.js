@@ -4,6 +4,8 @@
  *
  *   catalog()    GET /api/v1/exchange/catalog     the models, offers, prices, speed and uptime (public)
  *   usage(days)  GET /api/v1/exchange/usage       requests, tokens and spend, by day, model and product (public)
+ *   communityOffers()  GET /api/v1/community/offers  the live community offers (public): a pool says how many
+ *                                                 machines serve it, never which ones
  *   chat({...})  POST /api/v1/runs                one ai.complete run, on behalf of the person, with this
  *                                                 service's token (ai.run.create, ns ai.complete)
  *
@@ -15,6 +17,7 @@ const { createServiceTokenClient } = require('openvibe-sdk/auth');
 
 const CATALOG_MS = 30_000;
 const USAGE_MS = 60_000;
+const COMMUNITY_MS = 30_000;
 
 async function jsonOf(res) {
     const text = await res.text();
@@ -31,6 +34,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     const empty = (what) => ({ generated_at: new Date(now()).toISOString(), unavailable: true, count: 0, models: [], families: [], by_day: [], by_model: [], by_product: [], today: null, totals: null, what });
     let catalogHit = { at: 0, value: null };
     let usageHit = new Map();
+    let communityHit = { at: 0, value: null };
     let warnedAt = 0;
 
     const warned = (what, err) => {
@@ -75,6 +79,24 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             warned('usage', err);
             if (hit && now() - hit.at < 5 * 60_000) return { ...hit.value, stale: true };
             return empty('usage');
+        }
+    }
+
+    /**
+     * The live community offers, as AI lets anyone read them: a pool's `pool` names its members only by stable
+     * pseudonym and its count, so the public card shows "Community pool (N machines)" and never a machine.
+     */
+    async function communityOffers() {
+        if (communityHit.value && now() - communityHit.at < COMMUNITY_MS) return communityHit.value;
+        try {
+            const body = await get('/api/v1/community/offers', 'community offers');
+            const value = { generated_at: body.generated_at || new Date(now()).toISOString(), offers: Array.isArray(body.offers) ? body.offers : [] };
+            communityHit = { at: now(), value };
+            return value;
+        } catch (err) {
+            warned('community offers', err);
+            if (communityHit.value && now() - communityHit.at < 5 * 60_000) return { ...communityHit.value, stale: true };
+            return { generated_at: new Date(now()).toISOString(), unavailable: true, offers: [] };
         }
     }
 
@@ -248,7 +270,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
     async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
 
-    return { catalog, usage, chat, presetsFor, setKeyPrivacy, ownedProjects, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
+    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
 }
 
 /**

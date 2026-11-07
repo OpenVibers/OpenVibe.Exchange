@@ -42,7 +42,8 @@ async function startNetwork() {
     const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
     const publicPem = publicKey.export({ type: 'spki', format: 'pem' });
     const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' });
-    const st = { users: new Map(), byUsername: new Map(), codes: new Map(), refresh: new Map(), requests: [], tokenRequests: [], lockers: new Map(), down: false };
+    const st = { users: new Map(), byUsername: new Map(), codes: new Map(), refresh: new Map(), requests: [], tokenRequests: [], lockers: new Map(), down: false,
+        machines: [], pools: [], candidates: [], poolProposals: [], poolRevoked: [] };
     let issuer = null;
     let nextUserId = 1;
 
@@ -167,6 +168,35 @@ async function startNetwork() {
             const keys = st.lockers.get(decodeURIComponent(keysMatch[1]));
             if (!keys) return problem(json, 404, 'locker.no_keys', 'that person has no locker keys');
             return json(200, keys);
+        }
+
+        // Network's machines and machine pools (PR #609). Exchange reads them with the person's own token; the test
+        // sets `state.machines`, `state.candidates` and `state.pools` to what the page should see.
+        if (url.pathname === '/api/v1/machines' && req.method === 'GET') {
+            const u = userFrom(req);
+            if (u === 'expired') return problem(json, 401, 'auth.expired', 'expired');
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            return json(200, { machines: st.machines });
+        }
+        if (url.pathname === '/api/v1/machine-pools' && req.method === 'GET') {
+            const u = userFrom(req);
+            if (u === 'expired') return problem(json, 401, 'auth.expired', 'expired');
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            return json(200, { pools: st.pools, candidates: st.candidates });
+        }
+        if (url.pathname === '/api/v1/machine-pools' && req.method === 'POST') {
+            const u = userFrom(req);
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            const body = JSON.parse(raw.toString('utf8') || '{}');
+            st.poolProposals.push(body);
+            return json(201, { pool: { id: 'pool_TEST', head: body.head || (body.machines || [])[0], machines: (body.machines || []).map((id) => ({ id, approved: false, ready: false })) } });
+        }
+        const stop = /^\/api\/v1\/machine-pools\/([^/]+)\/revoke$/.exec(url.pathname);
+        if (stop && req.method === 'POST') {
+            const u = userFrom(req);
+            if (!u) return problem(json, 401, 'auth.required', 'send Authorization: Bearer <Network access token>');
+            st.poolRevoked.push(decodeURIComponent(stop[1]));
+            return json(200, { revoked: true });
         }
 
         return json(404, { error: 'not found' });

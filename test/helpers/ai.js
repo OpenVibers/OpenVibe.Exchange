@@ -3,7 +3,7 @@
  * A stand-in OpenVibe.AI client for the page tests: the shape of GET /api/v1/exchange/catalog and /usage, and a
  * chat that answers in the run's voice. It records every chat call so a test can assert what was sent.
  */
-function createFakeAi({ chat = null } = {}) {
+function createFakeAi({ chat = null, community = [] } = {}) {
     const calls = [];
     const catalog = {
         generated_at: '2026-11-06T09:00:00.000Z', window_days: 7, count: 3,
@@ -66,11 +66,13 @@ function createFakeAi({ chat = null } = {}) {
         by_model: [{ provider: 'deepseek', model: 'deepseek-chat', requests: 40, tokens_in: 4000, tokens_out: 1000, cost_usd: 0.006 }],
         by_product: [{ product: 'live', requests: 30, tokens_in: 3000, tokens_out: 800, cost_usd: 0.005, models: [{ provider: 'deepseek', model: 'deepseek-chat', requests: 30 }] }],
     };
+    const communityData = { generated_at: '2026-11-06T09:00:00.000Z', offers: community };
     return {
         calls,
         configured: true,
         async catalog() { return catalog; },
         async usage() { return usage; },
+        async communityOffers() { return communityData; },
         async ownStatus() { return { enabled: false, reason: 'The owner has not added a GPU provider key yet, so no endpoint can start.', models: [], idle_minutes: 10, public_base: 'https://ai.openvibe.services/api/v1/own-endpoints' }; },
         async ownList() { return { endpoints: [] }; },
         async chat(args) {
@@ -80,6 +82,7 @@ function createFakeAi({ chat = null } = {}) {
         },
         catalogData: catalog,
         usageData: usage,
+        communityData,
     };
 }
 
@@ -87,6 +90,7 @@ const downAi = {
     configured: false,
     async catalog() { return { generated_at: '2026-11-06T09:00:00.000Z', unavailable: true, count: 0, models: [], families: [], what: 'catalog' }; },
     async usage() { return { generated_at: '2026-11-06T09:00:00.000Z', unavailable: true, days: 30, by_day: [], by_model: [], by_product: [], today: null, totals: null, what: 'usage' }; },
+    async communityOffers() { return { generated_at: '2026-11-06T09:00:00.000Z', unavailable: true, offers: [] }; },
     async chat() { const e = new Error('AI is not configured for this service'); e.code = 'ai.not_configured'; e.status = 503; throw e; },
 };
 

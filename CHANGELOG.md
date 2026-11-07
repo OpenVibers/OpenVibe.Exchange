@@ -4,6 +4,18 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **Pooled machines (`/sell`).** Under the single-machine card, a signed-in person with two or more of their
+  machines sees "Pool your machines": the four steps of the design as stacked cards. **Choose the machines** lists
+  each machine with its GPU, free VRAM and RAM and Node's measured link in words ("2 ms, 940 Mb/s: good"; a failed
+  link says the number and the limit, "40 ms; a pool needs under 5 ms"), and a machine on another network is
+  greyed with its reason. **What fits** is Node's fit table: a measured speed, or "not measured yet". **Approve on
+  each machine** says "Waiting for approval on Laptop" until that machine approves on itself. **Offer it** shows the
+  same price, audience and idle-only controls as one machine, with the privacy sentence (the head sees the prompt,
+  the others only numbers in transit), and nothing is offered until every member approves. "Stop pooling" says what
+  it does. The machines, pools, links and fit come from Network and AI with the person's own token: Exchange
+  measures nothing and keeps no pool. The offer card on model pages and `/models` says "Community pool (N
+  machines)" and only the count; the owner sees the machine names on `/sell`.
+
 - **Private AI.** Strict privacy is a switch on `/chat` and on the API page's keys. It sends AI the `private` preset:
   only offers that keep nothing and train on nothing (or OpenVibe's own deployments) may answer, the router refuses
   with a plain message when none can, and every answer's receipt carries its label (Private, No training, Anonymized,
