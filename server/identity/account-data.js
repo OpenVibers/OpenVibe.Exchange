@@ -42,6 +42,12 @@ const TABLES = [
     { table: 'exchange_lorebook_entries', subject: 'owner', value: (usr) => usr, file: 'lorebook-entries.json', erase: 'delete' },
     { table: 'exchange_lorebooks', subject: 'owner', value: (usr) => usr, file: 'lorebooks.json', erase: 'delete' },
     { table: 'exchange_companion_locks', subject: 'owner', value: (usr) => usr, file: 'companion-locks.json', erase: 'delete' },
+    // The group chats (step 5, 2026-11-06): a person's groups, the messages in them and the sound of their
+    // answers read aloud are theirs, like the chats above. The messages go first, then the sound, then the
+    // groups: the members of a group go with the group itself.
+    { table: 'exchange_group_messages', subject: 'owner', value: (usr) => usr, file: 'group-messages.json', erase: 'delete' },
+    { table: 'exchange_voice_clips', subject: 'owner', value: (usr) => usr, file: 'voice-clips.json', erase: 'delete' },
+    { table: 'exchange_group_chats', subject: 'owner', value: (usr) => usr, file: 'group-chats.json', erase: 'delete' },
     // The person's default audience for new items (design 2026-11-06): what their next chat, card or round starts as.
     { table: 'exchange_share_defaults', subject: 'owner', value: (usr) => usr, file: 'share-defaults.json', erase: 'delete' },
 ];
@@ -94,7 +100,7 @@ function create({ db, log = console } = {}) {
         service: 'exchange',
         tables: TABLES,
         extraErase,
-        note: 'Chats, messages, the characters and their companion chats and messages, the memory-note index, the lorebooks and the Locker rows, and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts). The text of a memory note is in the person’s own OpenVibe memory and is exported and erased there.',
+        note: 'Chats, messages, the characters and their companion chats and messages, the group chats with their messages and the sound of their answers read aloud, the memory-note index, the lorebooks and the Locker rows, and the 18+ confirmation are erased; v1 listings are anonymised and closed (or deleted when still drafts). The text of a memory note is in the person’s own OpenVibe memory and is exported and erased there.',
         log,
     });
 }
