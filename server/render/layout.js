@@ -18,21 +18,22 @@ const NETWORK_URL = 'https://openvibe.network';
 const SITE_NAME = 'OpenVibe.Exchange';
 const TAGLINE = 'Every AI model, one account.';
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
+// Six places in the bar, the rest under More (11-07: fourteen links wrapped into two lines and cut the name to
+// "OpenVibe..."). Icons are the navbar's own glyphs; the brand is the way home.
 const NAV = [
-    { label: 'Home', href: '/' },
-    { label: 'Models', href: '/models' },
-    { label: 'Chat', href: '/chat' },
-    { label: 'Arena', href: '/arena' },
-    { label: 'Rankings', href: '/rankings' },
-    { label: 'API', href: '/api' },
-    { label: 'Start', href: '/start' },
-    { label: 'Why this model', href: '/why' },
-    { label: 'Sell compute', href: '/sell' },
-    { label: 'Your endpoint', href: '/own' },
-    { label: 'Uncensored', href: '/uncensored' },
-    { label: 'AI in OpenVibe', href: '/ai' },
-    { label: 'Questions', href: '/faq' },
-    { label: 'Status', href: '/status' },
+    { label: 'Models', href: '/models', icon: 'fa-microchip' },
+    { label: 'Chat', href: '/chat', icon: 'fa-comments' },
+    { label: 'Arena', href: '/arena', icon: 'fa-hand-fist' },
+    { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line' },
+    { label: 'Start building', href: '/start', icon: 'fa-bolt' },
+    { label: 'API', href: '/api', icon: 'fa-code' },
+    { label: 'Why this model', href: '/why', icon: 'fa-diagram-project', more: true },
+    { label: 'Your own endpoint', href: '/own', icon: 'fa-server', more: true },
+    { label: 'Sell compute', href: '/sell', icon: 'fa-microchip', more: true },
+    { label: 'Uncensored (18+)', href: '/uncensored', icon: 'fa-lock', more: true },
+    { label: 'AI in OpenVibe', href: '/ai', icon: 'fa-circle-nodes', more: true },
+    { label: 'Questions', href: '/faq', icon: 'fa-circle-info', more: true },
+    { label: 'Status', href: '/status', icon: 'fa-gauge', more: true },
 ];
 
 const hashes = new Map();
@@ -62,7 +63,7 @@ function renderPage(o) {
     const nav = {
         service: 'exchange',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, active: active(pathNow, l.href) })),
+        links: NAV.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',

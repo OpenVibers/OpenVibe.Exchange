@@ -77,7 +77,9 @@
 .ex-sec-body > .ovk-list > .ovk-row:first-child, .ex-sec-body > .ex-mlist > .ex-mrow:first-child { border-top: 0; }
 
 .ex-lines { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0 0 var(--ex-gap); }
-@media (min-width: 860px) { .ex-lines { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Eight doors: two columns, then four from 1120 px, so no card is left alone on a row (11-07). */
+@media (min-width: 720px) { .ex-lines { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1120px) { .ex-lines { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .ex-line {
     display: flex; align-items: center; gap: 12px;
     padding: 14px; border: 1px solid var(--ovk-line); border-radius: 16px; background: var(--ovk-panel);

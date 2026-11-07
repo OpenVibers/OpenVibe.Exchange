@@ -204,6 +204,7 @@ ${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries i
 ${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', mark: mark('Qwen') })}
 ${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Node, labelled on every answer.', mark: mark('Qwen') })}
 ${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', mark: mark('GLM') })}
+${lineCard({ href: '/own', name: 'Your own endpoint', text: 'A private GPU for one model or your own weights: only you reach it, and it scales to zero when idle.', mark: mark('Llama') })}
 </div>
 ${panel({
         title: 'Use it from code', note: 'One endpoint, compatible with OpenAI and with Anthropic.', id: 'code', body: `
