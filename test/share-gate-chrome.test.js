@@ -12,10 +12,12 @@ const fs = require('fs');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi } = require('./helpers/ai');
 
-let playwright;
-try { playwright = require('playwright'); } catch { playwright = require(process.env.PLAYWRIGHT_MODULE || '/home/workstation/openvibe/work/OpenVibe.Games/node_modules/playwright'); }
+let playwright = null;
+try { playwright = require('playwright'); } catch {
+    try { playwright = require(process.env.PLAYWRIGHT_MODULE || '/home/workstation/openvibe/work/OpenVibe.Games/node_modules/playwright'); } catch { playwright = null; }
+}
 const CHROME = process.env.CHROME_BIN || '/usr/bin/google-chrome';
-if (process.env.OV_SKIP_BROWSER === '1' || !fs.existsSync(CHROME)) {
+if (process.env.OV_SKIP_BROWSER === '1' || !playwright || !fs.existsSync(CHROME)) {
     console.log('share-gate-chrome: skipped (no Chrome; set CHROME_BIN)');
     process.exit(0);
 }
