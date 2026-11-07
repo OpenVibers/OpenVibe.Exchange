@@ -16,6 +16,17 @@ const money = (n, free = false) => (free ? 'free' : n == null ? '–' : n === 0 
 const inOut = (price) => (price ? `${money(price.in)} in · ${money(price.out)} out` : 'no per-token price');
 const ms = (n) => (n == null ? '–' : n < 1000 ? `${Math.round(n)} ms` : `${(n / 1000).toFixed(1)} s`);
 const pct = (n) => (n == null ? '–' : `${(n * 100).toFixed(1)}%`);
+
+/**
+ * The refusal rate of an offer, with the day it was measured. The rate is a share of the published probe set
+ * (OpenVibe.AI measures it), and a number without its date would look current when it may be weeks old, so
+ * the day is part of the number. An offer nobody measured shows nothing at all: no rate, no dash.
+ */
+const refusalText = (o) => {
+    if (!o || o.refusal_rate == null) return null;
+    const date = o.refusal_measured_on ? ` (measured ${o.refusal_measured_on})` : '';
+    return `refuses ${pct(o.refusal_rate)}${date}`;
+};
 const count = (n) => (n == null ? '–' : Number(n).toLocaleString('en-US'));
 const blended = (price) => (price ? (Number(price.in) + Number(price.out)) / 2 : Number.POSITIVE_INFINITY);
 const cheapest = (m) => (m.offers || []).filter((o) => o.price).sort((a, b) => blended(a.price) - blended(b.price))[0] || null;
@@ -134,7 +145,8 @@ function modelRow(m, { withTry = true } = {}) {
     // A stat not measured yet is left out, never printed as a dash ("– · –" read as noise in a row).
     if (best) bits.push(providerLabel(best), inOut(best.price), ...(best.speed && best.speed.p50_ms != null ? [ms(best.speed.p50_ms)] : []), ...(best.uptime != null ? [`${pct(best.uptime)} up`] : []));
     else if (m.offers[0]) bits.push(providerLabel(m.offers[0]), 'free capacity');
-    if (best && best.refusal_rate != null) bits.push(`refuses ${pct(best.refusal_rate)}`);
+    const refuses = refusalText(best);
+    if (refuses) bits.push(refuses);
     const pv = privacyOf(best || m.offers[0]);
     if (pv) bits.push(pv.short);
     return `<li class="ex-mrow">
@@ -311,12 +323,13 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         const communityBadge = pools.length
             ? kit.badge(poolLabel((pools[0].pool && pools[0].pool.machines && pools[0].pool.machines.length) || 0), 'accent')
             : (o.trust === 'community' ? kit.badge('Community', 'accent') : '');
+        const refuses = refusalText(o);
         return {
             provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             uptime: o.uptime == null ? '–' : pct(o.uptime),
-            privacy: p ? `${kit.badge(p.label, p.kind)}${o.refusal_rate != null ? `<br><small>refuses ${pct(o.refusal_rate)}</small>` : ''}` : '–',
+            privacy: `${p ? kit.badge(p.label, p.kind) : ''}${refuses ? `<br><small>${esc(refuses)}</small>` : ''}` || '–',
             policy: policyText(o.data_policy),
             try: '<a class="ex-mini" href="#try">Try it</a>',
         };
@@ -454,6 +467,7 @@ ${keyPrivacy && keyPrivacy.note ? kit.notice({ kind: 'info', text: keyPrivacy.no
 </form>`);
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
+${panel({ title: 'Batches, at half price', body: `<p class="ex-prose">Half price. Answered within your deadline when spare low-cost capacity is free; if none comes free in time, the prompt expires and you pay nothing.</p>` })}
 ${panel({ title: 'One endpoint', body: `
 <p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions; <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API, so Claude Code works by pointing <code>ANTHROPIC_BASE_URL</code> at it.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"openvibe/auto","messages":[{"role":"user","content":"Hello"}]}'`, id: 'api-curl' })}
