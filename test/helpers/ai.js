@@ -71,6 +71,8 @@ function createFakeAi({ chat = null } = {}) {
         configured: true,
         async catalog() { return catalog; },
         async usage() { return usage; },
+        async ownStatus() { return { enabled: false, reason: 'The owner has not added a GPU provider key yet, so no endpoint can start.', models: [], idle_minutes: 10, public_base: 'https://ai.openvibe.services/api/v1/own-endpoints' }; },
+        async ownList() { return { endpoints: [] }; },
         async chat(args) {
             calls.push(args);
             if (chat) return chat(args);

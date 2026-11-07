@@ -639,6 +639,73 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         });
     });
 
+    // ── Your own endpoint ────────────────────────────────────
+    // The private GPU page. The status is public (so the reason it is off is visible before signing in);
+    // a person's own endpoints are read from AI with their own Network token, never with the service token.
+    async function renderOwn(req, res, { error = null } = {}) {
+        let status = null;
+        let problem = error;
+        try { status = await ai.ownStatus(); } catch (err) {
+            log.warn('[OpenVibe.Exchange] the endpoint status read failed:', (err && err.message) || err);
+            problem = problem || 'OpenVibe.AI is not reachable right now. Reload in a moment.';
+        }
+        let endpoints = [];
+        if (signedIn(req) && status && status.enabled) {
+            const token = req.token || (req.viewer && req.viewer.token);
+            try {
+                const out = await ai.ownList(token);
+                endpoints = (out && out.endpoints) || [];
+            } catch (err) {
+                log.warn('[OpenVibe.Exchange] the endpoints read failed:', (err && err.message) || err);
+                problem = problem || 'Your endpoints could not be read right now. Reload in a moment.';
+            }
+        }
+        return page(req, res, {
+            index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
+            title: 'Your own endpoint',
+            description: 'A private GPU for one model or your own weights: only you reach it, it scales to zero when idle, and your Balance pays for the seconds it runs.',
+            body: raw(views.ownPage({ status, endpoints, viewer: req.viewer, error: problem, signedIn: signedIn(req) })),
+        });
+    }
+
+    r.get('/own', async (req, res) => renderOwn(req, res));
+
+    r.post('/own', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fown');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const body = {};
+        if (req.body.model) body.model = String(req.body.model).slice(0, 80);
+        if (req.body.weights_repo || req.body.weights_file) {
+            body.weights = {
+                repo: String(req.body.weights_repo || '').trim(),
+                file: String(req.body.weights_file || '').trim(),
+                ...(req.body.lora_repo ? { lora_repo: String(req.body.lora_repo).trim() } : {}),
+                ...(req.body.lora_file ? { lora_file: String(req.body.lora_file).trim() } : {}),
+            };
+        }
+        if (req.body.idle_minutes) body.idle_minutes = Number(req.body.idle_minutes);
+        if (req.body.display_name) body.display_name = String(req.body.display_name).slice(0, 120);
+        const token = req.token || (req.viewer && req.viewer.token);
+        try {
+            await ai.ownCreate(token, body);
+            return res.redirect(303, '/own');
+        } catch (err) {
+            return renderOwn(req, res, { error: (err && err.message) || 'Your endpoint could not be started.' });
+        }
+    });
+
+    r.post('/own/:id/stop', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fown');
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const token = req.token || (req.viewer && req.viewer.token);
+        try {
+            await ai.ownStop(token, String(req.params.id));
+            return res.redirect(303, '/own');
+        } catch (err) {
+            return renderOwn(req, res, { error: (err && err.message) || 'Your endpoint could not be stopped.' });
+        }
+    });
+
     // ── Uncensored ───────────────────────────────────────────
     r.get('/uncensored', async (req, res) => {
         const catalog = await catalogOf();

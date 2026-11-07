@@ -218,7 +218,37 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return { on: Boolean(on), projects: targets.length - 1, projects_set: Math.max(0, written - 1), projects_failed: failed };
     }
 
-    return { catalog, usage, chat, presetsFor, setKeyPrivacy, ownedProjects, configured: Boolean(tokens) };
+    // ── your own endpoint (the Exchange remake, build order 7) ────────────────
+    // The public status is on AI's Exchange read API; everything per person is on AI's own endpoint API,
+    // called with the person's Network token (never the service token: an endpoint spends their Balance).
+    async function ownCall(method, p, { token = null, body = undefined } = {}) {
+        const headers = { Accept: 'application/json' };
+        if (token) headers.Authorization = `Bearer ${token}`;
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        let res;
+        try {
+            res = await fetchImpl(`${config.ai.url}${p}`, {
+                method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+                signal: AbortSignal.timeout(config.ai.timeoutMs),
+            });
+        } catch (err) {
+            throw Object.assign(new Error('OpenVibe.AI is unreachable right now'), { code: 'ai.unavailable', status: 503 });
+        }
+        const out = await jsonOf(res);
+        if (!res.ok) {
+            const err = new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`);
+            err.code = (out && out.code) || 'ai.failed';
+            err.status = res.status;
+            throw err;
+        }
+        return out || {};
+    }
+    async function ownStatus() { return ownCall('GET', '/api/v1/exchange/endpoints'); }
+    async function ownList(token) { return ownCall('GET', '/api/v1/own-endpoints', { token }); }
+    async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
+    async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
+
+    return { catalog, usage, chat, presetsFor, setKeyPrivacy, ownedProjects, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
 }
 
 /**

@@ -718,4 +718,75 @@ ${panel({ title: 'Where those things live now', body: `<ul class="ex-list">
 </div>`;
 }
 
-module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
+// ── Your own endpoint ──────────────────────────────────────
+/**
+ * The private GPU page. It shows what the endpoint is, the plain reason it is off when it is, and only
+ * then the form. The live prices and models come from AI's public status; a person's endpoints come from
+ * AI with their own Network token.
+ */
+function ownPage({ status = null, endpoints = [], viewer = null, error = null, signedIn = false }) {
+    const models = (status && status.models) || [];
+    const off = !status || status.enabled !== true;
+    const why = (status && (status.reason || (status.reasons || []).join(' '))) || 'The endpoint service is not reachable right now.';
+    const modelOptions = models.map((m) => `<option value="${esc(m.key)}">${esc(m.display_name)}${m.vram_mb ? ` · ${Math.round(m.vram_mb / 1024)} GB` : ''}</option>`).join('');
+    const statusWords = (e) => {
+        const s = String(e.status || '');
+        if (s === 'requested') return 'Starting: finding a GPU and taking the price for it.';
+        if (s === 'starting') return 'Starting: the GPU is being set up.';
+        if (s === 'running') return 'Running.';
+        if (s === 'stopping') return 'Stopping.';
+        if (s === 'stopped') return e.reason || 'Stopped.';
+        if (s === 'refused') return e.reason || 'It could not start.';
+        if (s === 'error') return e.reason || 'It stopped because the GPU did.';
+        return s;
+    };
+    const row = (e) => {
+        const perHour = e.price_per_hour == null ? 'the price is shown once a GPU is picked' : `$${Number(e.price_per_hour).toFixed(2)} an hour`;
+        const charged = e.charged_nano && e.charged_nano !== '0' ? `$${(Number(e.charged_nano) / 1e9).toFixed(4)}` : null;
+        const url = e.status === 'running' && e.url ? `<p class="ex-small ex-muted">Your endpoint: <code>${esc(e.url)}</code></p><p class="ex-small ex-muted">Only your own OpenVibe sign-in reaches it. The model id is <code>${esc(e.id)}</code>.</p>` : '';
+        const stop = ['requested', 'starting', 'running', 'stopping'].includes(e.status)
+            ? `<form method="post" action="/own/${encodeURIComponent(e.id)}/stop" class="ovk-form">${kit.button({ label: 'Stop', type: 'submit', kind: 'quiet' })}</form>` : '';
+        return `<article class="ex-seller"><div><b>${esc(e.display_name)}</b>
+<p>${esc(statusWords(e))} · ${esc(perHour)} · ${Number(e.idle_minutes)} idle minutes</p>${url}${charged ? `<p class="ex-small ex-muted">Paid from your Balance: ${esc(charged)}</p>` : ''}</div>${stop}</article>`;
+    };
+    const list = endpoints.length
+        ? endpoints.map(row).join('')
+        : kit.empty({ icon: 'spark', title: 'No endpoint yet', text: 'Pick a model below, or bring your own weights, and your private endpoint starts when a GPU is free.' });
+    return `<div class="ex-wrap ex-page">
+${kit.head({ title: 'Your own endpoint', sub: 'A private GPU for one model, or your own weights. It scales to zero when you stop using it.' })}
+${error ? kit.notice({ kind: 'warn', text: esc(error) }) : ''}
+${off ? `<div class="ex-card"><div class="ex-sec-body">${kit.notice({ kind: 'warn', text: esc(why) })}<p class="ex-prose">It turns on when the owner adds a GPU provider key and a monthly cap in the admin panel, and turns Balance billing on. Nothing is rented before then.</p></div></div>` : ''}
+${!off && !signedIn ? `${kit.notice({ kind: 'info', text: 'Sign in to start a private endpoint.' })}<p>${kit.button({ href: '/auth/login?next=%2Fown', label: 'Sign in' })}</p>` : ''}
+${!off ? `${panel({ title: 'Pick a model', id: 'model', body: models.length ? `<p class="ex-prose">The GPU is yours alone: only your own sign-in can call it, and it is never listed as an offer. The price is the cheapest GPU that fits, per hour; you pay your Balance for the seconds it runs.</p>
+<form method="post" action="/own" class="ovk-form">
+<label class="ex-label" for="own-model">Model</label>
+<select id="own-model" name="model">${modelOptions}</select>
+<label class="ex-label" for="own-idle">Stop after this many idle minutes</label>
+<input id="own-idle" name="idle_minutes" type="number" min="1" max="${Number(status.max_idle_minutes || 120)}" value="${Number(status.idle_minutes || 10)}">
+<p class="ex-small ex-muted">How long it stays up after your last request. Lower costs less; higher avoids a cold start.</p>
+${signedIn ? kit.button({ label: 'Start my endpoint', type: 'submit' }) : ''}
+</form>` : kit.empty({ icon: 'robot', title: 'No GPU model is listed', text: 'The owner has not made a model available for a private endpoint yet.' }) })}
+${panel({ title: 'Or bring your own weights', id: 'weights', body: `<p class="ex-prose">A Hugging Face <code>.gguf</code> file and, if you use one, a LoRA. Only files from huggingface.co: the command is built for you and shown to the owner before the first launch.</p>
+<form method="post" action="/own" class="ovk-form">
+<label class="ex-label" for="own-repo">Weights repository</label>
+<input id="own-repo" name="weights_repo" placeholder="user/model-GGUF" autocapitalize="off" spellcheck="false">
+<label class="ex-label" for="own-file">Weights file</label>
+<input id="own-file" name="weights_file" placeholder="model-Q4_K_M.gguf" autocapitalize="off" spellcheck="false">
+<label class="ex-label" for="own-lora-repo">LoRA repository (optional)</label>
+<input id="own-lora-repo" name="lora_repo" placeholder="user/my-lora-GGUF" autocapitalize="off" spellcheck="false">
+<label class="ex-label" for="own-lora-file">LoRA file (optional)</label>
+<input id="own-lora-file" name="lora_file" placeholder="adapter.gguf" autocapitalize="off" spellcheck="false">
+<label class="ex-label" for="own-name">Name (optional)</label>
+<input id="own-name" name="display_name" placeholder="My fine-tune">
+${signedIn ? kit.button({ label: 'Start with my weights', type: 'submit' }) : ''}
+</form>` })}
+${panel({ title: 'How it works', id: 'how', body: `<ul class="ex-list">
+<li><strong>Private.</strong> The GPU is never registered as an offer; only your own OpenVibe sign-in reaches it, through <code>${esc((status && status.public_base) || 'https://ai.openvibe.services/api/v1/own-endpoints')}/&lt;id&gt;/v1</code>.</li>
+<li><strong>Scale to zero.</strong> After your idle minutes it is given back, and the price stops with it.</li>
+<li><strong>Your Balance pays.</strong> Billing holds the worst case before the GPU is rented and charges only the seconds it ran. The owner's monthly GPU cap is checked first: at the cap, no new endpoint starts.</li>
+</ul>` })}
+${panel({ title: 'Your endpoints', id: 'mine', body: signedIn ? list : kit.empty({ icon: 'lock', title: 'Sign in to see your endpoints', text: 'They belong to your account.' }) })}` : ''}
+</div>`;
+}
+
+module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };

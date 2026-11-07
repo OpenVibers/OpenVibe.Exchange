@@ -20,6 +20,7 @@ const PUBLIC_PAGES = [
     { path: '/models', changefreq: 'daily', priority: 0.9, title: 'Models', text: 'Every model with every offer that serves it: price in and out per million tokens, speed, uptime and data policy.' },
     { path: '/api', changefreq: 'weekly', priority: 0.7, title: 'The API', text: 'One OpenAI- and Anthropic-compatible endpoint, model ids, keys from Network and aggregate usage.' },
     { path: '/sell', changefreq: 'weekly', priority: 0.6, title: 'Sell your compute', text: 'OpenVibe Node offers a GPU or a spare machine to the network for credits; what is not sold here, said plainly.' },
+    { path: '/own', changefreq: 'weekly', priority: 0.6, title: 'Your own endpoint', text: 'A private GPU for one model or your own Hugging Face weights; only you reach it, it scales to zero when idle, and your Balance pays for the seconds it runs.' },
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
     { path: '/rankings', changefreq: 'daily', priority: 0.8, title: 'Rankings', text: 'Model rankings by task category from blind Arena votes, beside each model’s price per million, measured speed and uptime.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
