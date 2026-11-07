@@ -38,6 +38,9 @@ async function start() {
         // Warm the Network signing key immediately: a service nobody has signed in to yet must not read degraded
         // only because the first JWKS fetch had not happened.
         ctx.keys.ensure().catch(() => {});
+        // IndexNow: the pages that moved here from ai.openvibe.services, once, on the deploy that serves them.
+        // pingSoon batches and never throws; with no key configured it does nothing.
+        if (ctx.indexnow && ctx.indexnow.enabled) ctx.indexnow.pingSoon(['/start', '/why', '/faq', '/sitemap.xml', '/llms.txt']);
     });
     server.keepAliveTimeout = 65_000;
     ctx.retention = startTelemetryRetention({ db: ctx.s.db, log: ctx.log || console, olderThanDays: 14 });

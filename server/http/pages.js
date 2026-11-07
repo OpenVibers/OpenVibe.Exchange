@@ -630,6 +630,60 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         });
     });
 
+    // ── Start building, why this model, and the questions ────
+    // Moved from ai.openvibe.services when its public pages merged here. The API stays on that address; these
+    // routes carry its guide, its routing explainer and its FAQ onto Exchange's own shell.
+    r.get('/start', async (req, res) => {
+        const catalog = await catalogOf();
+        return page(req, res, {
+            index: true, cache: PUBLIC_CACHE, agentLayer: true,
+            title: 'Start building',
+            description: 'Start with one key and one OpenAI- and Anthropic-compatible endpoint; every answer says which model ran and why.',
+            body: raw(views.startPage({ catalog })),
+        });
+    });
+
+    r.get('/why', async (req, res) => {
+        const catalog = await catalogOf();
+        return page(req, res, {
+            index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
+            title: 'Why this model',
+            description: 'Why the router chose the model that answered: the objective, the candidates, their estimated cost and latency, and the reason each was passed over.',
+            body: raw(views.whyPage({ catalog, viewer: req.viewer })),
+        });
+    });
+
+    r.post('/why', async (req, res) => {
+        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to ask one question', text: 'The demo is one real run on your own allowance.', next: '/why' });
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const text = String((req.body && req.body.text) || '').slice(0, Math.min(2000, config.chat.maxChars));
+        const catalog = await catalogOf();
+        if (!text.trim()) {
+            return page(req, res, { index: false, title: 'Why this model', body: raw(views.whyPage({ catalog, viewer: req.viewer, problem: 'Write something to send.', text })) }, 422);
+        }
+        try {
+            const result = await ai.chat({ model: 'openvibe/auto', messages: [{ role: 'user', content: text }], subject: owner(req), maxTokens: 512 });
+            return page(req, res, {
+                index: false, title: 'Why this model',
+                description: 'One real run, with the router’s own explanation of the offer it chose.',
+                body: raw(views.whyPage({ catalog, viewer: req.viewer, result, text })),
+            });
+        } catch (err) {
+            return page(req, res, {
+                index: false, title: 'Why this model',
+                body: raw(views.whyPage({ catalog, viewer: req.viewer, problem: err.message || 'The model did not answer.', text })),
+            }, err.status === 429 ? 429 : 502);
+        }
+    });
+
+    r.get('/faq', (req, res) => page(req, res, {
+        index: true, cache: PUBLIC_CACHE, agentLayer: true,
+        title: 'Questions',
+        description: 'The questions developers and people ask about OpenVibe.Exchange: the endpoint, SDKs, keys, prices, privacy, the uncensored tier and the move from ai.openvibe.services.',
+        jsonLd: [seo.jsonLd.faq(views.FAQ.map((p) => ({ q: p.q, a: p.a })))],
+        body: raw(views.faqPage()),
+    }));
+
     // ── Sell ─────────────────────────────────────────────────
     // The person's machines and pools come from Network with their own token (never a service token); the live
     // community offers come from AI's public read. Exchange measures nothing and keeps no pool of its own.

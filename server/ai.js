@@ -173,6 +173,9 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             privacy: privacy ? privacy.label || null : null,
             privacy_detail: privacy,
             preset: explain && explain.preset && explain.preset.name ? String(explain.preset.name) : null,
+            // The router's whole explanation, as AI recorded it on the run (objective, selected, reasons, every
+            // candidate with its cost, latency and excluded reason). /why draws it; nothing else re-derives it.
+            explain: explain && typeof explain === 'object' ? explain : null,
         };
     }
 

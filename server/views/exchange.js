@@ -183,9 +183,9 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 <div class="ex-hero-copy">
 <p class="ex-kicker">OpenVibe.Exchange</p>
 <h1>Every AI model, one account.</h1>
-<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side.</p>
+<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side. Every answer says which model ran and why it was chosen.</p>
 ${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
-<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/arena', label: 'Enter the Arena', kind: 'ghost' })}</p>
+<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/start', label: 'Start building', kind: 'quiet' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/arena', label: 'Enter the Arena', kind: 'ghost' })}</p>
 </div>
 ${preview.length === 2 ? previewCard(preview) : ''}
 </section>
@@ -200,6 +200,8 @@ ${models.length ? `<p class="ex-more"><a href="/models">All ${models.length} mod
 ${lineCard({ href: '/arena', name: 'The Arena', text: 'One prompt, two unnamed models, one vote: then both names and their receipts.', mark: mark('DeepSeek') })}
 ${lineCard({ href: '/rankings', name: 'Rankings by task', text: 'What people prefer for code, writing, chat and reasoning, beside the price, speed and uptime. Worth it, measured.', mark: mark('Qwen') })}
 ${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', mark: mark('Llama') })}
+${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries its receipt: the objective, the candidates, their cost and latency, and why the others did not answer.', mark: mark('DeepSeek') })}
+${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', mark: mark('Qwen') })}
 ${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Node, labelled on every answer.', mark: mark('Qwen') })}
 ${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', mark: mark('GLM') })}
 </div>
@@ -207,7 +209,7 @@ ${panel({
         title: 'Use it from code', note: 'One endpoint, compatible with OpenAI and with Anthropic.', id: 'code', body: `
 <p class="ex-prose">Point an OpenAI client at <code>https://api.openvibe.exchange/v1</code>, or Claude Code at its <code>/v1/messages</code>. Model ids are <code>deepseek/deepseek-chat</code>, or <code>openvibe/auto</code> to let the router pick by your floor, ceiling and policy.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"deepseek/deepseek-chat","messages":[{"role":"user","content":"Hello"}]}'`, id: 'home-curl' })}
-<p class="ex-more"><a href="/api">Keys, usage and the full reference →</a></p>`,
+<p class="ex-more"><a href="/start">Start building in four steps →</a> · <a href="/api">Keys, usage and the full reference →</a></p>`,
     })}
 ${panel({
         title: 'AI in OpenVibe', note: 'Which products run which models, and what each costs a day.', id: 'products',
@@ -472,8 +474,8 @@ ${panel({ title: 'One endpoint', body: `
 <p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions; <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API, so Claude Code works by pointing <code>ANTHROPIC_BASE_URL</code> at it.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"openvibe/auto","messages":[{"role":"user","content":"Hello"}]}'`, id: 'api-curl' })}
 <h3 class="ex-h3">Keys</h3>
-<p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here.</p>
-<p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })}</p>
+<p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here. Your own provider keys (OpenAI, Anthropic and the rest) are different: they stay sealed on <a href="https://ai.openvibe.services/you">OpenVibe.AI’s own provider-keys page</a>, which needs your sign-in, and are never copied here.</p>
+<p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })} ${kit.button({ href: 'https://ai.openvibe.services/you', label: 'Your own provider keys', kind: 'quiet' })}</p>
 <h3 class="ex-h3" id="strict">Strict privacy</h3>
 ${switchBox}
 <h3 class="ex-h3">Model ids</h3>
@@ -972,4 +974,184 @@ ${panel({ title: 'Your endpoints', id: 'mine', body: signedIn ? list : kit.empty
 </div>`;
 }
 
-module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
+// ── Start building, why this model, and the questions (moved from ai.openvibe.services) ──
+/**
+ * The AI site's start-building guide, on Exchange: one endpoint and a key, the SDKs people already use, the
+ * four steps, and the OpenVibe.AI developer-app path that stays on ai.openvibe.services for the six operations.
+ * Every URL and limit here is one the products serve; nothing is invented.
+ */
+function startPage({ catalog = null } = {}) {
+    const models = chatModels(catalog || {});
+    const python = [
+        '# pip install openai',
+        'import os',
+        'from openai import OpenAI',
+        '',
+        "client = OpenAI(base_url='https://api.openvibe.exchange/v1',",
+        "                api_key=os.environ['OPENVIBE_KEY'])",
+        'reply = client.chat.completions.create(',
+        "    model='openvibe/auto',          # the router picks; reply.model names the one that ran",
+        "    messages=[{'role': 'user', 'content': 'Name three uses for a paperclip.'}],",
+        ')',
+        'print(reply.model, reply.choices[0].message.content)',
+    ].join('\n');
+    const node = [
+        '// npm i openai',
+        "import OpenAI from 'openai';",
+        '',
+        "const client = new OpenAI({ baseURL: 'https://api.openvibe.exchange/v1', apiKey: process.env.OPENVIBE_KEY });",
+        'const stream = await client.chat.completions.create({',
+        "    model: 'openvibe/auto', stream: true,",
+        "    messages: [{ role: 'user', content: 'Name three uses for a paperclip.' }],",
+        '});',
+        "for await (const chunk of stream) process.stdout.write(chunk.choices[0]?.delta?.content ?? '');",
+    ].join('\n');
+    const anthropic = [
+        'export ANTHROPIC_BASE_URL=https://api.openvibe.exchange',
+        'export ANTHROPIC_AUTH_TOKEN=$OPENVIBE_KEY',
+        '# Claude Code, or any Anthropic client, now speaks to /v1/messages',
+    ].join('\n');
+    const token = [
+        'TOKEN=$(curl -s -X POST https://openvibe.network/oauth/token \\',
+        '  -d grant_type=client_credentials -d client_id=$APP -d client_secret=$SECRET \\',
+        '  -d audience=openvibe.ai | jq -r .access_token)',
+        '# a five-minute token for an app (app_<ULID>), scoped to its project',
+    ].join('\n');
+    const chat = [
+        'curl -s -X POST https://ai.openvibe.services/api/v1/chat \\',
+        '  -H "Authorization: Bearer $TOKEN" -H \'Content-Type: application/json\' \\',
+        '  -d \'{ "messages": [ { "role": "user", "content": "Name three uses for a paperclip." } ] }\'',
+        '# → { "run": { "id": "run_…", "status": "succeeded", "output": …, "provenance": …, "explain": … } }',
+    ].join('\n');
+    return `<div class="ex-wrap ex-page">
+${kit.head({ title: 'Start building', sub: 'One endpoint, a key, and every answer says which model ran and why.', actions: [kit.button({ href: '/api', label: 'Keys and the API', kind: 'quiet' })] })}
+${panel({ title: 'The endpoint', id: 'endpoint', body: `<p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions, and <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API. Point an OpenAI client at <code>https://api.openvibe.exchange/v1</code>; the model's page has its own curl and SDK sample.</p>
+${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"openvibe/auto","messages":[{"role":"user","content":"Hello"}]}'`, id: 'start-curl' })}
+<p class="ex-prose">A key is an OpenVibe.Network developer key: make one, name its scope, revoke it any time. It is shown once and never stored here.</p>
+<p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })} ${kit.button({ href: '/own', label: 'Your own endpoint', kind: 'quiet' })}</p>` })}
+${panel({ title: 'Four steps', id: 'steps', body: `<ol class="ex-list">
+<li><strong>Make a key</strong> at <a href="https://openvibe.network/developers">openvibe.network/developers</a>. It is a developer key for your project, and it is shown once.</li>
+<li><strong>Point a client at the endpoint</strong>: <code>https://api.openvibe.exchange/v1</code> for OpenAI, or <code>https://api.openvibe.exchange</code> for Anthropic's <code>/v1/messages</code>.</li>
+<li><strong>Send one request</strong> with <code>model: "openvibe/auto"</code>, or an exact model id from <a href="/models">Models</a> to pin one artifact.</li>
+<li><strong>Read the receipt</strong>: every answer names the model that ran, its tokens, its exact cost, and why the router chose it. <a href="/why">Why this model</a> shows how to read it; a run's own page is <code>https://ai.openvibe.services/runs/&lt;id&gt;</code> after you sign in with OpenVibe.</li>
+</ol>` })}
+${panel({ title: 'Use the OpenAI SDK you already have', id: 'sdk', body: `<p class="ex-prose">The same request in Python, in Node with streaming, or from an Anthropic client. The answer's <code>model</code> names the model that ran.</p>
+${kit.snippet({ code: python, id: 'start-python' })}
+${kit.snippet({ code: node, id: 'start-node' })}
+${kit.snippet({ code: anthropic, id: 'start-anthropic' })}` })}
+${panel({ title: 'The six operations, for OpenVibe.AI apps', id: 'ai-apps', body: `<p class="ex-prose">OpenVibe.AI's own operations stay at <code>https://ai.openvibe.services</code> for developer apps: chat, generate, summarize, classify, extract and embed, with JSON output on a schema. They authenticate with an app token from OpenVibe.Network for the audience <code>openvibe.ai</code>.</p>
+${kit.snippet({ code: token, id: 'start-token' })}
+${kit.snippet({ code: chat, id: 'start-chat' })}
+<p class="ex-prose">The same router answers both: Exchange's endpoint and AI's six operations use one catalog, one set of offers and one explanation. <a href="https://openvibe.services/projects">Create a project and an app</a> · <a href="https://openvibe.services/docs/api">API reference</a> · <a href="https://github.com/OpenVibers/OpenVibe.AI#developer-apps">Developer guide</a>.</p>` })}
+${panel({ title: 'Sandbox and production', id: 'sandbox', body: `<p class="ex-prose">OpenVibe.AI developer apps run in one of two environments; the token says which one an app is in.</p>
+${kit.table({ columns: [{ key: 'limit', label: 'Limit', primary: true }, { key: 'sandbox', label: 'Sandbox' }, { key: 'production', label: 'Production' }], rows: [
+        { limit: 'Access to ai.app.run', sandbox: 'Every sandbox app, without asking', production: 'Once OpenVibe staff add it to the project' },
+        { limit: 'Models', sandbox: 'Free and local capacity only', production: 'Free and local capacity; metered models open with project budgets' },
+        { limit: 'Your project’s own provider', sandbox: 'On /v1/chat/completions, keyed by a project secret granted to ai', production: 'The same' },
+        { limit: 'Free allowance', sandbox: 'Per project, per provider', production: 'Per project, per provider' },
+        { limit: 'Who can read a run', sandbox: 'The project that made it', production: 'The project that made it' },
+        { limit: 'A person’s own provider key', sandbox: 'Never used', production: 'Never used' },
+    ], label: 'Sandbox and production', stack: true })}` })}
+${panel({ title: 'Keys, endpoints and questions', id: 'more', body: `<p class="ex-prose">Part of <a href="https://openvibe.services/">OpenVibe Services</a>: the building blocks every OpenVibe product runs on, with one console, one account and one SDK.${models.length ? ` ${models.length} model${models.length === 1 ? '' : 's'} are on sale here right now.` : ''}</p>
+<p>${kit.button({ href: '/api', label: 'Keys and the API' })} ${kit.button({ href: '/own', label: 'Your own endpoint', kind: 'quiet' })} ${kit.button({ href: 'https://ai.openvibe.services/you', label: 'Your own provider keys', kind: 'quiet' })} ${kit.button({ href: '/faq', label: 'Questions', kind: 'quiet' })}</p>` })}
+</div>`;
+}
+
+const EXPLAIN_WHY = [
+    'The router starts from the offers that can do the job and are healthy right now.',
+    'It ranks them by the objective you asked for: cheapest, fastest, balanced, or private.',
+    'Your floor, price ceiling and privacy policy remove the offers that do not fit; a hard cap refuses instead of spending over it.',
+    'A provider that is down, out of balance or too slow is skipped and written down; a fallback that answers is named on the run.',
+];
+
+/** One run's full explain, as AI recorded it: objective, reasons, the answer, and every candidate with its reason. */
+function explainPanel(result) {
+    const x = (result && result.explain) || {};
+    const candidates = Array.isArray(x.candidates) ? x.candidates : [];
+    const reasons = Array.isArray(x.reasons) ? x.reasons : [];
+    const selected = x.selected || (result && result.provider ? `${result.provider}${result.model ? `/${result.model}` : ''}` : null);
+    const rows = candidates.map((c) => ({
+        offer: `<code>${esc(c.provider || '—')}${c.model ? `/${esc(c.model)}` : ''}</code>`,
+        eligible: c.eligible === false ? kit.badge('not used', 'bad') : kit.badge('candidate', 'ok'),
+        cost: c.cost == null ? '—' : `$${Number(c.cost) < 0.01 ? Number(c.cost).toFixed(6) : Number(c.cost).toFixed(4)}`,
+        latency: c.latency == null ? '—' : ms(c.latency),
+        why: c.eligible === false ? esc(c.excluded_reason || 'excluded by the route') : '—',
+    }));
+    return `<article class="ex-why-answer">
+<header class="ex-answer-head"><b>${esc(result.model || selected || 'The answer')}</b><span class="ex-answer-cost">${result.cost_usd == null ? '—' : Number(result.cost_usd) === 0 ? 'free' : `$${Number(result.cost_usd).toFixed(6)}`}${result.latency_ms == null ? '' : ` · ${ms(result.latency_ms)}`}</span></header>
+${result.content ? `<div class="ex-answer-body"><p class="ex-answer-text">${esc(result.content)}</p></div>` : ''}
+<dl class="ex-why-facts">
+<dt>Chosen</dt><dd>${esc(selected || '—')}${result.provider ? ` · ${esc(providerLabel({ provider: result.provider, provider_name: result.provider }))}` : ''}</dd>
+<dt>Objective</dt><dd>${esc(x.objective || 'balanced')}</dd>
+<dt>Tokens</dt><dd>${count(result.tokens_in)} in · ${count(result.tokens_out)} out</dd>
+<dt>Privacy</dt><dd>${esc(result.privacy || '—')}</dd>
+</dl>
+${reasons.length ? `<h3 class="ex-h3">Why</h3><ul class="ex-list">${reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+${rows.length ? `<h3 class="ex-h3">Every candidate</h3>${kit.table({ columns: [{ key: 'offer', label: 'Offer', primary: true, html: true }, { key: 'eligible', label: 'State', html: true }, { key: 'cost', label: 'Estimated cost' }, { key: 'latency', label: 'Estimated latency' }, { key: 'why', label: 'Why not', html: true }], rows, label: 'Every candidate the router considered', stack: true })}` : ''}
+<p class="ex-small ex-muted">${result.run_id ? `Run <code>${esc(result.run_id)}</code> · ` : ''}The full receipt is on OpenVibe.AI after you sign in with OpenVibe: <a href="https://ai.openvibe.services/runs/${esc(result.run_id || '')}">ai.openvibe.services/runs/${esc(result.run_id || '<id>')}</a>.</p>
+</article>`;
+}
+
+/**
+ * /why: the "why this model" explainer. Signed out, it explains the rule and shows the live offers. A signed-in
+ * person can ask one question; the answer is a real AI run, and the page prints the run's own explain. It never
+ * invents a reason: every line is from the run or from the catalog.
+ */
+function whyPage({ catalog = null, viewer = null, result = null, problem = null, text = '' }) {
+    const signedIn = viewer && viewer.kind === 'user' && viewer.subject;
+    const offers = (catalog && catalog.models ? chatModels(catalog) : []).flatMap((m) => (m.offers || []).map((o) => ({ m, o })));
+    const sample = offers.filter((x) => x.o.price).sort((a, b) => blended(a.o.price) - blended(b.o.price)).slice(0, 6);
+    const sampleRows = sample.map(({ m, o }) => ({
+        model: `<a href="${hrefOf(m)}">${esc(m.name)}</a>`,
+        offer: esc(providerLabel(o)),
+        price: `${money(o.price.in)} in / ${money(o.price.out)} out`,
+        speed: `${ms(o.speed.p50_ms)} p50 · ${ms(o.speed.p95_ms)} p95`,
+        uptime: o.uptime == null ? '—' : pct(o.uptime),
+    }));
+    const form = signedIn
+        ? `<form method="post" action="/why" class="ovk-form ex-why-form">
+<label class="ex-label" for="why-text">One question</label>
+<textarea id="why-text" name="text" rows="3" maxlength="2000" placeholder="Ask anything…">${esc(text)}</textarea>
+<p class="ex-small ex-muted">One run on your free allowance, or your Balance when it is spent. The router chooses the offer; the page shows its receipt.</p>
+${kit.button({ label: 'Ask and see why', type: 'submit' })}</form>`
+        : `<div class="ex-why-gate">${kit.empty({ icon: 'key', title: 'Sign in to ask one question', text: 'The demo is one real run on your own allowance. Signed out, the rule and the live offers are below.', action: { href: '/auth/login?next=%2Fwhy', label: 'Sign in with OpenVibe' } })}</div>`;
+    return `<div class="ex-wrap ex-page">
+${kit.head({ title: 'Why this model', sub: 'Every answer carries its receipt: what the router optimised, who answered, and why the others did not.', actions: [kit.button({ href: '/models', label: 'Models', kind: 'quiet' })] })}
+${panel({ title: 'The rule', id: 'rule', body: `<ol class="ex-list">${EXPLAIN_WHY.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+<p class="ex-prose">It is the same router behind every Chat answer, every model page and every call to the endpoint; the receipt on a run is the router's own explanation, not a copy written for the page.</p>` })}
+${problem ? kit.notice({ kind: 'warn', text: esc(problem) }) : ''}
+${result ? explainPanel(result) : ''}
+${panel({ title: result ? 'Ask another' : 'Try it', id: 'try', body: form })}
+${panel({ title: 'The live offers it is choosing between', id: 'offers', note: 'The cheapest priced offers in the catalog right now, with their measured speed and uptime.', body: sampleRows.length ? kit.table({ columns: [{ key: 'model', label: 'Model', primary: true, html: true }, { key: 'offer', label: 'Offer' }, { key: 'price', label: 'In / out per M' }, { key: 'speed', label: 'Speed' }, { key: 'uptime', label: 'Uptime' }], rows: sampleRows, label: 'Live offers', stack: true }) : kit.empty({ icon: 'spark', title: 'No priced offer right now', text: 'When an offer is live, it appears here with its price, speed and uptime.' }) })}
+${panel({ title: 'Read it in the API', id: 'api', body: `<p class="ex-prose">Every run response carries <code>explain</code>: the objective, the selected offer, the reasons, and every candidate with its estimated cost, latency and excluded reason. <code>GET /api/v1/runs/:id</code> on OpenVibe.AI returns the same object for a run you own.</p>
+${kit.snippet({ code: `curl -s https://ai.openvibe.services/api/v1/runs/$RUN \\\n  -H "Authorization: Bearer $TOKEN" | jq .run.explain`, id: 'why-curl' })}
+<p class="ex-more">Keys and the endpoint: <a href="/api">the API</a> · Start building: <a href="/start">four steps</a>.</p>` })}
+</div>`;
+}
+
+// The questions developers ask, merged: OpenVibe.AI's own six (word for word where the fact is unchanged) and the
+// questions this Exchange gets. Every answer is a fact the code keeps; a change here changes the FAQPage JSON-LD too.
+const FAQ = [
+    { q: 'What is OpenVibe.Exchange for?', a: 'Every AI model, one account: the live price, speed and uptime of every offer, chat with one model or three side by side, and one OpenAI- and Anthropic-compatible endpoint. The public pages of OpenVibe.AI live here now; its API stays at ai.openvibe.services.' },
+    { q: 'Can I use the OpenAI SDK?', a: 'Yes. Set the client’s base URL to https://api.openvibe.exchange/v1 and pass your OpenVibe.Network developer key as the API key. Chat Completions with tools and streaming work, and each answer names the model that ran.' },
+    { q: 'Can I use Claude Code or Anthropic’s SDK?', a: 'Yes. Point ANTHROPIC_BASE_URL at https://api.openvibe.exchange and use the same key as ANTHROPIC_AUTH_TOKEN; the host speaks Anthropic’s Messages API at /v1/messages.' },
+    { q: 'Which models can my app use?', a: 'Every model on the Models page. openvibe/auto lets the router pick by your floor, ceiling and policy; an exact id pins one artifact; a preset name such as @preset/private fixes the rule. Every answer says which offer ran and why.' },
+    { q: 'How is AI paid for?', a: 'Each offer’s own price per million tokens, and every answer carries the exact cost of that run. A small free daily allowance comes with every account. Bring your own provider key and those requests pay the provider directly, at no fee from us; paid use, when the owner turns money on, is at cost plus a margin and shown before the request.' },
+    { q: 'Does it keep my prompts?', a: 'That depends on the offer. Each offer shows the provider’s data policy (training, retention, region) and a privacy label. Turn on strict privacy and only an offer that keeps nothing and trains on nothing may answer; when none can, the router refuses instead of falling back to one that keeps or trains on the prompt.' },
+    { q: 'Who can read a run?', a: 'Only the account that made it. A run’s receipt is on OpenVibe.AI at /runs/<id> after an OpenVibe sign-in, and only the person the run was made for can read it. Exchange keeps a chat and the 18+ confirmation; it does not store prompts or answers for the public pages.' },
+    { q: 'Where are my keys?', a: 'Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time at openvibe.network/developers. They are shown once and never stored here.' },
+    { q: 'Can I sell compute?', a: 'Yes, through OpenVibe.Node: offer a GPU or a spare machine to the network for credits. Machines and pools are what is sold; personal subscription plans and personal API keys are not. Every offer is labelled on the answer.' },
+    { q: 'What is the uncensored tier?', a: 'Abliterated models for adults. The 18+ confirmation sits on your account, and the same floor applies to every request on the tier: no minors, no non-consensual content, no help with mass harm. A breach ends the account.' },
+    { q: 'Is ai.openvibe.services still a site of its own?', a: 'No. Its public pages redirect here, and its page list, price page and update log are gone from that address. The API stays there unchanged for OpenVibe’s services and developer apps, and AI’s own run pages and operator console stay for the people who need their session.' },
+    { q: 'Where did AI’s prices and latency page go?', a: 'The live numbers are on Models and each model’s page: price in, out and cached per million tokens, measured p50 and p95 speed, uptime and the free allowance. The status page keeps the per-offer uptime and the model changelog.' },
+];
+
+function faqPage() {
+    return `<div class="ex-wrap ex-page">
+${kit.head({ title: 'Questions', sub: 'The answers developers and people ask, with where the fact lives.', actions: [kit.button({ href: '/start', label: 'Start building', kind: 'quiet' })] })}
+${panel({ title: 'Questions developers ask', id: 'faq', body: `<div class="ex-faq">${FAQ.map((p) => kit.fold({ title: p.q, body: `<p class="ex-prose">${esc(p.a)}</p>` })).join('')}</div>` })}
+${panel({ title: 'Still building', id: 'next', body: `<p>${kit.button({ href: '/start', label: 'Start building' })} ${kit.button({ href: '/api', label: 'Keys and the API', kind: 'quiet' })} ${kit.button({ href: 'https://openvibe.help/tickets/new', label: 'Get help', kind: 'quiet' })}</p>` })}
+</div>`;
+}
+
+module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, startPage, whyPage, faqPage, FAQ, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };

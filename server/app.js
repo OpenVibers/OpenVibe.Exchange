@@ -67,6 +67,11 @@ async function createApp(opts = {}) {
     const log = opts.log || console;
     const fetchImpl = opts.fetchImpl || globalThis.fetch;
     const s = opts.store || await openStore(config, { now: opts.now, log });
+    // IndexNow (openvibe-shared/indexnow): created once from INDEXNOW_KEY; unset → off, nothing mounted,
+    // nothing sent. The new pages ping it after a deploy (server/index.js), and the key file is served here.
+    const indexnow = opts.indexnow !== undefined ? opts.indexnow : require('openvibe-shared/indexnow').createIndexNow({
+        host: config.baseUrl, key: config.indexnow.key, ...(opts.fetchImpl ? { fetch: fetchImpl } : {}), log,
+    });
 
     // The sharing system's own DDL (openvibe-sdk/share). The migration role creates it in production; the runtime
 
@@ -109,7 +114,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, network, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, log };
+    const ctx = { config, s, keys, sso, principal, ai, network, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -151,6 +156,8 @@ async function createApp(opts = {}) {
 
     // ── Machine endpoints ───────────────────────────────────
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-exchange', name: 'OpenVibe.Exchange', version: VERSION }));
+    // IndexNow's key file (/<key>.txt), when a key is configured.
+    if (indexnow.enabled) app.use(indexnow.keyFile);
     release.mount(app, { registry: metrics.registry });
     const readiness = createServiceReadiness({ s, config, release: release.release, valkey, sso });
     app.get('/api/ready', readiness.handler);

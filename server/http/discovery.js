@@ -17,8 +17,11 @@ const DISALLOW = ['/auth/', '/api/', '/internal', '/metrics', '/chat', '/listing
 
 const PUBLIC_PAGES = [
     { path: '/', changefreq: 'daily', priority: 1.0, title: 'OpenVibe.Exchange home', text: 'Every AI model, one account: live prices, speed and uptime, chat, and one endpoint.' },
-    { path: '/models', changefreq: 'daily', priority: 0.9, title: 'Models', text: 'Every model with every offer that serves it: price in and out per million tokens, speed, uptime and data policy.' },
+    { path: '/models', changefreq: 'daily', priority: 0.9, title: 'Models', text: 'Every model with every offer that serves it: price in, out and cached per million tokens, measured p50 and p95 speed, uptime and data policy.' },
     { path: '/api', changefreq: 'weekly', priority: 0.7, title: 'The API', text: 'One OpenAI- and Anthropic-compatible endpoint, model ids, keys from Network and aggregate usage.' },
+    { path: '/start', changefreq: 'weekly', priority: 0.8, title: 'Start building', text: 'One key and one endpoint: the OpenAI and Anthropic SDK samples, four steps to a first answer, OpenVibe.AI’s six operations, and the sandbox and production limits.' },
+    { path: '/why', changefreq: 'weekly', priority: 0.7, title: 'Why this model', text: 'Every answer carries its receipt: what the router optimised, the offer that answered, every other candidate’s cost and latency, and why each was passed over.' },
+    { path: '/faq', changefreq: 'weekly', priority: 0.6, title: 'Questions', text: 'The endpoint, the SDKs, keys, prices, privacy, the uncensored tier, selling compute, and the move of OpenVibe.AI’s public pages here.' },
     { path: '/sell', changefreq: 'weekly', priority: 0.6, title: 'Sell your compute', text: 'OpenVibe Node offers a GPU or a spare machine to the network for credits; what is not sold here, said plainly.' },
     { path: '/own', changefreq: 'weekly', priority: 0.6, title: 'Your own endpoint', text: 'A private GPU for one model or your own Hugging Face weights; only you reach it, it scales to zero when idle, and your Balance pays for the seconds it runs.' },
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
@@ -103,9 +106,12 @@ function createDiscoveryRoutes(ctx) {
             sections: [
                 { title: 'Start here', links: [
                     { title: 'OpenVibe.Exchange', url: abs('/'), note: 'every model, one account' },
-                    { title: 'Models', url: abs('/models') },
+                    { title: 'Models', url: abs('/models'), note: 'prices and measured latency' },
                     { title: 'Rankings', url: abs('/rankings'), note: 'blind Arena votes by task, beside price and speed' },
                     { title: 'The API', url: abs('/api') },
+                    { title: 'Start building', url: abs('/start') },
+                    { title: 'Why this model', url: abs('/why') },
+                    { title: 'Questions', url: abs('/faq') },
                     { title: 'Sell your compute', url: abs('/sell') },
                     { title: 'Uncensored (18+)', url: abs('/uncensored') },
                     { title: 'AI in OpenVibe', url: abs('/ai') },
@@ -120,7 +126,7 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Sitemap', url: abs('/sitemap.xml') },
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                { title: 'OpenVibe.AI', url: 'https://ai.openvibe.services', note: 'the router and the run API every product uses' },
+                { title: 'OpenVibe.AI', url: 'https://ai.openvibe.services', note: 'the router, the six operations, a run’s receipt and the operator console; its public pages are here now' },
                 { title: 'OpenVibe.Node', url: 'https://node.openvibe.network', note: 'offer a machine to the network' },
             ],
         }));

@@ -132,6 +132,10 @@ function load(env = process.env) {
             models: Math.max(1, Math.min(3, int(env.EXCHANGE_CHAT_MODELS, 3))),
             maxChars: Math.max(200, int(env.EXCHANGE_CHAT_MAX_CHARS, 8000)),
         },
+
+        // IndexNow (openvibe-shared/indexnow): a key makes search engines recrawl a page that appeared or
+        // changed. Unset → off: nothing mounted, nothing sent.
+        indexnow: { key: String(env.INDEXNOW_KEY || '').trim() },
     };
 }
 

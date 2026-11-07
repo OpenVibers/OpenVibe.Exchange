@@ -43,6 +43,17 @@ function createAgentPages(ctx) {
             const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
             return page(p, { index: true, title: 'The API', description: 'One OpenAI- and Anthropic-compatible endpoint for every model.', body: raw(views.apiPage({ catalog, usage })) });
         }
+        if (p === '/start') {
+            const catalog = await ai.catalog();
+            return page(p, { index: true, title: 'Start building', description: 'One key and one OpenAI- and Anthropic-compatible endpoint; every answer says which model ran and why.', body: raw(views.startPage({ catalog })) });
+        }
+        if (p === '/why') {
+            const catalog = await ai.catalog();
+            return page(p, { index: true, title: 'Why this model', description: 'Why the router chose the model that answered: the objective, the candidates and the reason each was passed over.', body: raw(views.whyPage({ catalog, viewer: { kind: 'anonymous' } })) });
+        }
+        if (p === '/faq') {
+            return page(p, { index: true, title: 'Questions', description: 'The endpoint, the SDKs, keys, prices, privacy, the uncensored tier and the move from ai.openvibe.services.', body: raw(views.faqPage()) });
+        }
         if (p === '/sell') {
             const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
             return page(p, { index: true, title: 'Sell your compute', description: 'Turn a GPU or a spare machine into credits with OpenVibe Node.', body: raw(views.sellPage({ catalog, usage })) });
