@@ -63,7 +63,10 @@ function renderPage(o) {
     const nav = {
         service: 'exchange',
         apiBase: NETWORK_URL,
-        links: NAV.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
+        links: [
+            ...NAV.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
+            ...(viewer.role === 'owner' ? [{ label: 'AI console', href: '/console', icon: 'fa-sliders', active: active(pathNow, '/console') }] : []),
+        ],
         history: { type: 'page', title: o.title || SITE_NAME },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',

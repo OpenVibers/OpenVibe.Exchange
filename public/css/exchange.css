@@ -655,3 +655,20 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
     margin: 14px; display: grid; gap: 10px; min-width: 0;
 }
 #quote .ovk-form select, #model .ovk-form select { width: 100%; min-width: 0; min-height: 44px; }
+
+/* Owner-only AI operator console, rendered in Exchange's page shell and tokens. */
+.ex-console { min-width: 0; }
+.ex-console-head { max-width: 900px; margin: 0 auto 18px; }
+.ex-console-head h1 { margin: 4px 0 8px; }
+.ex-eyebrow { color: var(--text-muted, #7386a3); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.ex-console-nav { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1100px; margin: 0 auto 18px; }
+.ex-console-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border, #1f2d47); border-radius: 999px; color: var(--text-secondary, #96a7c2); text-decoration: none; }
+.ex-console-tab:hover, .ex-console-tab.is-active { color: var(--text, #f4f7fb); border-color: var(--accent, #758cff); }
+.ex-console-panel { max-width: 1100px; margin: 0 auto; min-width: 0; padding: 16px; border: 1px solid var(--border, #1f2d47); border-radius: 18px; background: var(--bg-secondary, #101828); }
+.ex-console-panel h2 { margin: 0 0 12px; }
+.ex-console-panel pre { max-width: 100%; max-height: 68vh; overflow: auto; white-space: pre; overflow-wrap: normal; padding: 14px; border-radius: 12px; background: var(--bg, #0b1220); color: var(--text-secondary, #c0cce0); font-size: .82rem; }
+.ex-console-error { max-width: 1100px; margin: 12px auto; padding: 12px; border: 1px solid var(--danger, #b8324a); border-radius: 12px; overflow-wrap: anywhere; }
+.ex-console-action { display: inline-flex; align-items: end; flex-wrap: wrap; gap: 8px; margin: 4px 8px 8px 0; }
+.ex-console-action label, .ex-console-quota label { display: grid; gap: 5px; min-width: 0; }
+.ex-console-action input, .ex-console-action select, .ex-console-quota input, .ex-console-quota select { min-width: 0; min-height: 44px; }
+.ex-console-quota { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 10px; margin: 8px 0 14px; }
