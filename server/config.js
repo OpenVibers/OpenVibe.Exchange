@@ -68,6 +68,7 @@ function load(env = process.env) {
             url: trim(env.OV_AI_URL || 'https://ai.openvibe.services'),
             audience: env.OV_AI_AUDIENCE || 'openvibe.ai',
             scope: env.OV_AI_SCOPE || 'ai.run.create',
+            consoleScope: env.OV_AI_CONSOLE_SCOPE || 'ai.usage.read ai.workflow.manage ai.provider.manage',
             timeoutMs: Math.max(2000, int(env.EXCHANGE_AI_TIMEOUT_MS, 30_000)),
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },

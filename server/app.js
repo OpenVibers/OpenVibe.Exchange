@@ -44,6 +44,7 @@ const { createLorebooks } = require('./companions/lorebook');
 const { createLocker } = require('./companions/locker');
 const { createNoteTaker } = require('./companions/taking-notes');
 const { createPageRoutes } = require('./http/pages');
+const { createConsoleRoutes } = require('./http/console');
 const { createArenaRoutes } = require('./http/arena');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
@@ -250,6 +251,7 @@ async function createApp(opts = {}) {
     // The Arena and the rankings: /arena, /arena/:id and /rankings.
     app.use(createArenaRoutes(ctx));
     app.use(createPageRoutes(ctx));
+    app.use(createConsoleRoutes(ctx));
 
     // eslint-disable-next-line no-unused-vars
     app.use((err, req, res, _next) => {

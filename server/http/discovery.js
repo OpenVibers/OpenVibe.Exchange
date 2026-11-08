@@ -126,7 +126,8 @@ function createDiscoveryRoutes(ctx) {
                 { title: 'Sitemap', url: abs('/sitemap.xml') },
                 { title: 'Full text for language models', url: abs('/llms-full.txt') },
                 { title: 'Release metadata (JSON)', url: abs('/release.json') },
-                { title: 'OpenVibe.AI', url: 'https://ai.openvibe.services', note: 'the router, the six operations, a run’s receipt and the operator console; its public pages are here now' },
+                { title: 'AI router API', url: 'https://ai.openvibe.services', note: 'the API and run receipts' },
+                { title: 'AI operator console', url: abs('/console'), note: 'owner-only controls for providers, models, routes, quotas, usage and runs' },
                 { title: 'OpenVibe Link', url: 'https://openvibe.link', note: 'offer a machine to the network' },
             ],
         }));

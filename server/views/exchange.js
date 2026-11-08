@@ -1150,7 +1150,7 @@ const FAQ = [
     { q: 'Where are my keys?', a: 'Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time at openvibe.network/developers. They are shown once and never stored here.' },
     { q: 'Can I sell compute?', a: 'Yes, through OpenVibe Link: offer a GPU or a spare machine to the network for credits. Machines and pools are what is sold; personal subscription plans and personal API keys are not. Every offer is labelled on the answer.' },
     { q: 'What is the uncensored tier?', a: 'Abliterated models for adults. The 18+ confirmation sits on your account, and the same floor applies to every request on the tier: no minors, no non-consensual content, no help with mass harm. A breach ends the account.' },
-    { q: 'Is ai.openvibe.services still a site of its own?', a: 'No. Its public pages redirect here, and its page list, price page and update log are gone from that address. The API stays there unchanged for OpenVibe’s services and developer apps, and AI’s own run pages and operator console stay for the people who need their session.' },
+    { q: 'Is ai.openvibe.services still a site of its own?', a: 'No. Its public pages redirect here, and its page list, price page, update log and operator console are on OpenVibe.Exchange. The API stays there for OpenVibe’s services and developer apps.' },
     { q: 'Where did AI’s prices and latency page go?', a: 'The live numbers are on Models and each model’s page: price in, out and cached per million tokens, measured p50 and p95 speed, uptime and the free allowance. The status page keeps the per-offer uptime and the model changelog.' },
 ];
 

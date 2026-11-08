@@ -30,6 +30,11 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
         audience: config.ai.audience, scope: config.ai.scope, fetch: fetchImpl,
     }) : null;
+    const adminTokens = config.oauth.clientSecret ? createServiceTokenClient({
+        tokenUrl: `${config.networkInternalUrl}/oauth/token`,
+        clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
+        audience: config.ai.audience, scope: config.ai.consoleScope, fetch: fetchImpl,
+    }) : null;
 
     const empty = (what) => ({ generated_at: new Date(now()).toISOString(), unavailable: true, count: 0, models: [], families: [], by_day: [], by_model: [], by_product: [], today: null, totals: null, what });
     let catalogHit = { at: 0, value: null };
@@ -50,6 +55,21 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         const body = await jsonOf(res);
         if (!res.ok || !body) throw new Error(`${what}: HTTP ${res.status}`);
         return body;
+    }
+
+    /** Owner console calls to AI's JSON admin API. No HTML is fetched or relayed. */
+    async function adminRequest(path, { method = 'GET', body = null, subject = null } = {}) {
+        if (!adminTokens) throw Object.assign(new Error('AI console service credentials are not configured'), { status: 503 });
+        const token = await adminTokens.getToken();
+        const res = await fetchImpl(`${config.ai.url}${path}`, {
+            method,
+            headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(subject ? { 'X-OV-Subject': String(subject) } : {}), ...(body == null ? {} : { 'Content-Type': 'application/json' }) },
+            ...(body == null ? {} : { body: JSON.stringify(body) }),
+            signal: AbortSignal.timeout(config.ai.timeoutMs),
+        });
+        const out = await jsonOf(res);
+        if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title || out.error)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
+        return out || {};
     }
 
     async function catalog() {
@@ -274,7 +294,8 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
     async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
 
-    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
+
+    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, configured: Boolean(tokens) };
 }
 
 /**
