@@ -672,3 +672,20 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-console-action label, .ex-console-quota label { display: grid; gap: 5px; min-width: 0; }
 .ex-console-action input, .ex-console-action select, .ex-console-quota input, .ex-console-quota select { min-width: 0; min-height: 44px; }
 .ex-console-quota { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 10px; margin: 8px 0 14px; }
+
+.ex-credentials { min-width: 0; }
+.ex-credentials-head, .ex-credential-section, .ex-credential-balance { max-width: 920px; margin: 0 auto 20px; min-width: 0; }
+.ex-credential-section, .ex-credential-balance { padding: 16px; border: 1px solid var(--border, #1f2d47); border-radius: 18px; background: var(--bg-secondary, #101828); }
+.ex-credential-section h2, .ex-credential-balance h2 { margin-top: 0; }
+.ex-credential-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.ex-credential-card { min-width: 0; padding: 14px; border: 1px solid var(--border, #1f2d47); border-radius: 14px; overflow-wrap: anywhere; }
+.ex-credential-card > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ex-credential-kind { color: var(--text-muted, #7386a3); font-size: .82rem; }
+.ex-credential-card dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 10px; margin: 12px 0; font-size: .88rem; }
+.ex-credential-card dt { color: var(--text-muted, #7386a3); }
+.ex-credential-card dd { margin: 0; overflow-wrap: anywhere; }
+.ex-credential-card form { display: inline-block; margin: 4px 8px 0 0; }
+.ex-credential-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.ex-credential-form label { display: grid; gap: 6px; min-width: 0; }
+.ex-credential-form input, .ex-credential-form select { width: 100%; min-width: 0; min-height: 44px; }
+.ex-credential-balance pre { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }

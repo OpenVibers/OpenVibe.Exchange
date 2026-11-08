@@ -475,8 +475,8 @@ ${panel({ title: 'One endpoint', body: `
 <p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions; <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API, so Claude Code works by pointing <code>ANTHROPIC_BASE_URL</code> at it.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"openvibe/auto","messages":[{"role":"user","content":"Hello"}]}'`, id: 'api-curl' })}
 <h3 class="ex-h3">Keys</h3>
-<p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here. Your own provider keys (OpenAI, Anthropic and the rest) are different: they stay sealed on <a href="https://ai.openvibe.services/you">OpenVibe.AI’s own provider-keys page</a>, which needs your sign-in, and are never copied here.</p>
-<p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })} ${kit.button({ href: 'https://ai.openvibe.services/you', label: 'Your own provider keys', kind: 'quiet' })}</p>
+<p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here. Manage your own provider API keys and browser session cookies on <a href="/privacy/keys">Your keys and accounts</a>; saved values stay sealed on OpenVibe.AI and are never shown again.</p>
+<p>${kit.button({ href: 'https://openvibe.network/developers', label: 'Make a key on Network' })} ${kit.button({ href: '/privacy/keys', label: 'Your keys and accounts', kind: 'quiet' })}</p>
 <h3 class="ex-h3" id="strict">Strict privacy</h3>
 ${switchBox}
 <h3 class="ex-h3">Model ids</h3>
@@ -1061,7 +1061,7 @@ ${kit.table({ columns: [{ key: 'limit', label: 'Limit', primary: true }, { key: 
         { limit: 'A person’s own provider key', sandbox: 'Never used', production: 'Never used' },
     ], label: 'Sandbox and production', stack: true })}` })}
 ${panel({ title: 'Keys, endpoints and questions', id: 'more', body: `<p class="ex-prose">Part of <a href="https://openvibe.services/">OpenVibe Services</a>: the building blocks every OpenVibe product runs on, with one console, one account and one SDK.${models.length ? ` ${models.length} model${models.length === 1 ? '' : 's'} are on sale here right now.` : ''}</p>
-<p>${kit.button({ href: '/api', label: 'Keys and the API' })} ${kit.button({ href: '/own', label: 'Your own endpoint', kind: 'quiet' })} ${kit.button({ href: 'https://ai.openvibe.services/you', label: 'Your own provider keys', kind: 'quiet' })} ${kit.button({ href: '/faq', label: 'Questions', kind: 'quiet' })}</p>` })}
+<p>${kit.button({ href: '/api', label: 'Keys and the API' })} ${kit.button({ href: '/own', label: 'Your own endpoint', kind: 'quiet' })} ${kit.button({ href: '/privacy/keys', label: 'Your keys and accounts', kind: 'quiet' })} ${kit.button({ href: '/faq', label: 'Questions', kind: 'quiet' })}</p>` })}
 </div>`;
 }
 
