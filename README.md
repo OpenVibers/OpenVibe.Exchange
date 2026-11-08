@@ -85,3 +85,9 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 - openvibe-shared: v4.150.0
 - openvibe-publishing: v1.5.0
 <!-- versions:end -->
+
+`/own` also previews GPU quotes without sign-in or a rental. Choose Cheapest, Fastest or
+Automatic for a rental; Most private and On my machine explain when a Link/OpenVibe machine
+is required. The preview uses AI's cached public GPU quote API and never takes a Balance hold.
+Provider keys, monthly caps, provisioning and the journal remain in AI; desktop/browser pools
+and their operator view remain in Run. The Exchange keeps no provider credentials.

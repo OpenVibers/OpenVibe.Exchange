@@ -649,3 +649,9 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-why-gate { margin: 8px 0; }
 .ex-faq { display: grid; gap: 10px; }
 .ex-faq .ovk-fold { margin: 0; }
+
+/* GPU quote and rental forms share the card's text inset, including the returned quote. */
+#quote .ovk-form, #quote [role="status"], #model .ovk-form, #weights .ovk-form {
+    margin: 14px; display: grid; gap: 10px; min-width: 0;
+}
+#quote .ovk-form select, #model .ovk-form select { width: 100%; min-width: 0; min-height: 44px; }

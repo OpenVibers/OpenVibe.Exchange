@@ -910,7 +910,7 @@ ${panel({ title: 'Where those things live now', body: `<ul class="ex-list">
  * then the form. The live prices and models come from AI's public status; a person's endpoints come from
  * AI with their own Network token.
  */
-function ownPage({ status = null, endpoints = [], viewer = null, error = null, signedIn = false }) {
+function ownPage({ status = null, endpoints = [], quote = null, viewer = null, error = null, signedIn = false }) {
     const models = (status && status.models) || [];
     const off = !status || status.enabled !== true;
     const why = (status && (status.reason || (status.reasons || []).join(' '))) || 'The endpoint service is not reachable right now.';
@@ -941,12 +941,19 @@ function ownPage({ status = null, endpoints = [], viewer = null, error = null, s
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Your own endpoint', sub: 'A private GPU for one model, or your own weights. It scales to zero when you stop using it.' })}
 ${error ? kit.notice({ kind: 'warn', text: esc(error) }) : ''}
+${panel({ title: 'Compare before renting', id: 'quote', body: `<p class="ex-prose">A quote does not start a GPU or charge your Balance. Prices and availability can change before launch.</p>
+<form method="get" action="/own/quote" class="ovk-form"><label for="quote-model">Model</label><select id="quote-model" name="model">${modelOptions}</select>
+<label for="quote-strategy">Placement</label><select id="quote-strategy" name="strategy"><option value="cheapest">Cheapest</option><option value="fastest">Fastest</option><option value="automatic">Automatic across marketplaces</option><option value="private">Most private</option><option value="own">On my machine</option></select>${kit.button({ label: 'Get a quote', type: 'submit' })}</form>
+${quote ? `<div role="status"><p>${quote.selected ? `${esc(quote.selected.marketplace)} · ${esc(quote.selected.gpu_name)} · ${esc(quote.selected.region)} · $${esc(quote.selected.price_per_hour)} per hour` : 'No eligible marketplace GPU.'}</p><p>${esc((quote.reasons || []).join(' · '))}</p><p>Quote only. Nothing was rented.</p></div>` : ''}
+<p class="ex-small">Most private and On my machine require your Link machine or OpenVibe capacity; a private endpoint on a third-party GPU does not meet those placement rules. <a href="https://openvibe.link">Connect your machine</a>.</p>` })}
+
 ${off ? `<div class="ex-card"><div class="ex-sec-body">${kit.notice({ kind: 'warn', text: esc(why) })}<p class="ex-prose">It turns on when the owner adds a GPU provider key and a monthly cap in the admin panel, and turns Balance billing on. Nothing is rented before then.</p></div></div>` : ''}
 ${!off && !signedIn ? `${kit.notice({ kind: 'info', text: 'Sign in to start a private endpoint.' })}<p>${kit.button({ href: '/auth/login?next=%2Fown', label: 'Sign in' })}</p>` : ''}
 ${!off ? `${panel({ title: 'Pick a model', id: 'model', body: models.length ? `<p class="ex-prose">The GPU is yours alone: only your own sign-in can call it, and it is never listed as an offer. The price is the cheapest GPU that fits, per hour; you pay your Balance for the seconds it runs.</p>
 <form method="post" action="/own" class="ovk-form">
 <label class="ex-label" for="own-model">Model</label>
 <select id="own-model" name="model">${modelOptions}</select>
+<label for="own-strategy">Placement</label><select id="own-strategy" name="strategy"><option value="cheapest">Cheapest</option><option value="automatic">Automatic across marketplaces</option><option value="fastest">Fastest</option></select>
 <label class="ex-label" for="own-idle">Stop after this many idle minutes</label>
 <input id="own-idle" name="idle_minutes" type="number" min="1" max="${Number(status.max_idle_minutes || 120)}" value="${Number(status.idle_minutes || 10)}">
 <p class="ex-small ex-muted">How long it stays up after your last request. Lower costs less; higher avoids a cold start.</p>
