@@ -40,7 +40,7 @@ const poolOffer = (models) => ({
             assert.strictEqual(r.status, 200, r.text);
             assert.ok(r.text.includes('Pool your machines'), 'the card is there');
             assert.ok(r.text.includes('Pooling needs two or more of your machines on the same network. Add one with'), 'the one line');
-            assert.ok(r.text.includes('https://node.openvibe.network'), 'the install link');
+            assert.ok(r.text.includes('https://openvibe.link'), 'the install link');
             assert.ok(!r.text.includes('1. Choose the machines'), 'no four steps with one machine');
         });
 

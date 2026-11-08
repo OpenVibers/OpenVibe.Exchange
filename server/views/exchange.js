@@ -202,7 +202,7 @@ ${lineCard({ href: '/rankings', name: 'Rankings by task', text: 'What people pre
 ${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', mark: mark('Llama') })}
 ${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries its receipt: the objective, the candidates, their cost and latency, and why the others did not answer.', mark: mark('DeepSeek') })}
 ${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', mark: mark('Qwen') })}
-${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Node, labelled on every answer.', mark: mark('Qwen') })}
+${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Link, labelled on every answer.', mark: mark('Qwen') })}
 ${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', mark: mark('GLM') })}
 ${lineCard({ href: '/own', name: 'Your own endpoint', text: 'A private GPU for one model or your own weights: only you reach it, and it scales to zero when idle.', mark: mark('Llama') })}
 </div>
@@ -617,7 +617,7 @@ ${kit.button({ label: 'Stop pooling', type: 'submit', kind: 'quiet' })}
 <form method="post" action="/sell/pool" class="ex-pool-form">
 <ul class="ex-pool-machines">${rows}</ul>
 <label class="ex-field"><span>Head (the machine that answers)</span><select name="head">${headOptions}</select></label>
-<p class="ex-pool-note">Each machine approves the pool on itself, in OpenVibe Node.</p>
+<p class="ex-pool-note">Each machine approves the pool on itself, in OpenVibe Link.</p>
 ${kit.button({ label: 'Pool these machines', type: 'submit' })}
 </form></article>`);
     }
@@ -627,7 +627,7 @@ ${kit.button({ label: 'Pool these machines', type: 'submit' })}
     const speedWords = (f) => (f.tokens_per_second != null && Number.isFinite(Number(f.tokens_per_second)) ? `about ${Math.round(Number(f.tokens_per_second))} tokens a second` : 'not measured yet');
     const fitBody = fit.length
         ? kit.table({ columns: [{ key: 'model', label: 'Model', primary: true }, { key: 'speed', label: 'Measured speed' }], rows: fit.map((f) => ({ model: String(f.model), speed: speedWords(f) })), label: 'What fits' })
-        : '<p class="ex-prose">No model has been measured on these machines yet. Run the fit check on the head in OpenVibe Node; a model that has not been measured says so here.</p>';
+        : '<p class="ex-prose">No model has been measured on these machines yet. Run the fit check on the head in OpenVibe Link; a model that has not been measured says so here.</p>';
     steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">2. What fits</h3>
 <p class="ex-pool-head">Head: <b>${esc(headName)}</b>, the machine with the most free VRAM.${active ? ' Change it on your machines page: a new head is a new pool, and every machine approves it.' : ''}</p>
 ${fitBody}</article>`);
@@ -636,14 +636,14 @@ ${fitBody}</article>`);
     const members = active ? active.machines : [];
     const approval = members.length
         ? `<ul class="ex-pool-approvals">${members.map((m) => `<li class="ex-pool-approval"><span>${m.approved ? `<b>${esc(nameOf(m.id))}</b>` : `Waiting for approval on <b>${esc(nameOf(m.id))}</b>`}</span>${m.approved ? kit.badge('Approved', 'ok') : kit.badge('Waiting', '')}</li>`).join('')}</ul>
-<p class="ex-pool-note">Approve in OpenVibe Node on that machine, or on its machine page on OpenVibe.Network.</p>`
-        : '<p class="ex-prose">Approve on each machine, in OpenVibe Node or on its machine page on OpenVibe.Network. Each machine makes its own key there.</p>';
+<p class="ex-pool-note">Approve in OpenVibe Link on that machine, or on its machine page on OpenVibe.Network.</p>`
+        : '<p class="ex-prose">Approve on each machine, in OpenVibe Link or on its machine page on OpenVibe.Network. Each machine makes its own key there.</p>';
     steps.push(`<article class="ex-pool-step"><h3 class="ex-pool-h">3. Approve on each machine</h3>${approval}</article>`);
 
     // 4. Offer it: the same controls as a single machine, and nothing until every member approves.
     const allApproved = members.length >= 2 && members.every((m) => m.approved);
     const controls = `<dl class="ex-pool-controls">
-<div><dt>Price</dt><dd>one price for the whole pool, set with the offer on the head in OpenVibe Node.</dd></div>
+<div><dt>Price</dt><dd>one price for the whole pool, set with the offer on the head in OpenVibe Link.</dd></div>
 <div><dt>Who may use it</dt><dd>everyone, your followers or a group: the same audience as a single machine, applied to the pool.</dd></div>
 <div><dt>Idle only</dt><dd>the whole pool pauses while any member is in use.</dd></div>
 </dl>
@@ -678,20 +678,20 @@ function sellPage({ catalog, usage, pool = null, community = null, signedIn = fa
     const poolSection = !signedIn || !pool ? '' : pool.error
         ? panel({ title: 'Pool your machines', id: 'pool', body: kit.notice({ kind: 'warn', text: esc(pool.error) }) })
         : (pool.candidates || []).length < 2
-            ? panel({ title: 'Pool your machines', id: 'pool', body: `<p class="ex-prose">Pooling needs two or more of your machines on the same network. Add one with <a href="https://node.openvibe.network">OpenVibe Node</a>.</p>` })
+            ? panel({ title: 'Pool your machines', id: 'pool', body: `<p class="ex-prose">Pooling needs two or more of your machines on the same network. Add one with <a href="https://openvibe.link">OpenVibe Link</a>.</p>` })
             : poolPanel({ pool, community });
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'Sell your compute', sub: 'Turn a GPU or a spare machine into credits.', actions: [kit.button({ href: 'https://node.openvibe.network', label: 'Get Node', kind: 'quiet' })] })}
+${kit.head({ title: 'Sell your compute', sub: 'Turn a GPU or a spare machine into credits.', actions: [kit.button({ href: 'https://openvibe.link', label: 'Get Link', kind: 'quiet' })] })}
 ${panel({ title: 'A machine on the network', id: 'seller', body: `${seller}<p class="ex-prose">Every offer shows this card: the machine, what it runs, how fast it answers, its uptime, and whether it is verified.</p>` })}
 ${poolSection}
 ${panel({ title: 'Turn it on', body: `
 <div class="ex-steps"><ol>
-<li>Install <a href="https://node.openvibe.network">OpenVibe Node</a> on the machine and sign in.</li>
+<li>Install <a href="https://openvibe.link">OpenVibe Link</a> on the machine and sign in.</li>
 <li>Open the AI plugin, turn on <strong>Offer to the network</strong>, and pick the models it serves.</li>
 <li>Set the hours, how many requests at once, a price (0 volunteers it), idle-only, and who may use it: everyone, your followers or a group.</li>
 <li>Watch tokens served, credits and verification on this page.</li>
 </ol></div>
-<p>${kit.button({ href: 'https://node.openvibe.network', label: 'Install OpenVibe Node' })}</p>
+<p>${kit.button({ href: 'https://openvibe.link', label: 'Install OpenVibe Link' })}</p>
 <p class="ex-prose"><strong>Idle-only:</strong> it pauses while you game, stream or render, so the machine stays yours, and picks up again when you are done.</p>
 <p class="ex-prose"><strong>Trust is earned:</strong> a new machine serves the free tier until it is verified by canary prompts with known answers, a fingerprint that proves the declared model and quantization, and spot re-runs (about 1% of requests) on a trusted machine. Uptime and latency build its reputation; verified tokens earn credits usable across OpenVibe.</p>
 <p class="ex-prose"><strong>Privacy, said plainly:</strong> a community machine sees the prompt. Only requests that allow community capacity ever go there, and the answer is labelled Community.</p>
@@ -857,7 +857,7 @@ ${panel({ title: 'Uptime per offer', note: 'Measured from real requests in the l
         { key: 'traffic', label: 'Requests, 7 d' },
         { key: 'speed', label: 'p95' },
         { key: 'updated', label: 'Changed', hide: 'sm' },
-    ], rows, label: 'Uptime per offer' }) : kit.empty({ icon: 'spark', title: 'No offers yet', text: 'Offers appear here when a provider key or a Node machine is on.' }) })}
+    ], rows, label: 'Uptime per offer' }) : kit.empty({ icon: 'spark', title: 'No offers yet', text: 'Offers appear here when a provider key or a machine running Link is on.' }) })}
 ${panel({ title: 'Model changelog', note: 'Models that arrived, left or changed their price, from a daily snapshot of the catalogue. Never a guessed date.', id: 'changelog', body: changelogBody(changes) })}
 ${panel({ title: 'Incidents', id: 'incidents', body: catalog.unavailable || catalog.stale ? kit.notice({ kind: 'error', text: 'OpenVibe.AI is not answering right now, so these numbers are not live. Live prices and the catalog on the other pages say so too.' }) : '<p class="ex-prose">No incident recorded. When an offer goes down, a failover is used and the answer says so; here is where an outage is written down.</p>' })}
 ${panel({ title: 'Requests today', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : `<p class="ex-prose">${count(usage.today ? usage.today.requests : 0)} requests today, ${count(usage.today ? (usage.today.tokens_in || 0) + (usage.today.tokens_out || 0) : 0)} tokens.</p>` })}
@@ -1141,7 +1141,7 @@ const FAQ = [
     { q: 'Does it keep my prompts?', a: 'That depends on the offer. Each offer shows the provider’s data policy (training, retention, region) and a privacy label. Turn on strict privacy and only an offer that keeps nothing and trains on nothing may answer; when none can, the router refuses instead of falling back to one that keeps or trains on the prompt.' },
     { q: 'Who can read a run?', a: 'Only the account that made it. A run’s receipt is on OpenVibe.AI at /runs/<id> after an OpenVibe sign-in, and only the person the run was made for can read it. Exchange keeps a chat and the 18+ confirmation; it does not store prompts or answers for the public pages.' },
     { q: 'Where are my keys?', a: 'Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time at openvibe.network/developers. They are shown once and never stored here.' },
-    { q: 'Can I sell compute?', a: 'Yes, through OpenVibe.Node: offer a GPU or a spare machine to the network for credits. Machines and pools are what is sold; personal subscription plans and personal API keys are not. Every offer is labelled on the answer.' },
+    { q: 'Can I sell compute?', a: 'Yes, through OpenVibe Link: offer a GPU or a spare machine to the network for credits. Machines and pools are what is sold; personal subscription plans and personal API keys are not. Every offer is labelled on the answer.' },
     { q: 'What is the uncensored tier?', a: 'Abliterated models for adults. The 18+ confirmation sits on your account, and the same floor applies to every request on the tier: no minors, no non-consensual content, no help with mass harm. A breach ends the account.' },
     { q: 'Is ai.openvibe.services still a site of its own?', a: 'No. Its public pages redirect here, and its page list, price page and update log are gone from that address. The API stays there unchanged for OpenVibe’s services and developer apps, and AI’s own run pages and operator console stay for the people who need their session.' },
     { q: 'Where did AI’s prices and latency page go?', a: 'The live numbers are on Models and each model’s page: price in, out and cached per million tokens, measured p50 and p95 speed, uptime and the free allowance. The status page keeps the per-offer uptime and the model changelog.' },

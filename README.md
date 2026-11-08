@@ -22,7 +22,7 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/start` | Start building: one key, one endpoint, the OpenAI/Anthropic samples, four steps, AI's six operations, and the sandbox and production limits. |
 | `/why` | Why this model: the routing rule and a signed-in demo that shows a real run's explain — the objective, the selected offer, and every candidate with its cost, latency and reason. |
 | `/faq` | The merged questions: the endpoint, SDKs, models, prices, privacy, keys, selling compute, the uncensored tier and the move from ai.openvibe.services. |
-| `/sell` | OpenVibe Node's "Offer to the network", "Pool your machines" for a signed-in person (the four steps: choose the machines, what fits, approve on each, offer it), the dashboard, and what is **not** sold here (personal plans, personal API keys), said plainly. |
+| `/sell` | OpenVibe Link's "Offer to the network", "Pool your machines" for a signed-in person (the four steps: choose the machines, what fits, approve on each, offer it), the dashboard, and what is **not** sold here (personal plans, personal API keys), said plainly. |
 | `/uncensored` | The 18+ gate on the account, the abliterated models and the hard floor. |
 | `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
 | `/status` | Uptime per offer, the model changelog and incidents. |
