@@ -56,7 +56,7 @@ function createAgentPages(ctx) {
         }
         if (p === '/sell') {
             const [catalog, usage] = await Promise.all([ai.catalog(), ai.usage(30)]);
-            return page(p, { index: true, title: 'Sell your compute', description: 'Turn a GPU or a spare machine into credits with OpenVibe Node.', body: raw(views.sellPage({ catalog, usage })) });
+            return page(p, { index: true, title: 'Sell your compute', description: 'Turn a GPU or a spare machine into credits with OpenVibe Link.', body: raw(views.sellPage({ catalog, usage })) });
         }
         if (p === '/uncensored') {
             const catalog = await ai.catalog();

@@ -709,7 +709,7 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: 'Sell your compute',
-            description: 'Turn a GPU or a spare machine into credits with OpenVibe Node: offer models, hours, concurrency and a price. What is not sold here, said plainly.',
+            description: 'Turn a GPU or a spare machine into credits with OpenVibe Link: offer models, hours, concurrency and a price. What is not sold here, said plainly.',
             body: raw(views.sellPage({ ...state, viewer: req.viewer, signedIn: signedIn(req) })),
         });
     }
