@@ -183,9 +183,9 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
 <div class="ex-hero-copy">
 <p class="ex-kicker">OpenVibe.Exchange</p>
 <h1>Every AI model, one account.</h1>
-<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join: the` : 'The'} live price, speed and uptime of every offer, one OpenAI-compatible endpoint, and a chat that puts two or three models side by side. Every answer says which model ran and why it was chosen.</p>
+<p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join. ` : ''}Live prices, speed and uptime, one OpenAI-compatible endpoint, and a chat that puts models side by side.</p>
 ${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
-<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/start', label: 'Start building', kind: 'quiet' })} ${kit.button({ href: '/chat', label: 'Open chat', kind: 'quiet' })} ${kit.button({ href: '/arena', label: 'Enter the Arena', kind: 'ghost' })}</p>
+<p class="ex-hero-actions">${kit.button({ href: '/models', label: 'All models' })} ${kit.button({ href: '/start', label: 'Start building', kind: 'quiet' })}</p>
 </div>
 ${preview.length === 2 ? previewCard(preview) : ''}
 </section>
