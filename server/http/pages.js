@@ -27,6 +27,7 @@ const { esc, raw } = require('../render/html');
 const marks = require('../views/marks');
 const { send } = require('../render/layout');
 const views = require('../views/exchange');
+const credentialViews = require('../views/credentials');
 
 const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 60 });
 const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sandbox/*', '/installs', '/offers', '/safety', '/developers'];
@@ -41,6 +42,21 @@ function createPageRoutes(ctx) {
     const signedIn = (req) => Boolean(req.viewer && req.viewer.kind === 'user' && req.viewer.subject);
     const owner = (req) => req.viewer.subject;
     const notFromHere = (req, res) => page(req, res, { title: 'Not from this site', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'shield', title: 'That came from somewhere else', text: 'Use the form on OpenVibe.Exchange.' })}</div>`) }, 403);
+    const credentialPage = async (req, res, { error = null, balance = null } = {}, status = 200) => {
+        let credentials = [];
+        try {
+            const out = ai.credentialsFor
+                ? await ai.credentialsFor(req.viewer.token).list()
+                : await ai.meRequest(req.viewer.token, '/api/v1/me/credentials');
+            credentials = Array.isArray(out.credentials) ? out.credentials : [];
+        } catch (err) { error = error || 'OpenVibe.AI could not read your credential list.'; status = err.status === 401 ? 401 : 502; }
+        return page(req, res, { title: 'Your keys and accounts', index: false, body: raw(credentialViews.credentialsPage({ credentials, error, balance })) }, status);
+    };
+    const credentialFailure = (err, secrets = []) => {
+        let message = err && err.status === 422 ? (err.message || 'The credential was not accepted.') : 'OpenVibe.AI could not complete that credential request.';
+        for (const secret of secrets) if (secret) message = message.split(String(secret)).join('[hidden]');
+        return message;
+    };
     const signInPage = (req, res, { title, text, next, status = 401 }) => page(req, res, {
         title, index: false,
         body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'person', title, text, action: { href: `/auth/login?next=${encodeURIComponent(next || req.originalUrl)}`, label: 'Sign in with OpenVibe' } })}</div>`),
@@ -430,6 +446,48 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         }
         const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
         return page(req, res, { title: 'The API', index: false, body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })) });
+    });
+
+    // A person's AI credentials live on Exchange. The user's signed Network token travels server-to-server to AI;
+    // the page and its responses contain metadata only, never a saved API key or cookie value.
+    r.get('/privacy/keys', async (req, res) => {
+        if (!signedIn(req)) return res.redirect(303, `/auth/login?next=${encodeURIComponent('/privacy/keys')}`);
+        return credentialPage(req, res);
+    });
+    r.post('/privacy/credentials', async (req, res) => {
+        if (!signedIn(req)) return res.sendStatus(404);
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        const body = req.body || {};
+        const secrets = [body.key, body.cookie];
+        const payload = body.kind === 'session_cookie'
+            ? { kind: 'session_cookie', provider: String(body.provider || ''), cookie: String(body.cookie || ''), ...(body.org_id ? { org_id: String(body.org_id) } : {}) }
+            : { kind: 'api_key', provider: String(body.provider || ''), key: String(body.key || ''), ...(body.label ? { label: String(body.label).slice(0, 80) } : {}), ...(body.base_url ? { base_url: String(body.base_url) } : {}) };
+        try {
+            if (ai.credentialsFor) await ai.credentialsFor(req.viewer.token).add(payload);
+            else await ai.meRequest(req.viewer.token, '/api/v1/me/credentials', { method: 'POST', body: payload });
+            return res.redirect(303, '/privacy/keys');
+        } catch (err) {
+            return credentialPage(req, res, { error: credentialFailure(err, secrets) }, 200);
+        }
+    });
+    r.post('/privacy/credentials/:id/remove', async (req, res) => {
+        if (!signedIn(req)) return res.sendStatus(404);
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        try {
+            if (ai.credentialsFor) await ai.credentialsFor(req.viewer.token).remove(req.params.id);
+            else await ai.meRequest(req.viewer.token, `/api/v1/me/credentials/${encodeURIComponent(req.params.id)}`, { method: 'DELETE' });
+            return res.redirect(303, '/privacy/keys');
+        } catch (err) { return credentialPage(req, res, { error: credentialFailure(err) }, 200); }
+    });
+    r.post('/privacy/credentials/:id/balance', async (req, res) => {
+        if (!signedIn(req)) return res.sendStatus(404);
+        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        try {
+            const result = ai.credentialsFor
+                ? await ai.credentialsFor(req.viewer.token).balance(req.params.id)
+                : await ai.meRequest(req.viewer.token, `/api/v1/me/credentials/${encodeURIComponent(req.params.id)}/balance`);
+            return credentialPage(req, res, { balance: result.balance });
+        } catch (err) { return credentialPage(req, res, { error: credentialFailure(err) }, 200); }
     });
 
     r.get('/chat', async (req, res) => {

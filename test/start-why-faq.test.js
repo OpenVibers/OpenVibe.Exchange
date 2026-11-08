@@ -21,7 +21,7 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(r.text.includes('chat, generate, summarize, classify, extract and embed'), 'AI’s six operations stay described');
             assert.ok(r.text.includes('Sandbox') && r.text.includes('Production') && r.text.includes('Never used'), 'the sandbox and production limits');
             assert.ok(r.text.includes('openvibe.network/developers') && r.text.includes('/own') && r.text.includes('/faq'), 'keys, own endpoints and the questions');
-            assert.ok(r.text.includes('https://ai.openvibe.services/you'), 'own provider keys stay on AI, with the person session');
+            assert.ok(r.text.includes('href="/privacy/keys"'), 'own provider keys stay on Exchange');
         });
 
         await check('/why signed out: the rule, the live offers and a sign-in gate, never a fake answer', async () => {

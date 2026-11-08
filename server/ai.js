@@ -14,6 +14,7 @@
  * numbers are not available instead of showing stale ones as live.
  */
 const { createServiceTokenClient } = require('openvibe-sdk/auth');
+const { createCredentialsClient } = require('openvibe-sdk/credentials');
 
 const CATALOG_MS = 30_000;
 const USAGE_MS = 60_000;
@@ -294,8 +295,25 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
     async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
 
+    /** The person's own AI credentials: pass only their signed Network session, never the Exchange service token. */
+    async function meRequest(token, path, { method = 'GET', body = undefined } = {}) {
+        if (!token) throw Object.assign(new Error('Sign in is required'), { status: 401 });
+        const headers = { Accept: 'application/json', Authorization: `Bearer ${token}`, Origin: config.baseUrl };
+        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        const res = await fetchImpl(`${config.ai.url}${path}`, {
+            method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+            signal: AbortSignal.timeout(config.ai.timeoutMs),
+        });
+        const out = await jsonOf(res);
+        if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
+        return out || {};
+    }
+    function credentialsFor(token) {
+        const client = { json: ({ method, path, body }) => meRequest(token, path, { method, body }) };
+        return createCredentialsClient(client, { baseUrl: config.ai.url });
+    }
 
-    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, configured: Boolean(tokens) };
+    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
 }
 
 /**

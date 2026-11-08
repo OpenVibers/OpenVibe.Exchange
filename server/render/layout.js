@@ -27,6 +27,7 @@ const NAV = [
     { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line' },
     { label: 'Start building', href: '/start', icon: 'fa-bolt' },
     { label: 'API', href: '/api', icon: 'fa-code' },
+    { label: 'Your keys and accounts', href: '/privacy/keys', icon: 'fa-key', more: true },
     { label: 'Why this model', href: '/why', icon: 'fa-diagram-project', more: true },
     { label: 'Your own endpoint', href: '/own', icon: 'fa-server', more: true },
     { label: 'Sell compute', href: '/sell', icon: 'fa-microchip', more: true },
