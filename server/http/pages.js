@@ -750,7 +750,7 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
     // ── Your own endpoint ────────────────────────────────────
     // The private GPU page. The status is public (so the reason it is off is visible before signing in);
     // a person's own endpoints are read from AI with their own Network token, never with the service token.
-    async function renderOwn(req, res, { error = null } = {}) {
+    async function renderOwn(req, res, { error = null, quote = null } = {}) {
         let status = null;
         let problem = error;
         try { status = await ai.ownStatus(); } catch (err) {
@@ -772,16 +772,24 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
             title: 'Your own endpoint',
             description: 'A private GPU for one model or your own weights: only you reach it, it scales to zero when idle, and your Balance pays for the seconds it runs.',
-            body: raw(views.ownPage({ status, endpoints, viewer: req.viewer, error: problem, signedIn: signedIn(req) })),
+            body: raw(views.ownPage({ status, endpoints, quote, viewer: req.viewer, error: problem, signedIn: signedIn(req) })),
         });
     }
 
     r.get('/own', async (req, res) => renderOwn(req, res));
+    r.get('/own/quote', async (req, res) => {
+        const strategy = String(req.query.strategy || 'cheapest');
+        const model = String(req.query.model || '').slice(0, 80);
+        if (!['automatic','cheapest','fastest','private','own'].includes(strategy)) return renderOwn(req, res, { error: 'Choose one of the listed strategies.' });
+        try { return renderOwn(req, res, { quote: await ai.gpuQuote(model, strategy) }); }
+        catch { return renderOwn(req, res, { error: 'The live quote is unavailable. Nothing was rented.' }); }
+    });
 
     r.post('/own', async (req, res) => {
         if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Fown');
         if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
         const body = {};
+        if (req.body.strategy) body.strategy = String(req.body.strategy).slice(0, 20);
         if (req.body.model) body.model = String(req.body.model).slice(0, 80);
         if (req.body.weights_repo || req.body.weights_file) {
             body.weights = {

@@ -14,6 +14,7 @@ const { createFakeAi } = require('./helpers/ai');
         status: { enabled: false, reason: 'The owner has not added a GPU provider key (Vast.ai or RunPod) yet, so no endpoint can start.', models: [], idle_minutes: 10, max_idle_minutes: 120, public_base: 'https://ai.openvibe.services/api/v1/own-endpoints' },
         endpoints: [], calls: [],
     };
+    ai.gpuQuote = async (model, strategy) => { state.calls.push({ kind: 'quote', model, strategy }); return { dry_run: true, selected: { marketplace: 'vast', gpu_name: 'RTX 3090', region: 'US', price_per_hour: '0.20' }, reasons: ['objective cheapest'] }; };
     ai.ownStatus = async () => state.status;
     ai.ownList = async (token) => { state.calls.push({ kind: 'list', token }); return { endpoints: state.endpoints, status: state.status }; };
     ai.ownCreate = async (token, body) => { state.calls.push({ kind: 'create', token, body }); return { endpoint: { id: 'oep_TEST' } }; };
@@ -38,6 +39,14 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(!r.text.includes('Start my endpoint'), 'the submit is only for a signed-in person');
         });
 
+        await check('quote works signed out, shows live price, and creates no rental', async () => {
+            const r = await t.get('/own/quote?model=deepseek-r1-32b&strategy=cheapest');
+            assert.strictEqual(r.status, 200, r.text);
+            assert.ok(r.text.includes('0.20 per hour'));
+            assert.ok(r.text.includes('Nothing was rented'));
+            assert.ok(!state.calls.some(c => c.kind === 'create'));
+        });
+
         const u = t.network.addUser('gpu-owner');
         await check('signed in: the model and own-weights forms, with the private promise', async () => {
             const r = await t.get('/own', { as: u });
@@ -50,13 +59,13 @@ const { createFakeAi } = require('./helpers/ai');
         });
 
         await check('create posts to AI with the person\'s own token and the chosen model', async () => {
-            const r = await t.get('/own', { as: u, form: { model: 'deepseek-r1-32b', idle_minutes: '5' }, method: 'POST' });
+            const r = await t.get('/own', { as: u, form: { model: 'deepseek-r1-32b', idle_minutes: '5', strategy: 'automatic' }, method: 'POST' });
             assert.strictEqual(r.status, 303, r.text);
             assert.strictEqual(r.headers.get('location'), '/own');
             const call = state.calls.find((c) => c.kind === 'create');
             assert.ok(call, 'AI was asked to create it');
             assert.ok(call.token, 'with the person\'s token, never the service token');
-            assert.deepStrictEqual(call.body, { model: 'deepseek-r1-32b', idle_minutes: 5 });
+            assert.deepStrictEqual(call.body, { model: 'deepseek-r1-32b', idle_minutes: 5, strategy: 'automatic' });
         });
 
         await check('own weights are passed as a weights object', async () => {

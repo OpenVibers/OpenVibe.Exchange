@@ -268,12 +268,13 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         }
         return out || {};
     }
+    async function gpuQuote(model, strategy = 'cheapest') { return ownCall('GET', `/api/v1/exchange/gpu-quotes/${encodeURIComponent(model)}?strategy=${encodeURIComponent(strategy)}`); }
     async function ownStatus() { return ownCall('GET', '/api/v1/exchange/endpoints'); }
     async function ownList(token) { return ownCall('GET', '/api/v1/own-endpoints', { token }); }
     async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
     async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
 
-    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
+    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, configured: Boolean(tokens) };
 }
 
 /**
