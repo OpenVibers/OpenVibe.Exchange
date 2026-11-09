@@ -6,6 +6,7 @@ const { send } = require('../render/layout');
 const { consolePage } = require('../views/console');
 
 const READS = Object.freeze({
+    supply: '/api/v1/admin/console/supply',
     overview: '/api/v1/admin/console/overview', providers: '/api/v1/admin/console/providers', models: '/api/v1/models', routes: '/api/v1/routes',
     templates: '/api/v1/templates', workflows: '/api/v1/workflows', runs: '/api/v1/admin/console/runs', quotas: '/api/v1/admin/console/quotas',
     usage: '/api/v1/admin/console/usage', cache: '/api/v1/admin/console/cache', audit: '/api/v1/admin/console/audit',
@@ -56,6 +57,13 @@ function createConsoleRoutes({ config, ai }) {
         if (!origin) return false;
         try { return new URL(origin).origin === new URL(config.baseUrl).origin; } catch { return false; }
     };
+    r.post('/console/supply', async (req,res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const body = { model: req.body.model, runtime: req.body.runtime };
+        for (const k of ['input_per_million','output_per_million','hourly_ceiling_usd','monthly_ceiling_usd','required_vram_mb','idle_minutes']) body[k] = Number(req.body[k]);
+        try { await ai.adminRequest('/api/v1/admin/console/supply', { method:'POST', subject:req.viewer.subject, body }); return res.redirect(303,'/console/supply'); }
+        catch { return page(req,res,'supply',{},'Supply settings could not be saved.',502); }
+    });
     r.post('/console/providers', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         try {

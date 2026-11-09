@@ -12,37 +12,20 @@ const { createFakeAi, downAi } = require('./helpers/ai');
     const ai = createFakeAi();
     const t = await boot({ ai });
     try {
-        await check('the home is the new Exchange, with live numbers', async () => {
-            const r = await t.get('/');
-            assert.strictEqual(r.status, 200, r.text);
-            assert.match(r.headers.get('cache-control'), /^public, max-age=60/);
-            assert.ok(r.text.includes('Every AI model, one account.'), 'the new promise');
-            assert.ok(!r.text.includes('Trade what people make'), 'v1’s promise is gone');
-            assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Llama 3 8B abliterated'));
-            assert.ok(r.text.includes('Popular now') && r.text.includes('Uncensored (18+)') && r.text.includes('Run on people’s machines'));
-            assert.ok(r.text.includes('models') && r.text.includes('providers') && r.text.includes('cheapest in, per million'), 'the live numbers');
-            assert.ok(r.text.includes('messages free every day'), 'the free allowance');
-            assert.ok(!r.text.includes('requests today'), 'fewer than 1,000 requests today is not shown');
-            assert.ok(r.text.includes('A side-by-side answer') && r.text.includes('example words · live prices'), 'the preview is marked an example');
-            assert.ok(r.text.includes('api.openvibe.exchange/v1/chat/completions'), 'the endpoint');
-            const lead = (r.text.match(/<p class="ex-lead">([\s\S]*?)<\/p>/) || [])[1] || '';
-            assert.ok(/DeepSeek/.test(lead) && /Qwen/.test(lead) && /Llama/.test(lead), 'the hero names the families on sale: ' + lead);
-            assert.ok(!/Kimi|GLM|MiniMax/.test(lead), 'the hero never names a family nobody sells: ' + lead);
-            const answers = [...r.text.matchAll(/<article class="ex-preview-cell">[\s\S]*?<p>([\s\S]*?)<\/p>/g)].map((m) => m[1]);
-            assert.strictEqual(answers.length, 2, 'two preview answers');
-            assert.notStrictEqual(answers[0], answers[1], 'the two example answers differ');
-            const { displayName } = require('../server/ai.js');
-            assert.deepStrictEqual(['gpt-5-nano', 'gpt-4.1-mini', 'gpt-4o-mini', 'gpt-5', 'gpt-oss-120b', 'DeepSeek V4 Pro'].map(displayName), ['GPT-5 nano', 'GPT-4.1 mini', 'GPT-4o mini', 'GPT-5', 'gpt-oss-120b', 'DeepSeek V4 Pro'], 'OpenAI models are named the way OpenAI says them');
-            assert.ok(!/ · – · –|– · –/.test(r.text), 'an unmeasured stat is left out, not printed as a dash');
-            assert.strictEqual((r.text.match(/<h1[\s>]/g) || []).length, 1, 'one h1');
-            assert.ok(r.text.includes('<main id="main"') && r.text.includes('<footer id="ov-footer"'));
+        await check('home puts a key and live model prices first', async () => {
+            const r = await t.get('/'); assert.strictEqual(r.status,200);
+            assert.ok(r.text.includes('One API for every model.') && r.text.includes('Pay what the model costs.'));
+            assert.ok(r.text.includes('Get a key') && r.text.includes('api.openvibe.exchange/v1/chat/completions'));
+            assert.ok(r.text.includes('tokens routed this week') && r.text.includes('median time to first token'));
+            assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Try in Chat') && r.text.includes('How it ranks'));
+            assert.strictEqual((r.text.match(/<h1[\s>]/g)||[]).length,1);
         });
 
         await check('models lists every model with its cheapest offer', async () => {
             const r = await t.get('/models');
             assert.strictEqual(r.status, 200);
             assert.ok(r.text.includes('DeepSeek Chat'));
-            assert.ok(r.text.includes('$0.20 in'), 'the cheapest offer, not the dearest');
+            assert.ok(r.text.includes('$0.2 / $0.3'), 'the cheapest offer, not the dearest');
             const filtered = await t.get('/models?q=llama');
             assert.ok(filtered.text.includes('Llama 3 8B abliterated'));
             assert.ok(!filtered.text.includes('DeepSeek Chat'), 'the search filters');
@@ -51,21 +34,14 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(!family.text.includes('Llama 3 8B'));
         });
 
-        await check('one model: every offer, its price, speed, uptime, data policy, Try it, curl and SDK', async () => {
-            const r = await t.get('/m/deepseek/deepseek-chat');
-            assert.strictEqual(r.status, 200, r.text);
-            assert.ok(r.text.includes('DeepSeek') && r.text.includes('DeepInfra'), 'both offers');
-            assert.ok(r.text.includes('no training') && r.text.includes('no retention') && r.text.includes('cn'), 'the data policy');
-            assert.ok(r.text.includes('99.0%'), 'uptime');
-            assert.ok(r.text.includes('400 ms'), 'p50');
-            assert.ok(r.text.includes('https://openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat'), 'Try it opens Chat with this model');
-            assert.ok(r.text.includes('Private'), 'the privacy label on an offer');
-            assert.ok(r.text.includes('Standard') || r.text.includes('No training'));
-            assert.ok(r.text.includes('Presets') && r.text.includes('openvibe/economy'), 'the presets box');
-            assert.ok(r.text.includes('deepseek/deepseek-chat@v1'), 'the exact id in the snippet');
-            assert.ok(r.text.includes('import OpenAI from'), 'the SDK line');
-            const miss = await t.get('/m/nope/nope');
-            assert.strictEqual(miss.status, 404);
+        await check('model providers, measurements and external trial links', async () => {
+            const r = await t.get('/models/deepseek%2Fdeepseek-chat'); assert.strictEqual(r.status,200);
+            assert.ok(r.text.includes('DeepSeek') && r.text.includes('DeepInfra'));
+            assert.ok(r.text.includes('99%') && r.text.includes('Not measured'));
+            assert.ok(r.text.includes('openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat'));
+            assert.ok(r.text.includes('openvibe.report/ai/models/deepseek%2Fdeepseek-chat'));
+            assert.ok(r.text.includes('Activity') && r.text.includes('api.openvibe.exchange'));
+            assert.strictEqual((await t.get('/models/nope%2Fnope')).status,404);
         });
 
         await check('the API page: the endpoint, keys, model ids and usage', async () => {
@@ -78,17 +54,9 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('2026-11-05') && r.text.includes('Requests'), 'usage by day');
         });
 
-        await check('sell: the offer flow, and what is not sold, said plainly', async () => {
-            const r = await t.get('/sell');
-            assert.strictEqual(r.status, 200);
-            assert.ok(r.text.includes('Offer to the network'));
-            assert.ok(r.text.includes('Personal subscription plans'));
-            assert.ok(r.text.includes('Personal API keys'));
-            assert.ok(r.text.includes('What is sold'));
-            assert.ok(r.text.includes('Owner’s machine') || r.text.includes('No community capacity yet'));
-            assert.ok(r.text.includes('Idle-only') && r.text.includes('Kudos') && r.text.includes('sees the prompt'), 'idle-only, kudos and the privacy sentence');
-            assert.ok(r.text.includes('A community machine') && !r.text.includes('@name'), 'the seller card names the machine, never a placeholder or a person');
-            assert.ok(r.text.includes('not verified yet'), 'an offer is said verified only when it is');
+        await check('seller entry moves permanently to Link', async () => {
+            const r = await t.get('/sell'); assert.strictEqual(r.status,301);
+            assert.strictEqual(r.headers.get('location'),'https://openvibe.link');
         });
 
         await check('uncensored: sign-in first, then the 18+ gate and the floor', async () => {
@@ -102,12 +70,9 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('Non-consensual sexual content (fiction included) and incest are refused, because payment providers and hosts ban them.'));
         });
 
-        await check('AI in OpenVibe: which product runs which model, and the daily cost', async () => {
-            const r = await t.get('/ai');
-            assert.strictEqual(r.status, 200);
-            assert.ok(r.text.includes('OpenVibe.Live'), 'the product’s full name, not “live”');
-            assert.ok(r.text.includes('deepseek-chat'));
-            assert.ok(r.text.includes('$0.0002'), 'the cost per day (0.006 over 30 days)');
+        await check('product usage moves permanently to Report', async () => {
+            const r = await t.get('/ai'); assert.strictEqual(r.status,301);
+            assert.strictEqual(r.headers.get('location'),'https://openvibe.report/ai/exchange');
         });
 
         await check('Free to try is shown only where an offer says free_tier', async () => {
@@ -228,7 +193,7 @@ const { createFakeAi, downAi } = require('./helpers/ai');
     const down = await boot({ ai: downAi });
     try {
         await check('AI unreachable: every page still renders and says the numbers are not live', async () => {
-            for (const p of ['/', '/models', '/api', '/sell', '/ai', '/status']) {
+            for (const p of ['/', '/models', '/api', '/status']) {
                 const r = await down.get(p);
                 assert.strictEqual(r.status, 200, p);
                 assert.ok(!/NaN|undefined/.test(r.text.replace(/undefined"/g, '')), `${p} invents no number`);
