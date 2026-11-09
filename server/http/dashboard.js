@@ -1,23 +1,20 @@
 'use strict';
 const express = require('express');
-const kit = require('openvibe-shared/kit');
-const { esc, raw } = require('../render/html');
+const { raw } = require('../render/html');
 const { send } = require('../render/layout');
 const { sameOrigin } = require('./principal');
-const TABS = ['Keys', 'Usage', 'Credits', 'Deployments', 'Settings'];
+const views = require('../views/dashboard');
 function createDashboardRoutes({ config, ai }) {
     const r = express.Router();
     r.use(express.urlencoded({ extended: false, limit: '32kb' }));
-    const render = (req, res, tab, body, status = 200) =>
+    const render = (req, res, tab, html, status = 200) =>
         send(res, status, {
             viewer: req.viewer,
             config,
             path: req.originalUrl,
             index: false,
             title: 'Dashboard · ' + tab,
-            body: raw(
-                `<div class="ex-wrap xp">${kit.head({ title: 'Dashboard', sub: 'Your keys, usage and endpoints' })}<nav class="xp-tabs" aria-label="Dashboard">${TABS.map((t) => `<a href="/dashboard/${t.toLowerCase()}" ${t === tab ? 'aria-current="page"' : ''}>${t}</a>`).join('')}</nav><h2>${esc(tab)}</h2>${body}</div>`,
-            ),
+            body: raw(html),
         });
     r.use('/dashboard', (req, res, next) => {
         res.set('Cache-Control', 'no-store');
@@ -37,25 +34,14 @@ function createDashboardRoutes({ config, ai }) {
         try {
             await fn(req, res);
         } catch {
-            render(
-                req,
-                res,
-                'Unavailable',
-                '<p>The account API could not complete this request. Try again shortly.</p>',
-                502,
-            );
+            render(req, res, 'Unavailable', views.unavailablePage(), 502);
         }
     };
     r.get(
         ['/dashboard', '/dashboard/keys'],
         safe(async (req, res) => {
             const data = await call(req, '/api/v1/exchange/keys');
-            render(
-                req,
-                res,
-                'Keys',
-                `<p>Keys are shown once. The monthly cap applies to this key’s model calls.</p><ul>${(data.keys || []).map((k) => `<li><strong>${esc(k.name)}</strong> · ${esc(k.prefix)}… · $${Number(k.monthly_cap_usd)} / month ${k.revoked_at ? 'Revoked' : `<form method="post" action="/dashboard/keys/${encodeURIComponent(k.id)}/revoke">${kit.button({ label: 'Revoke', type: 'submit', kind: 'quiet' })}</form>`}</li>`).join('')}</ul><form id="new" method="post" action="/dashboard/keys"><label>Name<input name="name" required maxlength="80"></label><label>Monthly cap (USD)<input name="monthly_cap_usd" type="number" min="0" step="0.01" value="0" required></label><label>Allowed models (comma separated; empty allows all)<input name="allowed_models"></label>${kit.button({ label: 'Create key', type: 'submit' })}</form>`,
-            );
+            render(req, res, 'Keys', views.keysPage(data.keys || []));
         }),
     );
     r.post(
@@ -72,12 +58,7 @@ function createDashboardRoutes({ config, ai }) {
                         .filter(Boolean),
                 },
             });
-            render(
-                req,
-                res,
-                'Keys',
-                `<p>Copy this key now. It will not be shown again.</p>${kit.snippet({ code: data.secret, id: 'new-key' })}<a href="/dashboard/keys">Done</a>`,
-            );
+            render(req, res, 'Keys', views.newKeyPage(data.secret, data.key));
         }),
     );
     r.post(
@@ -96,6 +77,7 @@ function createDashboardRoutes({ config, ai }) {
         safe(async (req, res) => {
             const data = await call(req, '/api/v1/exchange/key-usage');
             const rows = data.rows || [];
+            const keyList = req.path.endsWith('.csv') ? null : await call(req, '/api/v1/exchange/keys').catch(() => ({ keys: [] }));
             const columns = [
                 'day',
                 'key_id',
@@ -128,52 +110,18 @@ function createDashboardRoutes({ config, ai }) {
                         ].join('\n'),
                     );
             }
-            render(
-                req,
-                res,
-                'Usage',
-                `<p><a href="/dashboard/usage.csv">Download CSV</a></p>${kit.table({ columns: columns.map((key) => ({ key, label: key.replaceAll('_', ' ') })), rows, label: 'Usage by key, model and day', empty: 'No usage yet.' })}`,
-            );
+            render(req, res, 'Usage', views.usagePage(rows, (keyList && keyList.keys) || []));
         }),
     );
-    r.get('/dashboard/credits', (req, res) =>
-        render(
-            req,
-            res,
-            'Credits',
-            '<p>Your OpenVibe wallet is managed by Billing.</p><p><a class="ovk-button" href="https://openvibe.network/my#wallet">Balance, top up and auto top-up</a></p>',
-        ),
-    );
+    r.get('/dashboard/credits', (req, res) => render(req, res, 'Credits', views.creditsPage()));
     r.get(
         '/dashboard/deployments',
         safe(async (req, res) => {
             const data = await ai.ownList(req.viewer.token);
-            render(
-                req,
-                res,
-                'Deployments',
-                `<p>Choose a model to see its hourly price before starting. Endpoints stop when idle.</p><a href="/own">Quote an endpoint</a>${kit.table(
-                    {
-                        columns: [
-                            { key: 'id', label: 'Endpoint' },
-                            { key: 'model', label: 'Model' },
-                            { key: 'status', label: 'Status' },
-                        ],
-                        rows: data.endpoints || [],
-                        empty: 'No deployments yet.',
-                    },
-                )}`,
-            );
+            render(req, res, 'Deployments', views.deploymentsPage(data.endpoints || []));
         }),
     );
-    r.get('/dashboard/settings', (req, res) =>
-        render(
-            req,
-            res,
-            'Settings',
-            '<p><a href="/uncensored">Adult opt-in (18+) and content floor</a></p><p><a href="/privacy/keys">Your provider keys and data policy</a></p><p><a href="/api#privacy">Routing and strict privacy</a></p>',
-        ),
-    );
+    r.get('/dashboard/settings', (req, res) => render(req, res, 'Settings', views.settingsPage()));
     return r;
 }
 module.exports = { createDashboardRoutes };
