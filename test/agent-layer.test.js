@@ -49,6 +49,27 @@ const { createFakeAi } = require('./helpers/ai');
             assert.strictEqual((await t.get('/no-such-page.md')).status, 404);
         });
 
+        await check('the companions and privacy/keys twins answer Markdown with their headings', async () => {
+            const companions = await t.get('/companions.md');
+            assert.strictEqual(companions.status, 200);
+            assert.match(companions.headers.get('content-type'), /^text\/markdown/);
+            assert.ok(companions.text.includes('# Characters'), 'the gallery twin names the page heading');
+
+            const keys = await t.get('/privacy/keys.md');
+            assert.strictEqual(keys.status, 200);
+            assert.match(keys.headers.get('content-type'), /^text\/markdown/);
+            assert.ok(keys.text.includes('# Your keys and accounts'), 'the keys twin names the page heading');
+            assert.ok(keys.text.includes('Sign in'), 'signed out, it says what the page says to a signed-out visitor');
+            assert.ok(!/api key|session cookie value|secret/i.test(keys.text), 'and nothing of an account credential');
+
+            // The owner-only console has no public page, so it has no twin and no llms.txt link.
+            assert.strictEqual((await t.get('/console.md')).status, 404);
+            const llms = await t.get('/llms.txt');
+            assert.ok(llms.text.includes('[The gallery](https://openvibe.exchange/companions.md)'));
+            assert.ok(llms.text.includes('[Your keys and accounts](https://openvibe.exchange/privacy/keys.md)'));
+            assert.ok(!llms.text.includes('/console'));
+        });
+
         await check('/.well-known/security.txt is not swallowed by the layer', async () => {
             const r = await t.get('/.well-known/security.txt');
             assert.notStrictEqual(r.status, 200, 'the layer only takes agent.json');
