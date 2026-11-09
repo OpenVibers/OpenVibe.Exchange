@@ -149,3 +149,146 @@
     border-radius: 10px;
     text-decoration: none;
 }
+
+/* The Dashboard (Opus, 2026-11-09): its own scope, so the marketing pages' .xp rules (grid gaps, every link a 44 px
+   flex box) stay off it. Cards on the page surface, the kit's tab rail, two-line rows, numbers in tabular figures. */
+.xd { padding-block: 32px 48px; max-width: 880px; }
+.xd .ovk-tabs { margin-top: 4px; margin-bottom: 4px; }
+.xd-body { display: grid; gap: 16px; margin-top: 12px; }
+.xd-card { padding: 18px 18px 20px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xd-card > h2, .xd-title h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.12rem; letter-spacing: -.01em; }
+.xd-card > h2.xd-sub { font-size: 1rem; }
+.xd-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.xd-title h2 { margin: 0; }
+.xd-note { margin: 0 0 14px; color: var(--ovk-muted); font-size: .92rem; line-height: 1.5; max-width: 60ch; }
+.xd-actions { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.xd-chip { display: inline-flex; align-items: center; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: .74rem; color: var(--ovk-muted); background: var(--ovk-panel-2); vertical-align: 1px; }
+
+.xd-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.xd-key { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 12px 14px; border-radius: var(--ov-radius-1, 12px); background: var(--ovk-panel-2); }
+.xd-key-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.xd-key-main strong { font-size: 1rem; overflow-wrap: anywhere; }
+.xd-key-main code { font-size: .84rem; color: var(--ovk-muted); }
+.xd-key-meta { grid-column: 1; margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+.xd-key-act { grid-column: 2; grid-row: 1 / span 2; margin: 0; }
+.xd-key.is-revoked { opacity: .62; }
+
+.xd-form { display: grid; gap: 16px; max-width: 520px; margin: 0; }
+.xd-form label { display: grid; gap: 6px; }
+.xd-form label > span:first-child { font-weight: 600; font-size: .92rem; }
+.xd-form small { color: var(--ovk-muted); font-size: .82rem; line-height: 1.45; }
+.xd-form input { min-height: 44px; box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--ovk-line); border-radius: 10px; background: var(--ovk-bg, transparent); color: var(--ovk-text); font: inherit; }
+.xd-form input:focus-visible { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
+.xd-money { position: relative; display: block; }
+.xd-money > span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ovk-muted); pointer-events: none; }
+.xd-money input { padding-left: 26px; font-variant-numeric: tabular-nums; }
+.xd-form .ovk-btn { justify-self: start; min-height: 44px; }
+.xd-secret .ovk-snippet, .xd-secret pre { margin: 0 0 14px; }
+
+.xd-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
+.xd-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--ov-radius-1, 12px); background: var(--ovk-panel-2); }
+.xd-stats dd { margin: 0; font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.xd-stats dt { color: var(--ovk-muted); font-size: .8rem; }
+.xd-bars { display: flex; align-items: flex-end; gap: 4px; height: 96px; padding-bottom: 18px; position: relative; }
+.xd-bars > span { position: relative; flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; }
+.xd-bars i { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+.xd-bars b { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-weight: 400; font-size: .7rem; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+.xd-day { margin: 14px 0 6px; font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
+.xd-day:first-of-type { margin-top: 2px; }
+.xd-use { list-style: none; margin: 0; padding: 0; }
+.xd-use li { padding: 10px 0; border-top: 1px solid var(--ovk-line); }
+.xd-use li:first-child { border-top: 0; }
+.xd-use-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.xd-use-top code { font-size: .88rem; overflow-wrap: anywhere; min-width: 0; }
+.xd-use-top strong { font-variant-numeric: tabular-nums; }
+.xd-use p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .84rem; }
+.xd .ovk-list--flush { margin: 0 -18px -20px; }
+@media (max-width: 520px) {
+    .xd { padding-block: 20px 40px; }
+    .xd-card { padding: 16px 14px 18px; }
+    .xd-stats dd { font-size: 1.12rem; }
+    .xd .ovk-list--flush { margin: 0 -14px -18px; }
+}
+/* Settings rows say what each page does in full: their line wraps instead of trailing off. */
+.xd .ovk-row-sub > span:first-child { white-space: normal; overflow: visible; }
+
+/* Code samples scroll sideways on a phone; a URL never breaks mid-word (.xp code wraps anywhere for inline code). */
+.xp pre code, .xp pre { overflow-wrap: normal; word-break: normal; white-space: pre; }
+/* Grid tracks never grow past the page for a long line (a pre scrolls inside its own box). */
+.xp > *, .xp-hero, .xp .ovk-snip { min-width: 0; max-width: 100%; }
+.xp .ovk-snip pre { overflow-x: auto; }
+
+/* A model's activity: requests a day as bars, the day of the month under each. */
+.ex-act { list-style: none; display: flex; align-items: flex-end; gap: 4px; height: 110px; margin: 0; padding: 0 0 18px; }
+.ex-act li { position: relative; flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; }
+.ex-act-bar { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+.ex-act-day { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-size: .7rem; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+.ex-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ex-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+
+/* ── The model rows (home's popular models, /models): Opus, 11-09 ── */
+.xm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.xm-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xm-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.xm-name > a { font-weight: 700; font-size: 1.05rem; color: var(--ovk-text); text-decoration: none; min-height: 0; }
+.xm-name > a:hover { text-decoration: underline; }
+.xm-maker { color: var(--ovk-muted); font-size: .86rem; }
+.xm-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.xm-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.xm-facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xm-facts dt { color: var(--ovk-muted); font-size: .76rem; }
+.xm-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.xm-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.xm-acts .ovk-btn { min-height: 40px; }
+.xm-empty { color: var(--ovk-muted); }
+.ex-chip.is-empty { opacity: .45; cursor: default; }
+@media (min-width: 900px) {
+    .xm-row { grid-template-columns: minmax(220px, 1.3fr) minmax(0, 2fr) auto; align-items: center; gap: 16px; }
+}
+
+/* ── /search: engines by kind, the try form as a card, results side by side ── */
+.xs { padding-block: 32px 48px; display: grid; gap: 22px; }
+.xs-group h2, .xs-try h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.12rem; }
+.xs-engines { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xs-engine { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }
+.xs-engine:first-child { border-top: 0; }
+.xs-engine.is-off { color: var(--ovk-muted); }
+.xs-engine-main { display: grid; gap: 2px; min-width: 0; }
+.xs-engine-main span { color: var(--ovk-muted); font-size: .86rem; }
+.xs-engine-price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.xs-try { padding: 18px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xs-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; align-items: end; }
+.xs-field { display: grid; gap: 6px; min-width: 0; }
+.xs-field > span { font-weight: 600; font-size: .9rem; }
+.xs-field--wide { grid-column: 1 / -1; }
+.xs-field input, .xs-field select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ovk-line); border-radius: 10px; background: var(--ovk-bg, transparent); color: var(--ovk-text); font: inherit; }
+.xs-go { grid-column: 1 / -1; margin: 0; }
+.xs-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.xs-result { min-width: 0; padding: 12px 14px; border-radius: 12px; background: var(--ovk-panel-2); }
+.xs-result h3 { margin: 0 0 2px; font-size: 1rem; }
+.xs-result ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; }
+.xs-result li p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .86rem; overflow-wrap: anywhere; }
+.xs-receipt, .xs-note { margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+@media (max-width: 760px) {
+    .xs { padding-block: 20px 36px; }
+    .xs-engine { grid-template-columns: minmax(0, 1fr) auto; }
+    .xs-engine > .ovk-badge { grid-column: 2; }
+    .xs-form, .xs-results { grid-template-columns: minmax(0, 1fr); }
+    .xs-try { padding: 14px; }
+}
+/* Grid children never stretch the page for a long line (the head's subtitle widened /search to 514 px on a phone). */
+.xs > * { min-width: 0; }
+@media (max-width: 760px) {
+    /* 44 px targets on a phone: a model's name and its two buttons. */
+    .xm-name > a { display: inline-flex; align-items: center; min-height: 44px; }
+    .xm-acts .ovk-btn { min-height: 44px; }
+}
+
+/* ── Pricing: one row per way of calling, the name above what it costs ── */
+.xpr-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xpr-list li { display: grid; gap: 2px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }
+.xpr-list li:first-child { border-top: 0; }
+.xpr-list span { color: var(--ovk-muted); font-size: .92rem; }
+.xpr-note { margin: 12px 2px 0; color: var(--ovk-muted); font-size: .88rem; }
+@media (min-width: 760px) { .xpr-list li { grid-template-columns: minmax(200px, 1fr) 2fr; align-items: baseline; gap: 16px; } }

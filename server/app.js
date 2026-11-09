@@ -214,6 +214,19 @@ async function createApp(opts = {}) {
         app.locals.sharingTimer = timer;
     }
 
+    const arenaApi = express.Router();
+    arenaApi.use(express.json({ limit:'64kb' }));
+    arenaApi.use(principal.middleware);
+    arenaApi.use((req,res,next) => {
+        if (req.method !== 'GET' && (!req.headers.authorization || req.principal?.kind !== 'user')) return res.sendStatus(401);
+        if (req.principal?.kind === 'user') req.viewer = req.principal;
+        req.arenaApi = true;
+        const path = req.path;
+        req.url = path === '/rounds' ? (req.method === 'POST' ? '/arena/ask' : '/arena') : path.replace(/^\/rounds\//, '/arena/').replace(/\/votes$/, '/vote');
+        next();
+    });
+    arenaApi.use(createArenaRoutes(ctx));
+    app.use('/api/v1/arena', arenaApi);
     // Chat imports only the signed-in person's unsealed history. The service token must carry
     // the narrow export capability; Chat supplies the subject it just authenticated.
     app.get('/internal/exchange/chat/export', principal.middleware, async (req, res) => {
@@ -239,19 +252,6 @@ async function createApp(opts = {}) {
         return res.redirect(301, `https://openvibe.chat/vibe${suffix}`);
     });
 
-    const arenaApi = express.Router();
-    arenaApi.use(express.json({ limit:'64kb' }));
-    arenaApi.use(principal.middleware);
-    arenaApi.use((req,res,next) => {
-        if (req.method !== 'GET' && (!req.headers.authorization || req.principal?.kind !== 'user')) return res.sendStatus(401);
-        if (req.principal?.kind === 'user') req.viewer = req.principal;
-        req.arenaApi = true;
-        const path = req.path;
-        req.url = path === '/rounds' ? (req.method === 'POST' ? '/arena/ask' : '/arena') : path.replace(/^\/rounds\//, '/arena/').replace(/\/votes$/, '/vote');
-        next();
-    });
-    arenaApi.use(createArenaRoutes(ctx));
-    app.use('/api/v1/arena', arenaApi);
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {
         res.set('Cache-Control', 'public, max-age=86400');

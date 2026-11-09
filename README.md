@@ -48,7 +48,7 @@ signed-in person is `private, no-store`; a public page is `public, max-age=60`.
 - `GET https://openvibe.network/api/v1/machines` and `/api/v1/machine-pools` — the person's own machines, their
   pools and the machines they can pool, with the person's Network token: names, free VRAM and RAM, the local
   network key, and each member's approval and readiness. `POST /api/v1/machine-pools` proposes a pool and
-  `POST /api/v1/machine-pools/:id/revoke` stops it. Node measures the links and the fit; Exchange shows what
+  `POST /api/v1/machine-pools/:id/revoke` stops it. Link measures the links and the fit; Exchange shows what
   Network carries and says "not measured yet" when it carries nothing.
 
 AI unreachable is said, not papered over: the catalog read keeps the last good copy for five minutes and the
@@ -83,9 +83,9 @@ client-credentials token work. See [.env.example](.env.example).
 AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
-- openvibe-contracts: v0.338.0
-- openvibe-sdk: v0.103.0
-- openvibe-shared: v4.159.0
+- openvibe-contracts: v0.373.0
+- openvibe-sdk: v0.123.0
+- openvibe-shared: v4.173.0
 - openvibe-publishing: v1.5.0
 <!-- versions:end -->
 

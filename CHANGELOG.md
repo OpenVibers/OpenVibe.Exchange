@@ -6,7 +6,7 @@ What changed in OpenVibe.Exchange, newest first.
 
 - **The public pages of ai.openvibe.services are here now (2026-11-07).** The old site's home, prices and latency,
   changelog, legal pages and discovery files answer 301 on an exact page map; every API route there is unchanged.
-  Three pages carry the content: `/start` (the endpoint, four steps, OpenAI/Anthropic/Node samples, AI's six
+  Three pages carry the content: `/start` (the endpoint, four steps, OpenAI/Anthropic/Link samples, AI's six
   operations and app-token path, the sandbox and production table, and the links to the session pages `/you` and
   `/runs/:id`), `/why` (the router's own explanation, with a signed-in one-question demo that prints a real run's
   `explain`: objective, selected, every candidate's cost and latency, and why each was passed over) and `/faq` (AI's
@@ -16,9 +16,9 @@ What changed in OpenVibe.Exchange, newest first.
   person's session.
 - **Pooled machines (`/sell`).** Under the single-machine card, a signed-in person with two or more of their
   machines sees "Pool your machines": the four steps of the design as stacked cards. **Choose the machines** lists
-  each machine with its GPU, free VRAM and RAM and Node's measured link in words ("2 ms, 940 Mb/s: good"; a failed
+  each machine with its GPU, free VRAM and RAM and Link's measured link in words ("2 ms, 940 Mb/s: good"; a failed
   link says the number and the limit, "40 ms; a pool needs under 5 ms"), and a machine on another network is
-  greyed with its reason. **What fits** is Node's fit table: a measured speed, or "not measured yet". **Approve on
+  greyed with its reason. **What fits** is Link's fit table: a measured speed, or "not measured yet". **Approve on
   each machine** says "Waiting for approval on Laptop" until that machine approves on itself. **Offer it** shows the
   same price, audience and idle-only controls as one machine, with the privacy sentence (the head sees the prompt,
   the others only numbers in transit), and nothing is offered until every member approves. "Stop pooling" says what

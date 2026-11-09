@@ -318,7 +318,9 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         { key: 'provider', label: 'Offer', primary: true, html: true },
         { key: 'price', label: 'In / out per M', html: true },
         { key: 'speed', label: 'Speed', html: true },
+        { key: 'first', label: 'First token' },
         { key: 'uptime', label: 'Uptime' },
+        { key: 'errors', label: 'Errors' },
         { key: 'privacy', label: 'Privacy', html: true },
         { key: 'policy', label: 'Data policy', html: true },
         { key: 'try', label: 'Try', html: true },
@@ -333,9 +335,11 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         const refuses = refusalText(o);
         return {
             provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
-            price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
+            price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}${o.fixed_price ? ` ${kit.badge('Fixed price')}` : ''}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
+            first: o.speed && o.speed.ttft_ms != null ? ms(o.speed.ttft_ms) : '–',
             uptime: o.uptime == null ? '–' : pct(o.uptime),
+            errors: o.error_rate == null ? '–' : pct(o.error_rate),
             privacy: `${p ? kit.badge(p.label, p.kind) : ''}${refuses ? `<br><small>${esc(refuses)}</small>` : ''}` || '–',
             policy: policyText(o.data_policy),
             try: `<a class="ex-mini" href="${chatModel(model)}">Try it</a>`,
@@ -352,12 +356,25 @@ ${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` �
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
+${activityPanel(model.activity)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
-${panel({ title: 'Try it', id: 'try', body: kit.button({ href: chatModel(model), label: `Chat with ${model.name}` }) })}
+${panel({ title: 'Try it', id: 'try', body: `<p class="ex-actions">${kit.button({ href: chatModel(model), label: `Chat with ${model.name}` })} ${kit.button({ href: `https://openvibe.report/ai/models/${encodeURIComponent(model.slug || model.canonical)}`, label: 'How it ranks', kind: 'quiet' })}</p>` })}
 ${panel({ title: 'Use it from code', id: 'code', body: `${kit.snippet({ code, id: 'model-curl' })}
 ${kit.snippet({ code: sdk, id: 'model-sdk' })}
 <p class="ex-more">The endpoint, keys and usage: <a href="/api">the API</a>.</p>` })}
 </div>`;
+}
+
+/** Requests a day across the model's offers, the last 14 days that have any: bars, with the numbers as their labels. */
+function activityPanel(activity) {
+    const days = Array.isArray(activity) ? activity.slice(-14) : [];
+    if (!days.length) return '';
+    const peak = Math.max(1, ...days.map((d) => Number(d.requests) || 0));
+    const bars = days.map((d) => {
+        const n = Number(d.requests) || 0;
+        return `<li><span class="ex-act-bar" style="height:${Math.max(4, Math.round((n / peak) * 100))}%"></span><span class="ex-act-day">${esc(String(d.day).slice(8, 10))}</span><span class="ex-sr">${esc(String(d.day))}: ${n.toLocaleString('en-US')} requests</span></li>`;
+    }).join('');
+    return panel({ title: 'Activity', note: 'Requests a day across every offer.', id: 'activity', body: `<ol class="ex-act">${bars}</ol>` });
 }
 
 const PRESETS = [

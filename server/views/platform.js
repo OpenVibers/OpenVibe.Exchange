@@ -37,21 +37,44 @@ const code = (m) =>
         id: 'platform-curl',
         code: `curl https://api.openvibe.exchange/v1/chat/completions \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({ model: m || 'openvibe/auto', messages: [{ role: 'user', content: 'Hello' }] })}'`,
     });
+/** "$0.05" / "$0.40": prices per million tokens in a person's terms (free shows as Free). */
+const perM = (v) => (v == null ? '–' : Number(v) === 0 ? 'Free' : `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 4 })}`);
+const dash = (v, unit = '') => (v == null ? '–' : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}${unit}`);
+/**
+ * The models as rows (home's popular models and /models): the name and its maker with badges, in / out per million,
+ * uptime and speed with their labels, and Try in Chat / How it ranks as small quiet buttons. Opus, 11-09.
+ */
 function table(models) {
-    return `<div class="xp-models"><table><thead><tr><th>Model</th><th>Input / output per million</th><th>Tokens/s</th><th>Uptime</th><th>Explore</th></tr></thead><tbody>${models
-        .map((m) => {
-            const o = best(m);
-            return `<tr><td><a href="/models/${encodeURIComponent(id(m))}"><strong>${esc(m.name)}</strong></a><small>${esc(legacy.familyLabel(m))}${(m.offers || []).some(free) ? ' · Free to try' : (m.offers || []).some(paused) ? ' · Free paused' : ''}${m.uncensored ? ' · 18+' : ''}</small></td><td data-label="Input / output per million">${price(o.price?.in)} / ${price(o.price?.out)}${o.fixed_price ? ' · Fixed' : ''}</td><td data-label="Tokens/s">${metric(o.speed?.tokens_per_second)}</td><td data-label="Uptime">${metric(o.uptime == null ? null : o.uptime * 100, '%')}</td><td><a href="${chat(m)}">Try in Chat</a><a href="${rank(m)}">How it ranks →</a></td></tr>`;
-        })
-        .join(
-            '',
-        )}</tbody></table>${!models.length ? '<p>No models match these filters.</p>' : ''}</div>`;
+    if (!models.length) return '<p class="xm-empty">No models match these filters.</p>';
+    return `<ul class="xm-list">${models.map((m) => {
+        const o = best(m);
+        const badges = [
+            (m.offers || []).some(free) ? kit.badge('Free to try') : (m.offers || []).some(paused) ? kit.badge('Free paused') : '',
+            m.uncensored ? kit.badge('18+', 'bad') : '',
+            o.fixed_price ? kit.badge('Fixed price') : '',
+        ].filter(Boolean).join(' ');
+        const fact = (label, value) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
+        return `<li class="xm-row"><div class="xm-name"><a href="/models/${encodeURIComponent(id(m))}">${esc(m.name)}</a><span class="xm-maker">${esc(legacy.familyLabel(m))}</span>${badges ? `<span class="xm-badges">${badges}</span>` : ''}</div>`
+            + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second == null ? '–' : `${dash(o.speed.tokens_per_second)} tok/s`)}</dl>`
+            + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', kind: 'quiet', small: true })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet', small: true })}</p></li>`;
+    }).join('')}</ul>`;
 }
+// What each way of calling costs, in the reader's words (home's Pricing section and /pricing). Opus, 11-09.
+const PRICING = [
+    ['Your own provider key', "The provider's price. OpenVibe adds 0%, with no cap and no end date."],
+    ['Managed models', 'The input and output price per million tokens shown on each model, before you call.'],
+    ["Open models on OpenVibe's GPUs", 'A fixed price per million tokens, the same on every call. Coming next.'],
+    ['Your own endpoint', 'An hourly price, quoted before it starts; it stops when idle.'],
+    ['Search', "Each engine's price per 1,000 searches; the free engines first."],
+];
+const pricingRows = () => `<ul class="xpr-list">${PRICING.map(([name, what]) => `<li><strong>${esc(name)}</strong><span>${esc(what)}</span></li>`).join('')}</ul>`
+    + '<p class="xpr-note">Paid models open soon. Every price shows before you call, and nothing is charged until then.</p>';
 function pricing() {
-    return section(
-        'Pricing',
-        `<div class="xp-models"><table><thead><tr><th>Route</th><th>What you pay</th></tr></thead><tbody><tr><td>Your provider key</td><td>Provider price + 0% fee, forever, no cap</td></tr><tr><td>Managed models</td><td>The input and output rates listed on each model</td></tr><tr><td>Our GPUs</td><td>Fixed input and output prices set by the owner</td></tr><tr><td>Your deployment</td><td>The quoted hourly price, shown before starting</td></tr><tr><td>Search</td><td>Engine price per 1,000 searches; free engines first</td></tr></tbody></table></div><p>Paid use begins when the owner enables it. Costs are shown; this preview does not charge.</p>`,
-    );
+    return section('Pricing', pricingRows());
+}
+/** /pricing: the page, with its head (it had no h1). */
+function pricingPage() {
+    return `<div class="ex-wrap xp">${kit.head({ title: 'Pricing', sub: 'What a call costs, before you make it.' })}<section class="xpr">${pricingRows()}</section></div>`;
 }
 function home({ catalog, usage, viewer }) {
     const models = listed(catalog);
@@ -72,7 +95,7 @@ function home({ catalog, usage, viewer }) {
                 'median time to first token',
             ],
         ],
-    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}<div class="xp-reasons">${section('0% BYOK fee', '<p>Bring your own key. Forever, with no cap on the fee-free allowance.</p>')}${section('Cheapest route', '<p>GPU supply is in dry run. The owner sets fixed input and output prices before managed GPUs serve traffic.</p>')}${section('18+ with a floor', '<p>Uncensored models for adults. The content floor applies on every request.</p><a href="/uncensored">Read the floor</a>')}</div>${pricing()}${section('Questions', '<details><summary>Can I use my existing client?</summary><p>Yes. Use the OpenAI-compatible endpoint with your Exchange key.</p></details><details><summary>Where can I talk to a model?</summary><p><a href="https://openvibe.chat/vibe">Open Chat</a> to talk or compare models.</p></details><details><summary>Where do the numbers come from?</summary><p>Prices come from the live catalogue. Speed and reliability come from measured requests. Missing measurements stay unknown.</p></details>')}</div>`;
+    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}<div class="xp-reasons">${section('0% fee on your own key', '<p>Bring your provider key and pay the provider\'s price, nothing more. No cap, no end date.</p>')}${section('The cheapest route', '<p>Every call goes to the cheapest provider that is up. Open models on OpenVibe\'s own GPUs, at a fixed price per million tokens, are coming next.</p>')}${section('Uncensored, 18+', '<p>Uncensored models for adults who opt in. The content floor applies on every request.</p><a href="/uncensored">What the floor covers</a>')}</div>${pricing()}${section('Questions', '<details><summary>Can I use my existing client?</summary><p>Yes. Use the OpenAI-compatible endpoint with your Exchange key.</p></details><details><summary>Where can I talk to a model?</summary><p><a href="https://openvibe.chat/vibe">Open Chat</a> to talk or compare models.</p></details><details><summary>Where do the numbers come from?</summary><p>Prices come from the live catalogue. Speed and reliability come from measured requests. Missing measurements stay unknown.</p></details>')}</div>`;
 }
 function modelsPage({ catalog, query = {} }) {
     const all = listed(catalog);
@@ -95,6 +118,7 @@ function modelsPage({ catalog, query = {} }) {
         );
         if (q.get(key) === value) q.delete(key);
         else q.set(key, value);
+        if (!count && query[key] !== value) return `<span class="ex-chip is-empty" aria-disabled="true">${esc(label)} (0)</span>`;
         return `<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(q.toString())}">${esc(label)} (${count})</a>`;
     };
     for (const [key, test] of Object.entries(tests))
@@ -126,8 +150,4 @@ function modelsPage({ catalog, query = {} }) {
         );
     return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${kit.find({ action: '/models', name: 'q', value: query.q || '', placeholder: 'Find a model', icon: 'search' })}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows)}</div>`;
 }
-function modelPage({ model: m, activity = m.activity || [] }) {
-    const offers = m.offers || [];
-    return `<div class="ex-wrap xp">${kit.head({ title: m.name, sub: m.family, back: { href: '/models', label: 'Models' } })}<p>${kit.button({ href: chat(m), label: 'Try in Chat' })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet' })}</p>${section('Providers', `<div class="xp-models"><table><thead><tr><th>Provider</th><th>Input / output per million</th><th>Tokens/s</th><th>First token</th><th>Uptime</th><th>Error rate</th></tr></thead><tbody>${offers.map((o) => `<tr><td>${esc(legacy.providerLabel(o))}${free(o) ? ' · Free to try' : paused(o) ? ' · Free paused' : ''}${o.refusal_rate == null ? '' : `<small>refuses ${(Number(o.refusal_rate) * 100).toFixed(1)}% · measured ${esc(o.refusal_measured_on || 'date not recorded')}</small>`}</td><td data-label="Input / output per million">${price(o.price?.in)} / ${price(o.price?.out)}${o.fixed_price ? ' · Fixed' : ''}</td><td data-label="Tokens/s">${metric(o.speed?.tokens_per_second)}</td><td data-label="First token">${metric(o.speed?.ttft_ms, ' ms')}</td><td data-label="Uptime">${metric(o.uptime == null ? null : o.uptime * 100, '%')}</td><td data-label="Error rate">${metric(o.error_rate == null ? null : o.error_rate * 100, '%')}</td></tr>`).join('')}</tbody></table></div>`)}${section('Activity', activity.length ? `<div class="xp-activity">${activity.map((d) => `<label>${esc(d.day)}<meter min="0" max="${Math.max(...activity.map((d) => d.requests), 1)}" value="${Number(d.requests) || 0}"></meter>${Number(d.requests) || 0} requests</label>`).join('')}</div>` : `<p>${metric(m.requests_7d)} requests in the last 7 days. Daily history is not available yet.</p>`)}${section('Use from code', code(id(m)))}</div>`;
-}
-module.exports = { home, modelsPage, modelPage, pricing, table };
+module.exports = { home, modelsPage, pricing, pricingPage, table };

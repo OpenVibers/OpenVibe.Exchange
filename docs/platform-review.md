@@ -2,7 +2,7 @@
 
 Home, Models, model detail, Dashboard (keys, usage/CSV, credits, deployments and settings), Search and owner supply console use the AI platform APIs in the companion PR. Arena reads and writes use the authenticated Exchange bridge and Report hosts the page. Arena and supply navigation use permanent redirects.
 
-The Chat compare move (Chat #419 / Exchange #136) has merged; this branch preserves its redirects and history export. Persona and private-chat migration and their redirects must follow it; they are not implemented here. These changes should remain in review until that dependency and the library releases are coordinated. No production changes or provider purchases were performed.
+The Chat compare move (Chat #419 / Exchange #136) is not merged. Persona and private-chat migration and their redirects must follow it; they are not implemented here. These changes should remain in review until that dependency and the library releases are coordinated. No production changes or provider purchases were performed.
 
 ## Screenshots
 

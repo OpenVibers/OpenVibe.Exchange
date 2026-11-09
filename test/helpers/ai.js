@@ -70,6 +70,16 @@ function createFakeAi({ chat = null, community = [] } = {}) {
     return {
         calls,
         configured: true,
+        // AI's search engines as GET /api/v1/exchange/search/engines answers them.
+        async searchEngines() {
+            return [
+                { id: 'openvibe', kinds: ['web'], price_per_1000: 0, byok: false, available: true, healthy: true },
+                { id: 'searxng', kinds: ['web'], price_per_1000: 0, byok: false, available: false, healthy: true },
+                { id: 'openverse', kinds: ['images'], price_per_1000: 0, byok: false, available: true, healthy: true },
+                { id: 'commons', kinds: ['images'], price_per_1000: 0, byok: false, available: true, healthy: true },
+                { id: 'iconify', kinds: ['icons'], price_per_1000: 0, byok: false, available: true, healthy: true },
+            ];
+        },
         async catalog() { return catalog; },
         async usage() { return usage; },
         async communityOffers() { return communityData; },
