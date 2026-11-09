@@ -217,3 +217,12 @@
 /* Grid tracks never grow past the page for a long line (a pre scrolls inside its own box). */
 .xp > *, .xp-hero, .xp .ovk-snip { min-width: 0; max-width: 100%; }
 .xp .ovk-snip pre { overflow-x: auto; }
+
+/* A model's activity: requests a day as bars, the day of the month under each. */
+.ex-act { list-style: none; display: flex; align-items: flex-end; gap: 4px; height: 110px; margin: 0; padding: 0 0 18px; }
+.ex-act li { position: relative; flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; }
+.ex-act-bar { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+.ex-act-day { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-size: .7rem; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+.ex-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ex-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }

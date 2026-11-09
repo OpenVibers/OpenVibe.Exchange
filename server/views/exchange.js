@@ -11,6 +11,8 @@ const { esc } = require('../render/html');
 const { mark, product, productMark } = require('./marks');
 
 const ENDPOINT = 'https://api.openvibe.exchange/v1/chat/completions';
+const CHAT = 'https://openvibe.chat/vibe';
+const chatModel = (m) => `${CHAT}?models=${encodeURIComponent(m.slug)}`;
 
 const money = (n, free = false) => (free ? 'free' : n == null ? '–' : n === 0 ? '$0' : `$${Number(n) < 0.1 ? Number(n).toPrecision(2) : Number(n).toFixed(2)}`);
 const inOut = (price) => (price ? `${money(price.in)} in · ${money(price.out)} out` : 'no per-token price');
@@ -151,7 +153,7 @@ function modelRow(m, { withTry = true } = {}) {
     if (pv) bits.push(pv.short);
     return `<li class="ex-mrow">
 <a class="ex-mrow-main" href="${hrefOf(m)}">${mark(familyLabel(m))}<span class="ex-mrow-text"><span class="ex-mrow-title"><b>${esc(m.name)}</b>${badgesOf(m, best)}</span><small>${bits.map((b) => esc(b)).join(' · ')}</small></span></a>
-${withTry ? `<a class="ex-try-link" href="${hrefOf(m)}#try">Try it</a>` : ''}
+${withTry ? `<a class="ex-try-link" href="${chatModel(m)}">Try it</a>` : ''}
 </li>`;
 }
 
@@ -239,7 +241,7 @@ function previewCard(preview) {
 <p class="ex-preview-tag">A side-by-side answer <span>example words · live prices</span></p>
 <p class="ex-preview-q">“Summarize this contract in three bullets.”</p>
 <div class="ex-preview-grid">${cells}</div>
-<p class="ex-more"><a href="/chat">Open the real chat →</a></p>
+<p class="ex-more"><a href="https://openvibe.chat/vibe">Open the real chat →</a></p>
 </aside>`;
 }
 
@@ -288,7 +290,7 @@ function modelsPage({ catalog, q = '', family = '', sort = '', community = null 
     const familyLinks = families.slice(0, 10).map((f) => `<a class="ex-chip${f === family ? ' is-on' : ''}" href="/models?family=${encodeURIComponent(f)}">${esc(f)}</a>`).join('');
 
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'Models', sub: `${models.length} model${models.length === 1 ? '' : 's'} · ${offerCount(models)} offers, live`, actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
+${kit.head({ title: 'Models', sub: `${models.length} model${models.length === 1 ? '' : 's'} · ${offerCount(models)} offers, live`, actions: [kit.button({ href: CHAT, label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model or a provider', value: q, icon: 'search' })}
 <div class="ex-chips" role="group" aria-label="Sort">${links}</div>
 ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${familyLinks}</div>` : ''}
@@ -316,7 +318,9 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         { key: 'provider', label: 'Offer', primary: true, html: true },
         { key: 'price', label: 'In / out per M', html: true },
         { key: 'speed', label: 'Speed', html: true },
+        { key: 'first', label: 'First token' },
         { key: 'uptime', label: 'Uptime' },
+        { key: 'errors', label: 'Errors' },
         { key: 'privacy', label: 'Privacy', html: true },
         { key: 'policy', label: 'Data policy', html: true },
         { key: 'try', label: 'Try', html: true },
@@ -331,12 +335,14 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         const refuses = refusalText(o);
         return {
             provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
-            price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}` : '<span class="ex-muted">free capacity</span>',
+            price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}${o.fixed_price ? ` ${kit.badge('Fixed price')}` : ''}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
+            first: o.speed && o.speed.ttft_ms != null ? ms(o.speed.ttft_ms) : '–',
             uptime: o.uptime == null ? '–' : pct(o.uptime),
+            errors: o.error_rate == null ? '–' : pct(o.error_rate),
             privacy: `${p ? kit.badge(p.label, p.kind) : ''}${refuses ? `<br><small>${esc(refuses)}</small>` : ''}` || '–',
             policy: policyText(o.data_policy),
-            try: '<a class="ex-mini" href="#try">Try it</a>',
+            try: `<a class="ex-mini" href="${chatModel(model)}">Try it</a>`,
         };
     });
 
@@ -350,12 +356,25 @@ ${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` �
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
+${activityPanel(model.activity)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
-${panel({ title: 'Try it', id: 'try', body: tryBox(model, viewer, { result, problem, text, adult }) })}
+${panel({ title: 'Try it', id: 'try', body: `<p class="ex-actions">${kit.button({ href: chatModel(model), label: `Chat with ${model.name}` })} ${kit.button({ href: `https://openvibe.report/ai/models/${encodeURIComponent(model.slug || model.canonical)}`, label: 'How it ranks', kind: 'quiet' })}</p>` })}
 ${panel({ title: 'Use it from code', id: 'code', body: `${kit.snippet({ code, id: 'model-curl' })}
 ${kit.snippet({ code: sdk, id: 'model-sdk' })}
 <p class="ex-more">The endpoint, keys and usage: <a href="/api">the API</a>.</p>` })}
 </div>`;
+}
+
+/** Requests a day across the model's offers, the last 14 days that have any: bars, with the numbers as their labels. */
+function activityPanel(activity) {
+    const days = Array.isArray(activity) ? activity.slice(-14) : [];
+    if (!days.length) return '';
+    const peak = Math.max(1, ...days.map((d) => Number(d.requests) || 0));
+    const bars = days.map((d) => {
+        const n = Number(d.requests) || 0;
+        return `<li><span class="ex-act-bar" style="height:${Math.max(4, Math.round((n / peak) * 100))}%"></span><span class="ex-act-day">${esc(String(d.day).slice(8, 10))}</span><span class="ex-sr">${esc(String(d.day))}: ${n.toLocaleString('en-US')} requests</span></li>`;
+    }).join('');
+    return panel({ title: 'Activity', note: 'Requests a day across every offer.', id: 'activity', body: `<ol class="ex-act">${bars}</ol>` });
 }
 
 const PRESETS = [
@@ -383,7 +402,7 @@ function presetsBox() {
 function sealedChat({ chat = null, models = [], networkUrl = '', subject = '' }) {
     const options = models.slice(0, 40).map((m) => `<option value="${esc(m.slug)}">${esc(m.name)}${m.uncensored ? ' · 18+' : ''}</option>`).join('');
     return `<div class="ex-wrap ex-page ex-sealed" id="ex-sealed" data-chat="${chat ? esc(chat.id) : ''}" data-subject="${esc(subject)}" data-network="${esc(networkUrl)}">
-${kit.head({ title: chat ? 'A sealed chat' : 'A new sealed chat', sub: 'Your history is sealed with your Locker.', back: { href: '/chat', label: 'Chat' }, actions: [kit.button({ href: '/chat/new', label: 'A normal chat', kind: 'quiet' })] })}
+${kit.head({ title: chat ? 'A sealed chat' : 'A new sealed chat', sub: 'Your history is sealed with your Locker.', back: { href: CHAT, label: 'Chat' }, actions: [kit.button({ href: CHAT, label: 'A normal chat', kind: 'quiet' })] })}
 <noscript><p class="ex-prose">A sealed chat needs JavaScript: the sealing and the opening happen in your browser, and nowhere else.</p></noscript>
 <div class="ex-sealed-card">
 <p class="ex-sealed-title" data-sealed-title hidden></p>
@@ -471,7 +490,7 @@ ${keyPrivacy && keyPrivacy.note ? kit.notice({ kind: 'info', text: keyPrivacy.no
 <p>${kit.button({ label: 'Save the switch', type: 'submit', kind: 'quiet' })}</p>
 </form>`);
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: '/chat', label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
+${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: CHAT, label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
 ${panel({ title: 'Batches, at half price', body: `<p class="ex-prose">Half price. Answered within your deadline when spare low-cost capacity is free; if none comes free in time, the prompt expires and you pay nothing.</p>` })}
 ${panel({ title: 'One endpoint', body: `
 <p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions; <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API, so Claude Code works by pointing <code>ANTHROPIC_BASE_URL</code> at it.</p>
@@ -735,7 +754,7 @@ ${kit.head({ title: 'Uncensored', sub: 'Abliterated models, for adults. The same
 ${gate || ''}
 ${panel({ title: 'The floor on every offer, uncensored or not', id: 'floor', body: floorText(true) })}
 ${adult ? panel({ title: 'Uncensored models', id: 'models', body: modelList(models, { empty: 'No uncensored model is live right now. Featherless and Refuseless offers appear here when their keys are on.' }) }) : ''}
-${panel({ title: 'How to use it', body: '<p class="ex-prose">Pick an uncensored model in <a href="/chat">chat</a>, or send its exact id to the API. Your 18+ confirmation sits on your account, so it follows you here; the floor applies to every request on this tier, and a breach ends the account.</p>' })}
+${panel({ title: 'How to use it', body: '<p class="ex-prose">Pick an uncensored model in <a href="https://openvibe.chat/vibe">chat</a>, or send its exact id to the API. Your 18+ confirmation sits on your account, so it follows you here; the floor applies to every request on this tier, and a breach ends the account.</p>' })}
 ${companionsPolicy()}
 ${changelogPanel()}
 </div>`;

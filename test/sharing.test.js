@@ -53,68 +53,6 @@ const { createFakeBench } = require('./helpers/bench');
         'SELECT audience FROM shares WHERE service = $1 AND kind = $2 AND resource_id = $3', ['exchange', kind, id]);
 
     try {
-        let chatId;
-        await check('a new chat is Only me, and its page carries the one Share sheet', async () => {
-            const made = await t.get('/chat/send', { as: alice, form: { text: 'What is a semaphore?', 'models_deepseek/deepseek-chat': '1' } });
-            assert.strictEqual(made.status, 303, made.text);
-            chatId = made.headers.get('location').split('/').pop();
-            assert.deepStrictEqual(await audienceRow('chat', chatId), { audience: 'private' });
-            const owner = await t.get(`/chat/${chatId}`, { as: alice });
-            assert.strictEqual(owner.status, 200, owner.text);
-            assert.ok(owner.text.includes('data-ov-share-sheet') && owner.text.includes('data-kind="chat"'), 'the Share sheet is mounted');
-            assert.ok(owner.text.includes('ov-share.js'), 'the sheet loads with the page');
-            const other = await t.get(`/chat/${chatId}`, { as: bob });
-            assert.strictEqual(other.status, 404, 'another account is told nothing');
-            assert.ok(!other.text.includes('What is a semaphore?'), 'never the title');
-            const anon = await t.get(`/chat/${chatId}`);
-            assert.strictEqual(anon.status, 404);
-        });
-
-        await check('Anyone with the link reads the conversation, and it has no composer', async () => {
-            const saved = await setShare('chat', chatId, { audience: 'link' }, alice);
-            assert.strictEqual(saved.status, 200, saved.text);
-            assert.strictEqual(saved.json().audience, 'link');
-            const anon = await t.get(`/chat/${chatId}`);
-            assert.strictEqual(anon.status, 200, anon.text);
-            assert.ok(anon.text.includes('What is a semaphore?'));
-            assert.ok(anon.text.includes('An answer from deepseek/deepseek-chat@v1.'));
-            assert.ok(!anon.text.includes('ovt-composer'), 'a reader cannot write into somebody else\'s chat');
-            assert.ok(!anon.text.includes('name="text"'), 'no send box');
-        });
-
-        await check('Specific people: the person on the list reads it, another gets the gate and no title', async () => {
-            const saved = await setShare('chat', chatId, { audience: 'people', members: [{ name: 'bob', role: 'viewer' }] }, alice);
-            assert.strictEqual(saved.status, 200, saved.text);
-            assert.strictEqual(saved.json().audience, 'people');
-            const member = await t.get(`/chat/${chatId}`, { as: bob });
-            assert.strictEqual(member.status, 200, member.text);
-            assert.ok(member.text.includes('What is a semaphore?'));
-            const stranger = await t.get(`/chat/${chatId}`, { as: carol });
-            assert.strictEqual(stranger.status, 404);
-            assert.ok(stranger.text.includes('shared with specific people'));
-            assert.ok(!stranger.text.includes('What is a semaphore?'), 'the gate never reveals the title');
-            const anon = await t.get(`/chat/${chatId}`);
-            assert.strictEqual(anon.status, 404);
-            assert.ok(anon.text.includes('shared with specific people'));
-        });
-
-        await check('a sealed chat has no Share sheet and cannot leave Only me', async () => {
-            const envelope = Buffer.alloc(48, 7).toString('base64');
-            const made = await t.get('/chat/sealed/new', { as: alice, json: { envelope } });
-            assert.strictEqual(made.status, 201, made.text);
-            const sealedId = made.json().id;
-            const page = await t.get(`/chat/${sealedId}`, { as: alice });
-            assert.strictEqual(page.status, 200);
-            assert.ok(page.text.includes('Only me, always'));
-            assert.ok(!page.text.includes('data-ov-share-sheet'), 'no Share sheet on a sealed chat');
-            const refused = await setShare('chat', sealedId, { audience: 'public' }, alice);
-            assert.strictEqual(refused.status, 400, refused.text);
-            assert.strictEqual(refused.json().code, 'share.invalid');
-            assert.deepStrictEqual(await audienceRow('chat', sealedId), { audience: 'private' });
-            const other = await t.get(`/chat/${sealedId}`, { as: bob });
-            assert.strictEqual(other.status, 404);
-        });
-
         let roundId;
         await check('a new Arena round is Only me, and a shared round names both models with no vote', async () => {
             const asked = await t.get('/arena/ask', { as: alice, form: { prompt: 'Write a function that reads a CSV and sums a column' } });
@@ -130,20 +68,6 @@ const { createFakeBench } = require('./helpers/bench');
             assert.ok(seen.text.includes('A shared Arena round'));
             assert.ok(seen.text.includes('DeepSeek Chat') && seen.text.includes('Qwen3 32B'), 'both names are shown');
             assert.ok(!seen.text.includes('name="outcome"'), 'a reader does not vote on somebody else\'s round');
-        });
-
-        await check('the person\'s default applies to the next chat, and "apply to all" moves the existing ones', async () => {
-            const saved = await t.get('/chat/defaults', { as: alice, form: { audience: 'public', apply_all: '1' } });
-            assert.strictEqual(saved.status, 303, saved.text);
-            assert.deepStrictEqual(await audienceRow('chat', chatId), { audience: 'public' });
-            const next = await t.get('/chat/send', { as: alice, form: { text: 'A second question', 'models_deepseek/deepseek-chat': '1' } });
-            const nextId = next.headers.get('location').split('/').pop();
-            assert.deepStrictEqual(await audienceRow('chat', nextId), { audience: 'public' });
-            const anon = await t.get(`/chat/${nextId}`);
-            assert.strictEqual(anon.status, 200);
-            assert.ok(anon.text.includes('A second question'));
-            const start = await t.get('/chat/new', { as: alice });
-            assert.ok(start.text.includes('New chats'), 'the default is on the product page');
         });
 
         await check('characters: Only me while being written, Specific people to show one, the default for new cards', async () => {

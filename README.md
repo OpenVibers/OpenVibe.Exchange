@@ -17,7 +17,8 @@ for a person — and keeps only two things of its own: a person's chats and thei
 |---|---|
 | `/` | "Every AI model, one account": search, popular now, cheapest per million, uncensored, community machines, the endpoint, AI in OpenVibe. Every number is live. |
 | `/models`, `/m/<org>/<model>` | Every model and every offer that serves it: price in, out and cached per million, measured p50/p95, uptime, data policy, a **Try it** box, curl and the SDK line. |
-| `/chat` | One model, or up to three side by side; system prompt, temperature, history in the account. The shared conversation UI (`openvibe-shared/thread`, `ov-thread.js`). |
+| `/chat` and `/chat/*` | 301 to `https://openvibe.chat/vibe`, carrying `?models=` and mapping old `@vN` model ids. Model pages' Try it links go there directly. |
+
 | `/api` | The endpoint, model ids (`deepseek/deepseek-chat`, `openvibe/auto`), keys from Network, aggregate usage, and the link to AI's own provider-keys page (`/you`, a session page). |
 | `/start` | Start building: one key, one endpoint, the OpenAI/Anthropic samples, four steps, AI's six operations, and the sandbox and production limits. |
 | `/why` | Why this model: the routing rule and a signed-in demo that shows a real run's explain — the objective, the selected offer, and every candidate with its cost, latency and reason. |
@@ -26,6 +27,8 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/uncensored` | The 18+ gate on the account, the abliterated models and the hard floor. |
 | `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
 | `/status` | Uptime per offer, the model changelog and incidents. |
+
+The old chat rows remain for a person's one-time import into Chat. `GET /internal/exchange/chat/export` requires Chat's service token with `exchange.chat.export` and the authenticated person's `x-ov-subject`; it returns only that person's unsealed chats.
 
 Every page is server-rendered with openvibe-shared/kit and complete without JavaScript. A page rendered for a
 signed-in person is `private, no-store`; a public page is `public, max-age=60`.
@@ -45,7 +48,7 @@ signed-in person is `private, no-store`; a public page is `public, max-age=60`.
 - `GET https://openvibe.network/api/v1/machines` and `/api/v1/machine-pools` — the person's own machines, their
   pools and the machines they can pool, with the person's Network token: names, free VRAM and RAM, the local
   network key, and each member's approval and readiness. `POST /api/v1/machine-pools` proposes a pool and
-  `POST /api/v1/machine-pools/:id/revoke` stops it. Node measures the links and the fit; Exchange shows what
+  `POST /api/v1/machine-pools/:id/revoke` stops it. Link measures the links and the fit; Exchange shows what
   Network carries and says "not measured yet" when it carries nothing.
 
 AI unreachable is said, not papered over: the catalog read keeps the last good copy for five minutes and the
@@ -81,8 +84,8 @@ AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
 - openvibe-contracts: v0.338.0
-- openvibe-sdk: v0.103.0
-- openvibe-shared: v4.157.0
+- openvibe-sdk: v0.117.0
+- openvibe-shared: v4.172.0
 - openvibe-publishing: v1.5.0
 <!-- versions:end -->
 

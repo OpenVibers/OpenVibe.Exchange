@@ -1,124 +1,51 @@
 'use strict';
-/**
- * /chat on the shared conversation UI: one model or three side by side, a system prompt and a temperature, the
- * history in the person's account, the daily allowance, the 18+ gate for an uncensored model, and one account's
- * chat never readable by another.
- */
-const assert = require('assert');
+/** Exchange's former chat redirects; Chat alone can export a signed-in person's history. */
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const { serviceAuth } = require('openvibe-contracts');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi } = require('./helpers/ai');
 
 (async () => {
-    const ai = createFakeAi();
-    const t = await boot({ ai });
+    const t = await boot({ ai: createFakeAi() });
     const alice = t.network.addUser('alice');
     const bob = t.network.addUser('bob');
+    const token = (caps) => {
+        const now = Math.floor(Date.now() / 1000);
+        return serviceAuth.signServiceToken({ iss: t.network.issuer(), sub: 'svc:chat', actor_type: 'service',
+            aud: ['openvibe.exchange'], cap: caps, iat: now, exp: now + 300, jti: crypto.randomUUID() }, t.network.privatePem);
+    };
     try {
-        const confirmed = await t.get('/uncensored/confirm', { as: alice, form: { adult: 'yes' } });
-        assert.strictEqual(confirmed.status, 303, 'alice confirms 18+ for the comparison');
-
-        await check('signed out, chat asks for a sign-in', async () => {
-            const r = await t.get('/chat');
-            assert.strictEqual(r.status, 401);
-            assert.ok(r.text.includes('Sign in with OpenVibe'));
+        await check('every old chat path redirects to Vibe and carries selected models', async () => {
+            for (const path of ['/chat', '/chat/new', '/chat/exc_old', '/chat/exc_old/send']) {
+                const r = await t.get(path, { as: alice });
+                assert.equal(r.status, 301, path);
+                assert.equal(r.headers.get('location'), 'https://openvibe.chat/vibe');
+            }
+            const selected = await t.get('/chat?models=deepseek%2Fdeepseek-chat%2Cqwen%2Fqwen3-32b');
+            assert.equal(selected.status, 301);
+            assert.equal(selected.headers.get('location'), 'https://openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat%2Cqwen%2Fqwen3-32b');
+            const old = await t.get('/chat?models=deepseek%2Fdeepseek-chat%40v1');
+            assert.equal(old.headers.get('location'), 'https://openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat');
+            const page = await t.get('/m/deepseek/deepseek-chat');
+            assert.ok(page.text.includes('https://openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat'));
         });
-
-        await check('the start page is the shared conversation UI with model chips', async () => {
-            const r = await t.get('/chat/new', { as: alice });
-            assert.strictEqual(r.status, 200, r.text);
-            assert.ok(r.text.includes('/shared/thread.css') && r.text.includes('/shared/ov-thread.js'));
-            assert.ok(r.text.includes('ovt-composer') && r.text.includes('ovk-sidebar'));
-            assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Llama 3 8B abliterated'), 'the model chips');
-            assert.ok(r.text.includes('System prompt') && r.text.includes('Temperature'));
+        await check('export requires Chat capability and contains only the named person’s unsealed chats', async () => {
+            const mine = await t.ctx.chats.create({ owner: alice.subject, title: 'Alice history', models: ['deepseek/deepseek-chat'] });
+            await t.ctx.chats.append(alice.subject, mine.id, { role: 'user', content: 'Hello' });
+            await t.ctx.chats.append(alice.subject, mine.id, { role: 'assistant', model: 'deepseek/deepseek-chat', content: 'Hi' });
+            const theirs = await t.ctx.chats.create({ owner: bob.subject, title: 'Bob history' });
+            await t.ctx.chats.append(bob.subject, theirs.id, { role: 'user', content: 'Private' });
+            await t.ctx.chats.create({ owner: alice.subject, title: 'Sealed', sealed: true });
+            const path = '/internal/exchange/chat/export';
+            assert.equal((await t.get(path, { bearer: token([]), headers: { 'x-ov-subject': alice.subject } })).status, 403);
+            const out = await t.get(path, { bearer: token(['exchange.chat.export']), headers: { 'x-ov-subject': alice.subject } });
+            assert.equal(out.status, 200, out.text);
+            assert.equal(out.json().count, 1);
+            assert.deepEqual(out.json().chats[0].messages.map((m) => m.content), ['Hello', 'Hi']);
+            const other = await t.get(path, { bearer: token(['exchange.chat.export']), headers: { 'x-ov-subject': bob.subject } });
+            assert.equal(other.json().count, 1);
+            assert.equal(other.json().chats[0].title, 'Bob history');
         });
-
-        let chatUrl = null;
-        await check('a message runs the chosen models side by side and stores the history', async () => {
-            const r = await t.get('/chat/send', {
-                as: alice,
-                form: {
-                    text: 'What is a mutex?',
-                    'models_deepseek/deepseek-chat': '1',
-                    'models_meta-llama/llama-3-8b-abliterated': '1',
-                    system: 'Be brief.',
-                    temperature: '0.4',
-                },
-            });
-            assert.strictEqual(r.status, 303, r.text);
-            chatUrl = r.headers.get('location');
-            assert.match(chatUrl, /^\/chat\/exc_/);
-            assert.strictEqual(ai.calls.length, 2, 'one run per model');
-            assert.deepStrictEqual(ai.calls.map((c) => c.model).sort(), ['deepseek/deepseek-chat@v1', 'openvibe/auto'], 'the exact id where one exists');
-            assert.ok(ai.calls.every((c) => c.subject === alice.subject), 'each run is on the person’s behalf');
-            assert.strictEqual(ai.calls[0].temperature, 0.4);
-            assert.strictEqual(ai.calls[0].messages[0].role, 'system');
-
-            const page = await t.get(chatUrl, { as: alice });
-            assert.strictEqual(page.status, 200);
-            assert.ok(page.text.includes('What is a mutex?'));
-            assert.ok(page.text.includes('An answer from deepseek/deepseek-chat@v1.'));
-            assert.ok(page.text.includes('An answer from openvibe/auto.'));
-            assert.match(page.headers.get('cache-control'), /private|no-store/);
-            assert.ok(page.text.includes('ex-answer-grid') && page.text.includes('data-count="2"'), 'the two answers sit in one round');
-            assert.ok(page.text.includes('ex-receipt') && page.text.includes('Why this offer'), 'a folded receipt under each answer');
-            assert.ok(page.text.includes('$0.000120') && page.text.includes('420 ms'), 'the receipt shows the price and latency');
-            assert.ok(page.text.includes('ex-mk--deepseek') && page.text.includes('ex-mk--llama'), 'answers carry family marks');
-            assert.ok(!page.text.includes('class="ovt-avatar"'), 'no stray empty avatar above an answer');
-        });
-
-        await check('the next message carries the history, and a second model’s answers never bleed across', async () => {
-            const before = ai.calls.length;
-            const r = await t.get(`${chatUrl}/send`, {
-                as: alice,
-                form: { text: 'And a semaphore?', 'models_deepseek/deepseek-chat': '1', 'models_meta-llama/llama-3-8b-abliterated': '1' },
-            });
-            assert.strictEqual(r.status, 303);
-            const fresh = ai.calls.slice(before);
-            assert.strictEqual(fresh.length, 2);
-            const deep = fresh.find((c) => c.model === 'deepseek/deepseek-chat@v1');
-            assert.deepStrictEqual(deep.messages.map((m) => m.role), ['user', 'assistant', 'user'], 'its own answer is in the history');
-            assert.strictEqual(deep.messages[1].content, 'An answer from deepseek/deepseek-chat@v1.');
-        });
-
-        await check('another account cannot read the chat', async () => {
-            assert.strictEqual((await t.get(chatUrl, { as: bob })).status, 404);
-            assert.strictEqual((await t.get('/chat', { as: bob })).status, 200, 'bob has his own start page');
-        });
-
-        await check('an uncensored model needs the 18+ confirmation first', async () => {
-            const before = ai.calls.length;
-            const r = await t.get('/chat/send', { as: bob, form: { text: 'Hello', 'models_meta-llama/llama-3-8b-abliterated': '1' } });
-            assert.strictEqual(r.status, 403);
-            assert.ok(r.text.includes('18 or over'));
-            assert.strictEqual(ai.calls.length, before, 'no run happened');
-            const confirm = await t.get('/uncensored/confirm', { as: bob, form: { adult: 'yes' } });
-            assert.strictEqual(confirm.status, 303);
-            const ok = await t.get('/chat/send', { as: bob, form: { text: 'Hello', 'models_meta-llama/llama-3-8b-abliterated': '1' } });
-            assert.strictEqual(ok.status, 303);
-        });
-
-        await check('a cross-site send is refused', async () => {
-            const r = await t.get('/chat/send', { as: alice, json: { text: 'hi' }, origin: 'https://evil.test' });
-            assert.strictEqual(r.status, 403);
-        });
-
-        await check('a chat belongs to the person who made it, and can be deleted', async () => {
-            const del = await t.get(`${chatUrl}/delete`, { as: alice, method: 'POST' });
-            assert.strictEqual(del.status, 303);
-            assert.strictEqual((await t.get(chatUrl, { as: alice })).status, 404);
-        });
-    } finally { await t.close(); }
-
-    const capped = await boot({ ai: createFakeAi(), env: { EXCHANGE_CHAT_PER_DAY: '1' } });
-    const carol = capped.network.addUser('carol');
-    try {
-        await check('the daily allowance stops at its number', async () => {
-            const first = await capped.get('/chat/send', { as: carol, form: { text: 'one' } });
-            assert.strictEqual(first.status, 303);
-            const second = await capped.get('/chat/send', { as: carol, form: { text: 'two' } });
-            assert.strictEqual(second.status, 429);
-            assert.ok(second.text.includes('resets at midnight UTC'));
-        });
-    } finally { await capped.close(); }
-    done();
-})();
+    } finally { await t.close(); done(); }
+})().catch((err) => { console.error(err); process.exitCode = 1; });
