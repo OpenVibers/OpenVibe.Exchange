@@ -35,9 +35,10 @@ function createConsoleRoutes({ config, ai }) {
             const view = await ai.meRequest(req.viewer.token, `/api/v1/choices?task=${encodeURIComponent(task.name)}`);
             const list = ((view.options && view.options.openvibe) || []).filter((m) => !m.adult);
             const models = list.map(({ model, source, name, price_estimate_usd }) => ({ model, source, name, price_estimate_usd }));
-            // The two dynamic picks come first: "let OpenVibe choose" is the built-in every task starts with, and
-            // "the cheapest good model" is what Design does signed out. Neither is a single catalogue row.
-            models.unshift({ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose', price_estimate_usd: null }, { model: 'openvibe/cheapest', source: 'openvibe', name: 'The cheapest good model', price_estimate_usd: null });
+            // A model task's two dynamic picks come first: "let OpenVibe choose" is the built-in every task starts
+            // with, and "the cheapest good model" is what Design does signed out. Neither is a single catalogue row,
+            // and a search task has neither: it names an engine.
+            if (task.kind !== 'search') models.unshift({ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose', price_estimate_usd: null }, { model: 'openvibe/cheapest', source: 'openvibe', name: 'The cheapest good model', price_estimate_usd: null });
             return { models, imageModels: task.kind === 'image' ? models : [] };
         } catch { return { models: [], imageModels: [] }; }
     };
