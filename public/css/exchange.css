@@ -689,3 +689,9 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-credential-form label { display: grid; gap: 6px; min-width: 0; }
 .ex-credential-form input, .ex-credential-form select { width: 100%; min-width: 0; min-height: 44px; }
 .ex-credential-balance pre { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Tap targets (11-09 audit, WCAG 2.5.8): "Try it" was 34 px tall and a model row 38 px; both reach 44 px. */
+.ex-try-link { min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center; }
+.ex-mrow-main { min-height: 44px; }
+.ex-more a { display: inline-flex; align-items: center; min-height: 44px; }
+.ovk-snip .ovk-icon-btn { min-width: 44px; min-height: 44px; }
