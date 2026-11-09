@@ -22,19 +22,11 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // "OpenVibe..."). Icons are the navbar's own glyphs; the brand is the way home.
 const NAV = [
     { label: 'Models', href: '/models', icon: 'fa-microchip' },
-    { label: 'Chat', href: '/chat', icon: 'fa-comments' },
-    { label: 'Arena', href: '/arena', icon: 'fa-hand-fist' },
-    { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line' },
-    { label: 'Start building', href: '/start', icon: 'fa-bolt' },
-    { label: 'API', href: '/api', icon: 'fa-code' },
-    { label: 'Your keys and accounts', href: '/privacy/keys', icon: 'fa-key', more: true },
-    { label: 'Why this model', href: '/why', icon: 'fa-diagram-project', more: true },
-    { label: 'Your own endpoint', href: '/own', icon: 'fa-server', more: true },
-    { label: 'Sell compute', href: '/sell', icon: 'fa-microchip', more: true },
-    { label: 'Uncensored (18+)', href: '/uncensored', icon: 'fa-lock', more: true },
-    { label: 'AI in OpenVibe', href: '/ai', icon: 'fa-circle-nodes', more: true },
-    { label: 'Questions', href: '/faq', icon: 'fa-circle-info', more: true },
-    { label: 'Status', href: '/status', icon: 'fa-gauge', more: true },
+    { label: 'Search', href: '/search', icon: 'fa-magnifying-glass' },
+    { label: 'Pricing', href: '/pricing', icon: 'fa-tag' },
+    { label: 'Docs', href: '/docs', icon: 'fa-code' },
+    { label: 'Status', href: '/status', icon: 'fa-gauge' },
+    { label: 'Rankings', href: 'https://openvibe.report/ai', icon: 'fa-chart-line', more: true },
 ];
 
 const hashes = new Map();
@@ -66,6 +58,7 @@ function renderPage(o) {
         apiBase: NETWORK_URL,
         links: [
             ...NAV.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
+            ...(signedIn ? [{ label: 'Dashboard', href: '/dashboard', icon: 'fa-key', active: active(pathNow, '/dashboard') }] : []),
             ...(viewer.role === 'owner' ? [{ label: 'AI console', href: '/console', icon: 'fa-sliders', active: active(pathNow, '/console') }] : []),
         ],
         history: { type: 'page', title: o.title || SITE_NAME },
@@ -102,6 +95,7 @@ ${appIcon.headTags({ site: 'exchange' })}
 <link rel="stylesheet" href="${ovServe.url('room.css')}">
 <link rel="stylesheet" href="${ovServe.url('showcase.css')}">
 <link rel="stylesheet" href="${asset('css/exchange.css')}">
+<link rel="stylesheet" href="${asset('css/platform.css')}">
 <script src="${ovServe.url('motion.js')}" defer></script>
 <script src="${ovServe.url('kit-web.js')}" defer></script>
 <script src="${asset('js/exchange.js')}" defer></script>

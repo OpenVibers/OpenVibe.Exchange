@@ -20,6 +20,17 @@ const { classify } = require('../server/arena/category');
     });
     const bench = createFakeBench();
     const t = await boot({ ai, bench });
+    // Arena HTML now lives on Report; exercise the same private read through Exchange's JSON API.
+    const get = t.get;
+    t.get = async (path, options = {}) => {
+        if (/^\/arena(?:\/|$)/.test(path) && !options.form && !options.json && !options.method) {
+            const response = await get(path.replace(/^\/arena/, '/api/v1/arena/rounds'), options);
+            try { response.text = response.json().html || response.text; } catch {}
+            return response;
+        }
+        return get(path, options);
+    };
+
     const alice = t.network.addUser('alice');
     const bob = t.network.addUser('bob');
 
@@ -69,7 +80,7 @@ const { classify } = require('../server/arena/category');
             assert.ok(!r.text.includes('Qwen3 32B'), 'no model name before the vote');
             assert.ok(!r.text.includes('Receipt'), 'no receipt before the vote');
             assert.ok(r.text.includes('A is better') && r.text.includes('Both bad'));
-            assert.ok(r.text.includes('code'), 'the task category is said');
+            assert.match(r.text, /Code|code/, 'the task category is said');
         });
 
         await check('a vote is the person’s own Bench judgement, once', async () => {

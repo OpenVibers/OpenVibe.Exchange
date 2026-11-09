@@ -99,7 +99,7 @@ const { sanitizeNext } = require('../server/auth/sso');
     });
 
     await check('public pages are complete without JavaScript', async () => {
-        for (const p of ['/', '/models', '/api', '/sell', '/uncensored', '/ai']) {
+        for (const p of ['/', '/models', '/api', '/pricing', '/search', '/uncensored']) {
             const r = await t.get(p);
             assert.strictEqual(r.status, 200, p);
             assert.match(r.text, /<noscript><nav/);

@@ -27,6 +27,7 @@ const { esc, raw } = require('../render/html');
 const marks = require('../views/marks');
 const { send } = require('../render/layout');
 const views = require('../views/exchange');
+const platform = require('../views/platform');
 const credentialViews = require('../views/credentials');
 
 const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 60 });
@@ -92,16 +93,19 @@ function createPageRoutes(ctx) {
             .send(JSON.stringify(doc));
     });
 
+    r.get('/pricing', (req,res) => page(req,res,{title:'Pricing',body:raw('<div class="ex-wrap xp">'+platform.pricing()+'</div>')}));
+    r.get('/docs', (req,res) => res.redirect(301,'/api'));
+
     // ── Home ─────────────────────────────────────────────────
     r.get('/', async (req, res) => {
-        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
+        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(7)]);
         const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 120) : '';
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: null,
             description: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
-            body: raw(views.home({ catalog, usage, viewer: req.viewer, q, config })),
+            body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config })),
         });
     });
 
@@ -115,7 +119,7 @@ function createPageRoutes(ctx) {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: q ? `Models: ${q}` : 'Models',
             description: 'Every model on OpenVibe.Exchange with its live offers: price in and out per million tokens, measured speed and uptime, context length and data policy.',
-            body: raw(views.modelsPage({ catalog, q, family, sort, community })),
+            body: raw(platform.modelsPage({ catalog, query: req.query })),
         });
     });
 
@@ -143,10 +147,12 @@ function createPageRoutes(ctx) {
             index: true, cache: req.method === 'GET' ? PUBLIC_CACHE : null, agentLayer: true,
             title: model.name, description: `${model.name}: price, speed, uptime and data policy of every offer.`,
             jsonLd: [jsonLd], head: '',
-            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community })),
+            body: raw(platform.modelPage({ model })),
         }, status);
     }
 
+    r.get('/models/:id', (req, res) => { const parts = req.params.id.split('/'); req.params.org = parts.shift(); req.params.model = parts.join('/'); return renderModel(req, res); });
+    r.get('/models/:org/:model', (req, res) => renderModel(req, res));
     r.get('/m/:org/:model', (req, res) => renderModel(req, res));
     r.post('/m/:org/:model/try', async (req, res) => {
         if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to try it', text: 'A try is one run on your own free allowance.', next: `/m/${req.params.org}/${req.params.model}` });
