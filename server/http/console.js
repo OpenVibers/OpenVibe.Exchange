@@ -4,6 +4,7 @@ const express = require('express');
 const { raw } = require('../render/html');
 const { send } = require('../render/layout');
 const { consolePage } = require('../views/console');
+const { defaultsPage } = require('../views/task-defaults');
 
 const READS = Object.freeze({
     supply: '/api/v1/admin/console/supply',
@@ -23,6 +24,50 @@ function createConsoleRoutes({ config, ai }) {
         body: raw(consolePage({ section, data, error })),
     });
     r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(404));
+    // The owner's AI defaults: one row per task, the model inline, and the fallback order. Posting one task's form
+    // saves only that task, and AI resolves it within a minute.
+    const DEFAULTS_HEAD = raw('<link rel="stylesheet" href="/css/task-defaults.css"><script src="/js/task-defaults.js" defer></script>');
+    // Owner defaults are OpenVibe supply only, so each picker lists the network's offers for the task's kind: the
+    // chat (or code, vision) models, and for an image task its image models too. A failed read leaves that task's
+    // pickers empty rather than the page; the saved values still render from the defaults.
+    const networkModels = async (task) => {
+        try {
+            const view = await ai.meRequest(req.viewer.token, `/api/v1/choices?task=${encodeURIComponent(task.name)}`);
+            const list = ((view.options && view.options.openvibe) || []).filter((m) => !m.adult);
+            const models = list.map(({ model, source, name, price_estimate_usd }) => ({ model, source, name, price_estimate_usd }));
+            // The two dynamic picks come first: "let OpenVibe choose" is the built-in every task starts with, and
+            // "the cheapest good model" is what Design does signed out. Neither is a single catalogue row.
+            models.unshift({ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose', price_estimate_usd: null }, { model: 'openvibe/cheapest', source: 'openvibe', name: 'The cheapest good model', price_estimate_usd: null });
+            return { models, imageModels: task.kind === 'image' ? models : [] };
+        } catch { return { models: [], imageModels: [] }; }
+    };
+    r.get('/console/defaults', async (req, res) => {
+        try {
+            const data = await ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults');
+            const optionsByTask = {};
+            for (const task of data.tasks || []) optionsByTask[task.name] = await networkModels(task);
+            return send(res, 200, { viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI defaults', head: DEFAULTS_HEAD, body: raw(defaultsPage({ ...data, optionsByTask })) });
+        } catch (err) { return page(req, res, 'defaults', {}, err.message, err.status || 502); }
+    });
+    r.post('/console/defaults', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            const b = req.body;
+            const fallbacks = b.fallback == null ? [] : [].concat(b.fallback);
+            const value = {
+                signed_out: JSON.parse(b.signed_out),
+                signed_in: JSON.parse(b.signed_in),
+                fallbacks: fallbacks.map((v) => JSON.parse(v)),
+                image_model: b.image_model ? JSON.parse(b.image_model) : null,
+                // One engine a line; a leading - or − turns it off.
+                search_engines: String(b.search_engines || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean)
+                    .map((x) => ({ engine: x.replace(/^[-−]/, ''), enabled: !/^[-−]/.test(x) })),
+                max_cost_usd: b.max_cost_usd === '' ? null : Number(b.max_cost_usd),
+            };
+            await ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults', { method: 'PUT', body: { defaults: [{ task: b.task, value }] } });
+            return res.redirect(303, '/console/defaults');
+        } catch (err) { return page(req, res, 'defaults', {}, err.message, err.status || 422); }
+    });
     r.get('/console/runs/:id', async (req, res) => {
         try { return page(req, res, 'runs', await ai.adminRequest(`/api/v1/admin/console/run?id=${encodeURIComponent(req.params.id)}`)); }
         catch (err) { return page(req, res, 'runs', {}, err.message || 'AI admin API did not answer.', err.status === 404 ? 404 : 502); }

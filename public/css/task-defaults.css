@@ -1,0 +1,24 @@
+.ex-task-defaults{max-width:1100px;margin:auto;padding:24px 16px}
+.ex-task-defaults h1{font-size:clamp(2rem,5vw,3.2rem);margin:.4em 0}
+.ex-task-defaults p{color:var(--text-secondary);line-height:1.5}
+.ex-default-tasks{display:grid;gap:20px;margin-top:28px}
+.ex-default-task{min-width:0;padding:24px;border:1px solid var(--border);border-radius:16px;background:var(--bg-secondary)}
+.ex-default-task>header{display:flex;justify-content:space-between;gap:16px}
+.ex-default-task h2{font-size:1.1rem;margin:0;overflow-wrap:anywhere}
+.ex-default-task select,.ex-default-task input,.ex-default-task textarea{box-sizing:border-box;max-width:100%;min-height:44px}
+.ex-default-task select{width:100%}
+.ex-default-picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.ex-default-pick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0;min-width:0}
+.ex-default-pick>span{display:block;flex-basis:100%;font-size:.85rem}
+.ex-default-pick select{flex:1;min-width:0}
+.ex-default-task details{margin:16px 0}
+.ex-default-task summary{min-height:44px;cursor:pointer;align-content:center}
+.ex-default-task ol{padding:0;list-style:none}
+.ex-default-task li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--border)}
+.ex-default-task li>span{flex:1;min-width:90px;overflow-wrap:anywhere}
+.ex-default-task li select{flex:2;min-width:140px;width:auto}
+.ex-default-task button{min-height:44px}
+.ex-default-cost{display:flex;flex-direction:column;gap:8px;margin:20px 0;max-width:300px}
+.ex-default-task fieldset{min-width:0}
+.ex-default-task textarea{width:100%}
+@media(max-width:600px){.ex-default-task{padding:16px}.ex-default-picks{grid-template-columns:minmax(0,1fr)}}

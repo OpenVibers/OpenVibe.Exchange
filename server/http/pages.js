@@ -436,6 +436,16 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
         return page(req, res, { title: 'The API', index: false, body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })) });
     });
 
+    r.get('/api/ai/choices', async (req,res) => {
+        try { res.set('Cache-Control','private, no-store').json(await ai.meRequest(req.viewer?.token, '/api/v1/choices?task='+encodeURIComponent(String(req.query.task || '')))); }
+        catch(err) { res.status(err.status || 502).json({detail:err.message}); }
+    });
+    r.put('/api/ai/choices/:task', express.json({limit:'4kb'}), async (req,res) => {
+        if (req.get('origin') !== new URL(config.baseUrl).origin) return res.sendStatus(403);
+        try { res.json(await ai.meRequest(req.viewer?.token, '/api/v1/me/choices/'+encodeURIComponent(req.params.task), {method:'PUT',body:req.body})); }
+        catch(err) { res.status(err.status || 502).json({detail:err.message}); }
+    });
+
     // A person's AI credentials live on Exchange. The user's signed Network token travels server-to-server to AI;
     // the page and its responses contain metadata only, never a saved API key or cookie value.
     r.get('/privacy/keys', async (req, res) => {
