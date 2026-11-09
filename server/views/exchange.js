@@ -115,6 +115,14 @@ function answerPrivacy(result) {
 const freeTier = (o) => Boolean(o && (o.free_now !== undefined ? o.free_now === true : o.free_tier === true));
 // A free-tier offer whose provider cannot answer right now (out of credit, or down): said, never promised.
 const freePaused = (o) => Boolean(o && o.free_tier === true && o.free_now === false);
+/** An offer's measured status: up, degraded (over 5% of the last hour's requests) or down (its circuit is open), with the plain reason and since when. */
+const statusCell = (o) => {
+    const s = String((o && o.status) || 'up');
+    if (s === 'up') return kit.badge('Up', 'ok');
+    const why = o.status_reason ? `<br><small>${esc(o.status_reason)}</small>` : '';
+    const since = o.status_since ? `<br><small class="ex-muted">since ${esc(String(o.status_since).slice(0, 16).replace('T', ' '))} UTC</small>` : '';
+    return `${kit.badge(s === 'down' ? 'Down' : 'Degraded', s === 'down' ? 'bad' : 'warn')}${why}${since}`;
+};
 const FREE_PAUSED = 'Free messages are paused right now: the free model\u2019s provider is out of credit. Your own key or Balance still works.';
 
 function badgesOf(m, best) {
@@ -316,6 +324,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
 
     const columns = [
         { key: 'provider', label: 'Offer', primary: true, html: true },
+        { key: 'status', label: 'Status', html: true },
         { key: 'price', label: 'In / out per M', html: true },
         { key: 'speed', label: 'Speed', html: true },
         { key: 'first', label: 'First token' },
@@ -335,6 +344,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         const refuses = refusalText(o);
         return {
             provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
+            status: statusCell(o),
             price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}${o.fixed_price ? ` ${kit.badge('Fixed price')}` : ''}` : '<span class="ex-muted">free capacity</span>',
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             first: o.speed && o.speed.ttft_ms != null ? ms(o.speed.ttft_ms) : '–',
@@ -864,6 +874,7 @@ function statusPage({ catalog, usage, changes = null }) {
     const rows = offers.slice(0, 40).map(({ m, o }) => ({
         model: `<a href="${hrefOf(m)}">${esc(m.name)}</a>`,
         provider: esc(providerLabel(o)),
+        status: statusCell(o),
         uptime: o.uptime == null ? '<span class="ex-muted">no traffic</span>' : pct(o.uptime),
         traffic: count(o.requests_7d),
         speed: o.speed.p95_ms == null ? '–' : ms(o.speed.p95_ms),
@@ -872,9 +883,10 @@ function statusPage({ catalog, usage, changes = null }) {
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Status', sub: 'Uptime per offer, the model changelog, and incidents.', actions: [kit.button({ href: '/models', label: 'Models', kind: 'quiet' })] })}
 ${unavailable(catalog, 'The status board')}
-${panel({ title: 'Uptime per offer', note: 'Measured from real requests in the last seven days. An offer with no traffic has no uptime to show, and says so.', id: 'uptime', body: rows.length ? kit.table({ columns: [
+${panel({ title: 'Uptime per offer', note: 'Status is measured: down while an offer\'s circuit is open (with the plain reason), degraded when more than 5% of at least 10 requests in the last hour failed, up otherwise. Uptime is measured from real requests in the last seven days; an offer with no traffic has no uptime to show, and says so.', id: 'uptime', body: rows.length ? kit.table({ columns: [
         { key: 'model', label: 'Model', primary: true, html: true },
         { key: 'provider', label: 'Offer' },
+        { key: 'status', label: 'Status', html: true },
         { key: 'uptime', label: 'Uptime', html: true },
         { key: 'traffic', label: 'Requests, 7 d' },
         { key: 'speed', label: 'p95' },

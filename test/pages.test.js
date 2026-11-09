@@ -112,6 +112,27 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('99.0%') && r.text.includes('no traffic'));
         });
 
+        await check('status is measured: down and degraded carry a plain reason and since when', async () => {
+            const offer = ai.catalogData.models[0].offers[0];
+            try {
+                offer.status = 'down';
+                offer.status_reason = 'the provider says the account is out of credit';
+                offer.status_since = '2026-11-09T09:00:00.000Z';
+                const down = await t.get('/status');
+                assert.ok(down.text.includes('Down') && down.text.includes('the provider says the account is out of credit'), 'the status page says why');
+                assert.ok(down.text.includes('since 2026-11-09 09:00 UTC'), 'and since when');
+                offer.status = 'degraded';
+                offer.status_reason = 'too many errors in the last hour';
+                offer.status_since = '2026-11-09T10:00:00.000Z';
+                const degraded = await t.get('/m/deepseek/deepseek-chat');
+                assert.ok(degraded.text.includes('Degraded') && degraded.text.includes('too many errors in the last hour'), 'the model page shows the measured status');
+            } finally {
+                offer.status = 'up';
+                offer.status_reason = null;
+                offer.status_since = null;
+            }
+        });
+
         await check('an unknown page is 404, and a personal page is never cached', async () => {
             const r = await t.get('/nope');
             assert.strictEqual(r.status, 404);
