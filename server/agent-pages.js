@@ -3,6 +3,7 @@
 // own render through the same views and layout the HTML routes use, always signed out: a chat, a try box and the
 // 18+ confirmation never appear in a twin.
 const views = require('./views/exchange');
+const companionViews = require('./views/companions');
 const arenaViews = require('./views/arena');
 const { CATEGORIES } = require('./arena/category');
 const { ARENA_KIND } = require('./bench');
@@ -13,7 +14,7 @@ const { homeJsonLd } = require('./http/discovery');
 const HOME_DESCRIPTION = 'OpenVibe.Exchange: every AI model, one account. Live prices, speed and uptime of every offer, from the families on sale today and more as their providers join; chat with one model or three side by side; one OpenAI- and Anthropic-compatible endpoint.';
 
 function createAgentPages(ctx) {
-    const { config, ai, bench, history } = ctx;
+    const { config, ai, bench, history, characters } = ctx;
     const page = (path, o) => ({ html: renderPage({ viewer: { kind: 'anonymous' }, config, path, agentLayer: true, ...o }), title: o.title });
 
     async function home(path) {
@@ -82,6 +83,30 @@ function createAgentPages(ctx) {
                 history ? history.changes().catch(() => null) : Promise.resolve(null),
             ]);
             return page(p, { index: true, title: 'Status', description: 'Uptime per offer, the model changelog, and incidents.', body: raw(views.statusPage({ catalog, usage, changes })) });
+        }
+        if (p === '/companions') {
+            // The public gallery, always the signed-out view: no "Your characters", no adult cards.
+            const [gallery, tagList] = await Promise.all([
+                characters.gallery({ sort: 'new', q: '', tags: [], limit: 48, allowAdult: false }),
+                characters.allTags(24),
+            ]);
+            return page(p, {
+                index: true, title: 'Characters',
+                description: 'Character cards on OpenVibe.Exchange: bring a card in as Character Card V2 or V3, talk to it, and take it with you again.',
+                body: raw(companionViews.galleryPage({
+                    items: gallery.items, total: gallery.total, q: '', tags: [], sort: 'new', tagList,
+                    viewer: { kind: 'anonymous' }, adult: false, mine: [], defaults: '',
+                })),
+            });
+        }
+        if (p === '/privacy/keys') {
+            // Signed out, /privacy/keys only sends a person to sign in; the twin says that and nothing of an
+            // account, a credential or a key.
+            return page(p, {
+                index: false, title: 'Your keys and accounts',
+                description: 'Sign in to manage your own provider keys and supported browser session cookies.',
+                body: raw('<div class="ex-wrap ex-narrow"><header class="ex-companions-head"><h1>Your keys and accounts</h1><p class="ex-lede">Sign in to manage your own provider keys and supported browser session cookies.</p><p class="ex-head-actions"><a class="ovk-btn ovk-btn--primary" href="/auth/login?next=%2Fprivacy%2Fkeys">Sign in with OpenVibe</a></p></header></div>'),
+            });
         }
         return null;
     }
