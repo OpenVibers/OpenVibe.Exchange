@@ -54,7 +54,7 @@ function createDashboardRoutes({ config, ai }) {
                 req,
                 res,
                 'Keys',
-                `<p>Keys are shown once. The monthly cap applies to this key’s model calls.</p><ul>${(data.keys || []).map((k) => `<li><strong>${esc(k.name)}</strong> · ${esc(k.prefix)}… · $${Number(k.monthly_cap_usd)} / month ${k.revoked_at ? 'Revoked' : `<form method="post" action="/dashboard/keys/${encodeURIComponent(k.id)}/revoke">${kit.button({ label: 'Revoke', type: 'submit', kind: 'quiet' })}</form>`}</li>`).join('')}</ul><form id="new" method="post" action="/dashboard/keys"><label>Name<input name="name" required maxlength="80"></label><label>Monthly cap (USD)<input name="monthly_cap_usd" type="number" min="0" step="0.01" value="0" required></label><label>Allowed models (comma separated; empty allows all)<input name="allowed_models"></label>${kit.button({ label: 'Create key', type: 'submit' })}</form>`,
+                `<p>Keys are shown once. The monthly cap applies to this key’s model calls.</p><ul>${(data.keys || []).map((k) => `<li><strong>${esc(k.name)}</strong> · ${esc(k.prefix)}… · $${Number(k.monthly_cap_usd)} / month ${k.expires_at ? ' · Expires ' + esc(k.expires_at) : ''} ${k.revoked_at ? 'Revoked' : `<form method="post" action="/dashboard/keys/${encodeURIComponent(k.id)}/revoke">${kit.button({ label: 'Revoke', type: 'submit', kind: 'quiet' })}</form>`}</li>`).join('')}</ul><form id="new" method="post" action="/dashboard/keys"><label>Name<input name="name" required maxlength="80"></label><label>Monthly cap (USD)<input name="monthly_cap_usd" type="number" min="0" step="0.01" value="0" required></label><label>Expiry (UTC; optional)<input name="expires_at" type="datetime-local"></label><label>Allowed models (comma separated; empty allows all)<input name="allowed_models"></label>${kit.button({ label: 'Create key', type: 'submit' })}</form>`,
             );
         }),
     );
@@ -65,6 +65,7 @@ function createDashboardRoutes({ config, ai }) {
                 method: 'POST',
                 body: {
                     name: req.body.name,
+                    ...(req.body.expires_at ? { expires_at: String(req.body.expires_at) + 'Z' } : {}),
                     monthly_cap_usd: Number(req.body.monthly_cap_usd),
                     allowed_models: String(req.body.allowed_models || '')
                         .split(',')
