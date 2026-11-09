@@ -54,7 +54,7 @@ function keysPage(keys = []) {
         + `<section class="xd-card" id="new"><h2>New key</h2><p class="xd-note">The secret shows once, when you make it. Calls stop when the month's spend reaches the cap.</p>`
         + '<form class="xd-form" method="post" action="/dashboard/keys">'
         + '<label><span>Name</span><input name="name" required maxlength="80" placeholder="My application" autocomplete="off"></label>'
-        + '<label><span>Monthly cap</span><span class="xd-money"><span aria-hidden="true">$</span><input name="monthly_cap_usd" type="number" min="0" step="0.01" value="0" required inputmode="decimal" aria-describedby="cap-hint"></span><small id="cap-hint">0 allows free models only.</small></label>'
+        + '<label><span>Monthly cap</span><span class="xd-money"><span aria-hidden="true">$</span><input name="monthly_cap_usd" type="number" min="1" step="0.01" value="5" required inputmode="decimal" aria-describedby="cap-hint"></span><small id="cap-hint">Each call holds up to $1 (or its max_cost_usd) until it finishes; the unused part comes back.</small></label>'
         + '<label><span>Models it may call</span><input name="allowed_models" placeholder="Every model" autocomplete="off" aria-describedby="models-hint"><small id="models-hint">Model ids, comma separated, e.g. deepseek/deepseek-chat. Empty allows every model.</small></label>'
         + `${kit.button({ label: 'Make the key', type: 'submit' })}</form></section>`);
 }
