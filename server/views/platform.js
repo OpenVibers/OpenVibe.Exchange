@@ -59,11 +59,22 @@ function table(models) {
             + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', kind: 'quiet', small: true })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet', small: true })}</p></li>`;
     }).join('')}</ul>`;
 }
+// What each way of calling costs, in the reader's words (home's Pricing section and /pricing). Opus, 11-09.
+const PRICING = [
+    ['Your own provider key', "The provider's price. OpenVibe adds 0%, with no cap and no end date."],
+    ['Managed models', 'The input and output price per million tokens shown on each model, before you call.'],
+    ["Open models on OpenVibe's GPUs", 'A fixed price per million tokens, the same on every call. Coming next.'],
+    ['Your own endpoint', 'An hourly price, quoted before it starts; it stops when idle.'],
+    ['Search', "Each engine's price per 1,000 searches; the free engines first."],
+];
+const pricingRows = () => `<ul class="xpr-list">${PRICING.map(([name, what]) => `<li><strong>${esc(name)}</strong><span>${esc(what)}</span></li>`).join('')}</ul>`
+    + '<p class="xpr-note">Paid models open soon. Every price shows before you call, and nothing is charged until then.</p>';
 function pricing() {
-    return section(
-        'Pricing',
-        `<div class="xp-models"><table><thead><tr><th>Route</th><th>What you pay</th></tr></thead><tbody><tr><td>Your provider key</td><td>Provider price + 0% fee, forever, no cap</td></tr><tr><td>Managed models</td><td>The input and output rates listed on each model</td></tr><tr><td>Our GPUs</td><td>Fixed input and output prices set by the owner</td></tr><tr><td>Your deployment</td><td>The quoted hourly price, shown before starting</td></tr><tr><td>Search</td><td>Engine price per 1,000 searches; free engines first</td></tr></tbody></table></div><p>Paid models open soon. Every price shows before you call, and nothing is charged until then.</p>`,
-    );
+    return section('Pricing', pricingRows());
+}
+/** /pricing: the page, with its head (it had no h1). */
+function pricingPage() {
+    return `<div class="ex-wrap xp">${kit.head({ title: 'Pricing', sub: 'What a call costs, before you make it.' })}<section class="xpr">${pricingRows()}</section></div>`;
 }
 function home({ catalog, usage, viewer }) {
     const models = listed(catalog);
@@ -139,4 +150,4 @@ function modelsPage({ catalog, query = {} }) {
         );
     return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${kit.find({ action: '/models', name: 'q', value: query.q || '', placeholder: 'Find a model', icon: 'search' })}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows)}</div>`;
 }
-module.exports = { home, modelsPage, pricing, table };
+module.exports = { home, modelsPage, pricing, pricingPage, table };

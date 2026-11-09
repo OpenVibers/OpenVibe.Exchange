@@ -93,7 +93,7 @@ function createPageRoutes(ctx) {
             .send(JSON.stringify(doc));
     });
 
-    r.get('/pricing', (req,res) => page(req,res,{title:'Pricing',body:raw('<div class="ex-wrap xp">'+platform.pricing()+'</div>')}));
+    r.get('/pricing', (req, res) => page(req, res, { title: 'Pricing', description: 'What a call to OpenVibe.Exchange costs: your own key at 0%, managed models at their listed price, your own endpoint by the hour, search per 1,000.', body: raw(platform.pricingPage()) }));
     r.get('/docs', (req,res) => res.redirect(301,'/api'));
 
     // ── Home ─────────────────────────────────────────────────
