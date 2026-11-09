@@ -19,8 +19,12 @@ function createConsoleRoutes({ config, ai }) {
     const r = express.Router();
     r.use(express.urlencoded({ extended: false, limit: '32kb' }));
     const isOwner = (req) => Boolean(req.viewer && req.viewer.kind === 'user' && req.viewer.subject && req.viewer.role === 'owner');
+    // Providers, Models and the Price book are designed sections (views/console-ai.js): their stylesheet and the
+    // makers' marks come with them.
+    const DESIGNED_HEAD = raw(`<link rel="stylesheet" href="/css/console-ai.css"><style>${require('../views/console-ai').CSS}</style>`);
     const page = (req, res, section, data, error = null, status = 200) => send(res, status, {
         viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI operator console',
+        head: ['providers', 'models', 'pricebook'].includes(section) ? DESIGNED_HEAD : undefined,
         body: raw(consolePage({ section, data, error })),
     });
     r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(404));
@@ -199,8 +203,10 @@ function createConsoleRoutes({ config, ai }) {
             const cost = {};
             for (const [form, field] of [['input_per_million', 'in_per_mtok'], ['cached_per_million', 'cached_per_mtok'], ['output_per_million', 'out_per_mtok']])
                 if (Object.prototype.hasOwnProperty.call(req.body, form)) cost[field] = number(req.body[form]);
+            // "Use the accepted price" clears the owner's price (AI deletes it on null).
+            const override = req.body.clear === '1' ? null : { reason: String(req.body.reason || ''), cost };
             await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, {
-                method: 'PATCH', subject: req.viewer.subject, body: { owner_override: { reason: String(req.body.reason || ''), cost } },
+                method: 'PATCH', subject: req.viewer.subject, body: { owner_override: override },
             });
             return res.redirect(303, '/console/models');
         } catch (err) { return page(req, res, 'models', {}, err.message || 'The model price override could not be saved.', 502); }
