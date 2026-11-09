@@ -26,6 +26,13 @@ const day = (iso) => {
     const d = new Date(`${String(iso).slice(0, 10)}T12:00:00Z`);
     return Number.isNaN(d.getTime()) ? String(iso || '') : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 };
+/** A key's expiry, to the minute and with its year: "Jan 1, 2027, 00:00 UTC". */
+const expiry = (iso) => {
+    const d = new Date(String(iso || ''));
+    if (Number.isNaN(d.getTime())) return String(iso || '');
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return `${date}, ${d.toISOString().slice(11, 16)} UTC`;
+};
 const plural = (n, one, many = `${one}s`) => `${Number(n).toLocaleString('en-US')} ${Number(n) === 1 ? one : many}`;
 
 /** The frame every tab shares: the page head, the tab rail, the tab's body. */
@@ -40,7 +47,7 @@ function keyCard(k) {
     const made = k.created_at ? `made ${day(k.created_at)}` : '';
     const revoked = !!k.revoked_at;
     return `<li class="xd-key${revoked ? ' is-revoked' : ''}"><div class="xd-key-main"><strong>${esc(k.name)}</strong><code>${esc(k.prefix)}…</code></div>`
-        + `<p class="xd-key-meta">${esc([`${money(k.monthly_cap_usd)} a month`, models, k.expires_at ? `expires ${k.expires_at}` : '', revoked ? `revoked ${day(k.revoked_at)}` : made].filter(Boolean).join(' · '))}</p>`
+        + `<p class="xd-key-meta">${esc([`${money(k.monthly_cap_usd)} a month`, models, k.expires_at ? `expires ${expiry(k.expires_at)}` : '', revoked ? `revoked ${day(k.revoked_at)}` : made].filter(Boolean).join(' · '))}</p>`
         + (revoked ? '' : `<form method="post" action="/dashboard/keys/${encodeURIComponent(k.id)}/revoke" class="xd-key-act">${kit.button({ label: 'Revoke', type: 'submit', kind: 'danger', small: true })}</form>`)
         + '</li>';
 }

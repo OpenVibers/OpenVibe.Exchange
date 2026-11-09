@@ -494,6 +494,7 @@ ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatib
 ${panel({ title: 'Batches, at half price', body: `<p class="ex-prose">Half price. Answered within your deadline when spare low-cost capacity is free; if none comes free in time, the prompt expires and you pay nothing.</p>` })}
 ${panel({ title: 'One endpoint', body: `
 <p class="ex-prose"><code>${ENDPOINT}</code> speaks OpenAI's Chat Completions; <code>https://api.openvibe.exchange/v1/messages</code> speaks Anthropic's Messages API, so Claude Code works by pointing <code>ANTHROPIC_BASE_URL</code> at it.</p>
+<p class="ex-prose">Coming from OpenRouter or a provider's own API? <a href="/docs/migrate">Move your application to Exchange</a>: the first request, the gateway settings, routing checks and limited keys, step by step.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"openvibe/auto","messages":[{"role":"user","content":"Hello"}]}'`, id: 'api-curl' })}
 <h3 class="ex-h3">Keys</h3>
 <p class="ex-prose">Keys are OpenVibe.Network developer keys: make one, name its scope, and revoke it any time. They are shown once and never stored here. Manage your own provider API keys and browser session cookies on <a href="/privacy/keys">Your keys and accounts</a>; saved values stay sealed on OpenVibe.AI and are never shown again.</p>

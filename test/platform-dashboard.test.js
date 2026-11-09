@@ -40,7 +40,7 @@ const { createFakeAi } = require('./helpers/ai');
                 assert.ok(r.headers.get('cache-control').includes('no-store'));
                 assert.ok(r.text.includes('Monthly cap'));
                 assert.ok(r.text.includes('name="expires_at"'));
-                assert.ok(r.text.includes('expires 2027-01-01T00:00:00.000Z'));
+                assert.ok(r.text.includes('expires Jan 1, 2027, 00:00 UTC'), 'the expiry reads as a date with its year and time');
                 assert.ok(r.text.includes('xd-key-main'), 'main dashboard cards are preserved');
             },
         );
