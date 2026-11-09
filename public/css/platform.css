@@ -284,3 +284,11 @@
     .xm-name > a { display: inline-flex; align-items: center; min-height: 44px; }
     .xm-acts .ovk-btn { min-height: 44px; }
 }
+
+/* ── Pricing: one row per way of calling, the name above what it costs ── */
+.xpr-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xpr-list li { display: grid; gap: 2px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }
+.xpr-list li:first-child { border-top: 0; }
+.xpr-list span { color: var(--ovk-muted); font-size: .92rem; }
+.xpr-note { margin: 12px 2px 0; color: var(--ovk-muted); font-size: .88rem; }
+@media (min-width: 760px) { .xpr-list li { grid-template-columns: minmax(200px, 1fr) 2fr; align-items: baseline; gap: 16px; } }
