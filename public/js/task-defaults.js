@@ -14,7 +14,7 @@ document.querySelectorAll('[data-task-default]').forEach((form) => {
         for (const [move, text, label] of [['-1', '↑', 'Move fallback up'], ['1', '↓', 'Move fallback down']]) {
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'ovk-button ovk-button-quiet';
+            button.className = 'ovk-btn ovk-btn--quiet';
             button.textContent = text;
             button.setAttribute('aria-label', label);
             button.dataset.move = move;
@@ -22,7 +22,7 @@ document.querySelectorAll('[data-task-default]').forEach((form) => {
         }
         const remove = document.createElement('button');
         remove.type = 'button';
-        remove.className = 'ovk-button ovk-button-quiet';
+        remove.className = 'ovk-btn ovk-btn--quiet';
         remove.textContent = 'Remove';
         remove.setAttribute('aria-label', 'Remove fallback');
         remove.dataset.remove = '';
