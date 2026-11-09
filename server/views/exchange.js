@@ -197,14 +197,14 @@ ${panel({
 ${models.length ? `<p class="ex-more"><a href="/models">All ${models.length} models →</a></p>` : ''}`,
     })}
 <div class="ex-lines">
-${lineCard({ href: '/arena', name: 'The Arena', text: 'One prompt, two unnamed models, one vote: then both names and their receipts.', mark: mark('DeepSeek') })}
-${lineCard({ href: '/rankings', name: 'Rankings by task', text: 'What people prefer for code, writing, chat and reasoning, beside the price, speed and uptime. Worth it, measured.', mark: mark('Qwen') })}
-${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', mark: mark('Llama') })}
-${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries its receipt: the objective, the candidates, their cost and latency, and why the others did not answer.', mark: mark('DeepSeek') })}
-${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', mark: mark('Qwen') })}
-${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Link, labelled on every answer.', mark: mark('Qwen') })}
-${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', mark: mark('GLM') })}
-${lineCard({ href: '/own', name: 'Your own endpoint', text: 'A private GPU for one model or your own weights: only you reach it, and it scales to zero when idle.', mark: mark('Llama') })}
+${lineCard({ href: '/arena', name: 'The Arena', text: 'One prompt, two unnamed models, one vote: then both names and their receipts.', icon: 'swap', tone: 'accent' })}
+${lineCard({ href: '/rankings', name: 'Rankings by task', text: 'What people prefer for code, writing, chat and reasoning, beside the price, speed and uptime. Worth it, measured.', icon: 'trophy', tone: 'accent' })}
+${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', icon: 'shield', tone: 'warn' })}
+${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries its receipt: the objective, the candidates, their cost and latency, and why the others did not answer.', icon: 'help', tone: 'accent' })}
+${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', icon: 'code', tone: 'accent' })}
+${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Link, labelled on every answer.', icon: 'computer', tone: 'accent' })}
+${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', icon: 'key', tone: 'accent' })}
+${lineCard({ href: '/own', name: 'Your own endpoint', text: 'A private GPU for one model or your own weights: only you reach it, and it scales to zero when idle.', icon: 'server', tone: 'accent' })}
 </div>
 ${panel({
         title: 'Use it from code', note: 'One endpoint, compatible with OpenAI and with Anthropic.', id: 'code', body: `
@@ -253,8 +253,10 @@ const EXAMPLE_ANSWER = {
     Default: 'The term renews yearly, either side may exit with 30 days’ notice, and liability is capped at the fees paid.',
 };
 
-function lineCard({ href, name, text, mark: markHtml }) {
-    return `<a class="ex-line" href="${href}">${markHtml}<span><b>${esc(name)}</b><small>${esc(text)}</small></span><span class="ex-line-go" aria-hidden="true">→</span></a>`;
+// A feature's own icon, from the kit's set, on a tint of a theme token. Model family marks name models only: on these
+// cards a family's mark read as a stray logo (owner, 11-09: "what is it even supposed to be?").
+function lineCard({ href, name, text, icon, tone = 'accent' }) {
+    return `<a class="ex-line" href="${href}"><span class="ex-line-ic ex-line-ic--${esc(tone)}" aria-hidden="true">${kit.icon(icon)}</span><span><b>${esc(name)}</b><small>${esc(text)}</small></span><span class="ex-line-go" aria-hidden="true">→</span></a>`;
 }
 
 function productsSummary(usage) {

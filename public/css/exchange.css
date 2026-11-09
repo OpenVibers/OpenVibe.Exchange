@@ -127,6 +127,16 @@
 .ex-mrow-title b { font-size: .95rem; overflow-wrap: anywhere; }
 .ex-mrow-text small { color: var(--ovk-muted); font-size: .8rem; line-height: 1.35; overflow-wrap: anywhere; }
 
+/* A feature card's icon: the kit's glyph on a tint of a theme token. */
+.ex-line-ic {
+    --ex-ic: var(--ovk-accent);
+    display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px;
+    background: color-mix(in srgb, var(--ex-ic) 14%, var(--ovk-panel)); color: var(--ex-ic);
+}
+.ex-line-ic svg { width: 22px; height: 22px; }
+.ex-line-ic--warn { --ex-ic: var(--ovk-warn); }
+.ex-line-ic--ok { --ex-ic: var(--ovk-ok); }
+
 /* ── Model family marks ─────────────────────────────────── */
 .ex-mk {
     --ex-mk: var(--ovk-muted);
