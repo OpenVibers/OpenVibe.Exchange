@@ -58,7 +58,7 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('no training') && r.text.includes('no retention') && r.text.includes('cn'), 'the data policy');
             assert.ok(r.text.includes('99.0%'), 'uptime');
             assert.ok(r.text.includes('400 ms'), 'p50');
-            assert.ok(r.text.includes('Sign in to try it'), 'a signed-out try asks for sign-in');
+            assert.ok(r.text.includes('https://openvibe.chat/vibe?models=deepseek%2Fdeepseek-chat'), 'Try it opens Chat with this model');
             assert.ok(r.text.includes('Private'), 'the privacy label on an offer');
             assert.ok(r.text.includes('Standard') || r.text.includes('No training'));
             assert.ok(r.text.includes('Presets') && r.text.includes('openvibe/economy'), 'the presets box');
@@ -119,8 +119,7 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             const paid = await t.get('/m/qwen/qwen3-32b');
             assert.ok(!paid.text.includes('Free to try'), 'no badge when the field is absent');
             const chat = await t.get('/chat/new', { as: u });
-            assert.ok(chat.text.includes('Free to try'), 'the picker marks the free-tier models');
-            assert.ok(chat.text.includes('need your own balance or key'), 'and says what the others need');
+            assert.strictEqual(chat.status, 301, 'the picker now lives in Chat');
         });
 
         await check('status: uptime per offer, the changelog and incidents', async () => {

@@ -214,6 +214,31 @@ async function createApp(opts = {}) {
         app.locals.sharingTimer = timer;
     }
 
+    // Chat imports only the signed-in person's unsealed history. The service token must carry
+    // the narrow export capability; Chat supplies the subject it just authenticated.
+    app.get('/internal/exchange/chat/export', principal.middleware, async (req, res) => {
+        const p = req.principal;
+        const subject = String(req.get('x-ov-subject') || '');
+        if (!p || p.kind !== 'app' || p.claims.sub !== 'svc:chat' || !p.claims.cap.includes('exchange.chat.export') || !/^usr_[0-9A-HJKMNP-TV-Z]{26}$/.test(subject))
+            return res.status(403).json({ error: 'Chat export is unavailable to this caller' });
+        const list = (await chats.list(subject, 200)).filter((c) => !c.sealed);
+        const exported = await Promise.all(list.map(async (c) => {
+            const full = await chats.get(subject, c.id);
+            return { id: c.id, title: c.title, models: c.models, created_at: full.created_at, updated_at: c.updated_at,
+                messages: (await chats.messages(subject, c.id)).map((m) => ({ role: m.role, model: m.model,
+                    content: m.content, created_at: m.created_at, meta: m.meta })) };
+        }));
+        return res.set('Cache-Control', 'private, no-store').json({ count: exported.length, chats: exported });
+    });
+
+    // Talking to models moved to Chat. Carry an old model selection across the 301.
+    app.use(/^\/chat(?:\/.*)?$/, (req, res) => {
+        const ids = String(req.query.models || '').split(',').map((x) => x.replace(/@v[0-9]+$/i, ''))
+            .filter((x) => x !== 'openvibe/auto' && /^[a-z0-9._/@:-]{2,256}$/i.test(x)).slice(0, 3);
+        const suffix = ids.length ? `?models=${encodeURIComponent(ids.join(','))}` : '';
+        return res.redirect(301, `https://openvibe.chat/vibe${suffix}`);
+    });
+
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {
         res.set('Cache-Control', 'public, max-age=86400');
