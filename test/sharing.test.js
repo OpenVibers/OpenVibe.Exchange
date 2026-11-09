@@ -25,6 +25,17 @@ const { createFakeBench } = require('./helpers/bench');
     });
     const bench = createFakeBench();
     const t = await boot({ ai, bench });
+    // Arena HTML now lives on Report; exercise the same private read through Exchange's JSON API.
+    const get = t.get;
+    t.get = async (path, options = {}) => {
+        if (/^\/arena(?:\/|$)/.test(path) && !options.form && !options.json && !options.method) {
+            const response = await get(path.replace(/^\/arena/, '/api/v1/arena/rounds'), options);
+            try { response.text = response.json().html || response.text; } catch {}
+            return response;
+        }
+        return get(path, options);
+    };
+
     const alice = t.network.addUser('alice');
     const bob = t.network.addUser('bob');
     const carol = t.network.addUser('carol');

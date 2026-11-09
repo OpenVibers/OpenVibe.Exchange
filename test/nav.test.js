@@ -10,8 +10,8 @@ assert.ok(inBar.length <= 6, `at most six places in the bar, not ${inBar.length}
 assert.ok(NAV.every((l) => /^fa-[a-z0-9-]+$/.test(l.icon || '')), 'every place has an icon');
 assert.ok(!NAV.some((l) => l.href === '/'), 'the brand is the way home');
 assert.deepStrictEqual(new Set(NAV.map((l) => l.href)).size, NAV.length, 'no place twice');
-for (const want of ['/models', 'https://openvibe.chat/vibe', '/arena', '/start', '/api', '/why', '/own', '/sell', '/uncensored', '/ai', '/faq', '/status']) {
+for (const want of ['/models', '/search', '/pricing', '/docs', '/status', 'https://openvibe.report/ai']) {
     assert.ok(NAV.some((l) => l.href === want), `${want} is reachable from the bar or More`);
 }
-if (Array.isArray(PAGES)) for (const l of NAV) assert.ok(PAGES.some((p) => p.path === l.href) || ['https://openvibe.chat/vibe', '/status', '/arena', '/rankings'].includes(l.href), `${l.href} is a page`);
+assert.ok(!NAV.some(l => ['/chat','/arena','/sell','/ai'].includes(l.href)), 'moved products leave the navigation');
 console.log('nav: six places in the bar with icons, the rest under More, every page reachable');

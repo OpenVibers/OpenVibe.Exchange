@@ -3,7 +3,7 @@
 const { esc } = require('../render/html');
 
 const SECTIONS = [
-    ['Overview', '/console'], ['Providers', '/console/providers'], ['Models', '/console/models'],
+    ['Overview', '/console'], ['GPU supply (dry run)', '/console/supply'], ['Providers', '/console/providers'], ['Models', '/console/models'],
     ['Routes', '/console/routes'], ['Templates', '/console/templates'], ['Workflows', '/console/workflows'],
     ['Runs', '/console/runs'], ['Quotas', '/console/quotas'], ['Usage', '/console/usage'],
     ['Cache', '/console/cache'], ['GPUs', '/console/gpus'], ['Price book', '/console/pricebook'],
@@ -21,6 +21,8 @@ function consolePage({ section = 'overview', data = {}, error = null }) {
     const nav = SECTIONS.map(([label, href]) => `<a class="ex-console-tab${active === href ? ' is-active' : ''}" href="${href}">${label}</a>`).join('');
     const json = esc(JSON.stringify(safe(data), null, 2));
     let actions = '';
+    if (section === 'supply') actions = `<p>Dry run only. No GPU is rented or stopped. Missing measurements are shown as missing.</p><form method="post" action="/console/supply" class="ovk-form"><label>Model<input name="model" required></label><label>Runtime<select name="runtime"><option value="vllm">vLLM</option><option value="sglang">SGLang</option></select></label>${[['input_per_million','Input USD / million'],['output_per_million','Output USD / million'],['hourly_ceiling_usd','Hourly spend ceiling USD'],['monthly_ceiling_usd','Monthly spend ceiling USD'],['required_vram_mb','Required VRAM MB'],['idle_minutes','Stop after idle minutes']].map(([key,label])=>`<label>${label}<input name="${key}" type="number" min="0" step="any" required></label>`).join('')}<button class="ovk-button" type="submit">Save prices and ceilings</button></form>`;
+
     if (section === 'providers' && Array.isArray(data.providers)) actions = data.providers.map((p) => {
         const key = encodeURIComponent(p.key || '');
         const next = p.status === 'disabled' ? 'active' : 'disabled';

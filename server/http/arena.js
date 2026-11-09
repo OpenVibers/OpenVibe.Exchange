@@ -19,7 +19,7 @@ const ovServe = require('openvibe-shared/serve');
 const kit = require('openvibe-shared/kit');
 const { asyncRouter } = require('./router');
 const { sameOrigin } = require('./principal');
-const { esc, raw } = require('../render/html');
+const { esc, raw, render } = require('../render/html');
 const { send } = require('../render/layout');
 const views = require('../views/arena');
 const exchangeViews = require('../views/exchange');
@@ -71,7 +71,7 @@ function createArenaRoutes(ctx) {
     const { config, ai, bench, arenaStore, sharing, log } = ctx;
     const r = asyncRouter();
     r.use(express.urlencoded({ extended: false, limit: '64kb' }));
-    const page = (req, res, o, status = 200) => send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
+    const page = (req, res, o, status = 200) => req.arenaApi ? res.status(status).set('Cache-Control','no-store').json({ title:o.title, html:render(o.body) }) : send(res, status, { viewer: req.viewer, config, path: req.originalUrl, ...o });
     const signedIn = (req) => Boolean(req.viewer && req.viewer.kind === 'user' && req.viewer.subject);
     const owner = (req) => req.viewer.subject;
     const signInPage = (req, res, { title, text, next, status = 401 }) => page(req, res, {
@@ -121,7 +121,7 @@ function createArenaRoutes(ctx) {
         const vote = await arenaStore.voteOf(owner(req), round.id);
         return page(req, res, {
             title: 'The Arena', index: false, head: shareHead,
-            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config, action: shareButton(round) })),
+            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config, action: req.arenaApi ? '' : shareButton(round) })),
         }, status);
     }
 
@@ -130,16 +130,16 @@ function createArenaRoutes(ctx) {
     /** The person's default for new rounds ("New rounds: Only me"), and what to do with the existing ones. */
     r.post('/arena/defaults', async (req, res) => {
         if (!signedIn(req)) return res.redirect(303, '/auth/login?next=%2Farena');
-        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        if (!(req.arenaApi || sameOrigin(req, config.baseUrl))) return notFromHere(req, res);
         const body = req.body || {};
         const audience = ['private', 'people', 'link', 'public'].includes(body.audience) ? body.audience : 'private';
         await sharing.setDefault(owner(req), 'arena-round', audience, { applyAll: String(body.apply_all || '') === '1' }).catch((err) => log.warn('[Arena] the round default was not saved:', err.message));
-        return res.redirect(303, '/arena');
+        return req.arenaApi ? res.json({ location: '/ai/arena' }) : res.redirect(303, '/arena');
     });
 
     r.post('/arena/ask', async (req, res) => {
         if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to enter the Arena', text: 'Two models answer your prompt, blind.', next: '/arena' });
-        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        if (!(req.arenaApi || sameOrigin(req, config.baseUrl))) return notFromHere(req, res);
         const prompt = String((req.body && req.body.prompt) || '').trim().slice(0, config.arena.maxChars);
         if (!prompt) return renderHome(req, res, { problem: 'Write a prompt first.', status: 422 });
 
@@ -218,7 +218,7 @@ function createArenaRoutes(ctx) {
         // The person's default for new rounds (Only me unless they changed it), then the sheet for this one.
         const audience = await sharing.defaultOf(owner(req), 'arena-round').catch(() => 'private');
         try { await sharing.register({ subject: owner(req) }, 'arena-round', round.id, audience); } catch (err) { log.warn('[Arena] the round was kept but not registered with the sharing system:', err.message); }
-        return res.redirect(303, `/arena/${round.id}`);
+        return req.arenaApi ? res.status(201).json({ location: `/ai/arena/${round.id}` }) : res.redirect(303, `/arena/${round.id}`);
     });
 
     /**
@@ -246,7 +246,7 @@ function createArenaRoutes(ctx) {
 
     r.post('/arena/:id/vote', async (req, res) => {
         if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to vote', text: 'Your vote is a Bench judgement for your account.', next: `/arena/${encodeURIComponent(req.params.id)}` });
-        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
+        if (!(req.arenaApi || sameOrigin(req, config.baseUrl))) return notFromHere(req, res);
         const round = await arenaStore.get(owner(req), req.params.id);
         if (!round) return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such round', text: 'It may belong to another account.', action: { href: '/arena', label: 'The Arena' } })}</div>`) }, 404);
 
@@ -269,7 +269,7 @@ function createArenaRoutes(ctx) {
                 owner: owner(req), roundId: round.id, outcome,
                 benchJudgementId: out && out.judgement ? out.judgement.id : null,
             });
-            return res.redirect(303, `/arena/${round.id}`);
+            return req.arenaApi ? res.status(201).json({ location: `/ai/arena/${round.id}` }) : res.redirect(303, `/arena/${round.id}`);
         } catch (err) {
             if (err.code === 'bench.already_judged') {
                 return renderRound(req, res, round, { notice: 'This vote is already counted in OpenVibe.Bench.', status: 409 });

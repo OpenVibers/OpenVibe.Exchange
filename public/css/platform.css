@@ -1,0 +1,228 @@
+.xp {
+    padding-block: 40px;
+    display: grid;
+    gap: 28px;
+}
+.xp-hero {
+    max-width: 850px;
+}
+.xp h1 {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+.xp a,
+.xp button,
+.xp summary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+.xp input,
+.xp select {
+    min-height: 44px;
+    max-width: 100%;
+}
+.xp pre {
+    max-width: 100%;
+    overflow: auto;
+}
+.xp-models {
+    max-width: 100%;
+    overflow: auto;
+}
+.xp table {
+    border-collapse: collapse;
+    width: 100%;
+    text-align: left;
+}
+.xp th,
+.xp td {
+    padding: 16px 12px;
+    border-bottom: 1px solid var(--border, #8884);
+    vertical-align: middle;
+}
+.xp td small,
+.xp td:last-child a {
+    display: block;
+}
+.xp-reasons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+.xp-activity label {
+    display: flex;
+    gap: 16px;
+}
+.xp label {
+    display: grid;
+    gap: 6px;
+}
+.xp form:not(.ovk-find) {
+    display: grid;
+    gap: 16px;
+    max-width: 640px;
+}
+.xp nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.xp details {
+    border-bottom: 1px solid var(--border, #8884);
+}
+.xp code {
+    overflow-wrap: anywhere;
+}
+.xp .xp-tabs a {
+    padding: 8px 16px;
+}
+.xp-search-results {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+@media (max-width: 700px) {
+    .xp {
+        padding-block: 24px;
+    }
+    .xp-reasons,
+    .xp-search-results {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .xp table,
+    .xp tbody,
+    .xp tr,
+    .xp td {
+        display: block;
+    }
+    .xp thead {
+        display: none;
+    }
+    .xp tr {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border, #8884);
+    }
+    .xp td {
+        border: 0;
+        padding: 4px 8px;
+        overflow-wrap: anywhere;
+    }
+    .xp td[data-label]:before {
+        content: attr(data-label) ': ';
+        opacity: 0.7;
+    }
+    .xp td:last-child a {
+        display: inline-flex;
+        margin-right: 12px;
+    }
+    .xp h1 {
+        font-size: 2.2rem;
+    }
+}
+
+.xp input:not([type='checkbox']),
+.xp select {
+    padding: 10px 12px;
+    border: 1px solid var(--ovk-line);
+    border-radius: 10px;
+    background: var(--ovk-panel);
+    color: var(--ovk-text);
+    font: inherit;
+}
+.xp .ovk-find {
+    max-width: 640px;
+}
+.xp .ovk-find input {
+    border: 0;
+    background: transparent;
+}
+.xp .ovk-find button {
+    flex-shrink: 0;
+}
+.xp .xp-tabs {
+    gap: 4px;
+}
+.xp .xp-tabs a[aria-current='page'] {
+    background: var(--ovk-panel-2);
+    border-radius: 10px;
+    text-decoration: none;
+}
+
+/* The Dashboard (Opus, 2026-11-09): its own scope, so the marketing pages' .xp rules (grid gaps, every link a 44 px
+   flex box) stay off it. Cards on the page surface, the kit's tab rail, two-line rows, numbers in tabular figures. */
+.xd { padding-block: 32px 48px; max-width: 880px; }
+.xd .ovk-tabs { margin-top: 4px; margin-bottom: 4px; }
+.xd-body { display: grid; gap: 16px; margin-top: 12px; }
+.xd-card { padding: 18px 18px 20px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xd-card > h2, .xd-title h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.12rem; letter-spacing: -.01em; }
+.xd-card > h2.xd-sub { font-size: 1rem; }
+.xd-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.xd-title h2 { margin: 0; }
+.xd-note { margin: 0 0 14px; color: var(--ovk-muted); font-size: .92rem; line-height: 1.5; max-width: 60ch; }
+.xd-actions { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.xd-chip { display: inline-flex; align-items: center; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: .74rem; color: var(--ovk-muted); background: var(--ovk-panel-2); vertical-align: 1px; }
+
+.xd-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.xd-key { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 12px 14px; border-radius: var(--ov-radius-1, 12px); background: var(--ovk-panel-2); }
+.xd-key-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.xd-key-main strong { font-size: 1rem; overflow-wrap: anywhere; }
+.xd-key-main code { font-size: .84rem; color: var(--ovk-muted); }
+.xd-key-meta { grid-column: 1; margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+.xd-key-act { grid-column: 2; grid-row: 1 / span 2; margin: 0; }
+.xd-key.is-revoked { opacity: .62; }
+
+.xd-form { display: grid; gap: 16px; max-width: 520px; margin: 0; }
+.xd-form label { display: grid; gap: 6px; }
+.xd-form label > span:first-child { font-weight: 600; font-size: .92rem; }
+.xd-form small { color: var(--ovk-muted); font-size: .82rem; line-height: 1.45; }
+.xd-form input { min-height: 44px; box-sizing: border-box; width: 100%; padding: 10px 12px; border: 1px solid var(--ovk-line); border-radius: 10px; background: var(--ovk-bg, transparent); color: var(--ovk-text); font: inherit; }
+.xd-form input:focus-visible { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
+.xd-money { position: relative; display: block; }
+.xd-money > span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ovk-muted); pointer-events: none; }
+.xd-money input { padding-left: 26px; font-variant-numeric: tabular-nums; }
+.xd-form .ovk-btn { justify-self: start; min-height: 44px; }
+.xd-secret .ovk-snippet, .xd-secret pre { margin: 0 0 14px; }
+
+.xd-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
+.xd-stats > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--ov-radius-1, 12px); background: var(--ovk-panel-2); }
+.xd-stats dd { margin: 0; font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.xd-stats dt { color: var(--ovk-muted); font-size: .8rem; }
+.xd-bars { display: flex; align-items: flex-end; gap: 4px; height: 96px; padding-bottom: 18px; position: relative; }
+.xd-bars > span { position: relative; flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; }
+.xd-bars i { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+.xd-bars b { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-weight: 400; font-size: .7rem; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+.xd-day { margin: 14px 0 6px; font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
+.xd-day:first-of-type { margin-top: 2px; }
+.xd-use { list-style: none; margin: 0; padding: 0; }
+.xd-use li { padding: 10px 0; border-top: 1px solid var(--ovk-line); }
+.xd-use li:first-child { border-top: 0; }
+.xd-use-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.xd-use-top code { font-size: .88rem; overflow-wrap: anywhere; min-width: 0; }
+.xd-use-top strong { font-variant-numeric: tabular-nums; }
+.xd-use p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .84rem; }
+.xd .ovk-list--flush { margin: 0 -18px -20px; }
+@media (max-width: 520px) {
+    .xd { padding-block: 20px 40px; }
+    .xd-card { padding: 16px 14px 18px; }
+    .xd-stats dd { font-size: 1.12rem; }
+    .xd .ovk-list--flush { margin: 0 -14px -18px; }
+}
+/* Settings rows say what each page does in full: their line wraps instead of trailing off. */
+.xd .ovk-row-sub > span:first-child { white-space: normal; overflow: visible; }
+
+/* Code samples scroll sideways on a phone; a URL never breaks mid-word (.xp code wraps anywhere for inline code). */
+.xp pre code, .xp pre { overflow-wrap: normal; word-break: normal; white-space: pre; }
+/* Grid tracks never grow past the page for a long line (a pre scrolls inside its own box). */
+.xp > *, .xp-hero, .xp .ovk-snip { min-width: 0; max-width: 100%; }
+.xp .ovk-snip pre { overflow-x: auto; }
+
+/* A model's activity: requests a day as bars, the day of the month under each. */
+.ex-act { list-style: none; display: flex; align-items: flex-end; gap: 4px; height: 110px; margin: 0; padding: 0 0 18px; }
+.ex-act li { position: relative; flex: 1 1 0; height: 100%; display: flex; align-items: flex-end; }
+.ex-act-bar { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+.ex-act-day { position: absolute; left: 0; right: 0; bottom: -18px; text-align: center; font-size: .7rem; color: var(--ovk-muted); font-variant-numeric: tabular-nums; }
+.ex-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ex-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }

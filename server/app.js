@@ -214,6 +214,19 @@ async function createApp(opts = {}) {
         app.locals.sharingTimer = timer;
     }
 
+    const arenaApi = express.Router();
+    arenaApi.use(express.json({ limit:'64kb' }));
+    arenaApi.use(principal.middleware);
+    arenaApi.use((req,res,next) => {
+        if (req.method !== 'GET' && (!req.headers.authorization || req.principal?.kind !== 'user')) return res.sendStatus(401);
+        if (req.principal?.kind === 'user') req.viewer = req.principal;
+        req.arenaApi = true;
+        const path = req.path;
+        req.url = path === '/rounds' ? (req.method === 'POST' ? '/arena/ask' : '/arena') : path.replace(/^\/rounds\//, '/arena/').replace(/\/votes$/, '/vote');
+        next();
+    });
+    arenaApi.use(createArenaRoutes(ctx));
+    app.use('/api/v1/arena', arenaApi);
     // Chat imports only the signed-in person's unsealed history. The service token must carry
     // the narrow export capability; Chat supplies the subject it just authenticated.
     app.get('/internal/exchange/chat/export', principal.middleware, async (req, res) => {
@@ -271,10 +284,15 @@ async function createApp(opts = {}) {
         agentLayer.mount(agent, { descriptor: require('./agent-descriptor'), render: require('./agent-pages').createAgentPages(ctx).renderPublicPage });
         app.use(agent);
     }
+    app.get(['/arena', '/arena/*'], (req,res) => res.redirect(301, 'https://openvibe.report/ai' + req.originalUrl));
+    app.get(['/sell', '/sell/*'], (_req,res) => res.redirect(301, 'https://openvibe.link'));
+    app.get('/ai', (_req,res) => res.redirect(301, 'https://openvibe.report/ai/exchange'));
     // The companions routes come before the pages router: /companions, /c/... and /talk/...
     app.use(createCompanionRoutes(ctx));
     // The Arena and the rankings: /arena, /arena/:id and /rankings.
     app.use(createArenaRoutes(ctx));
+    app.use(require('./http/dashboard').createDashboardRoutes(ctx));
+    app.use(require('./http/search').createSearchRoutes(ctx));
     app.use(createPageRoutes(ctx));
     app.use(createConsoleRoutes(ctx));
 
