@@ -24,7 +24,7 @@ app.use(createConsoleRoutes({
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
     try {
-        const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/gpus/model-a/quote'];
+        const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/gpus/model-a/quote', '/console/data/providers', '/console/data/models', '/console/data/pricebook'];
         for (const path of consolePaths) for (const headers of [{}, { 'x-test-role': 'user' }, { 'x-test-role': 'admin' }]) {
             const response = await fetch(`${base}${path}`, { headers });
             assert.strictEqual(response.status, 404, `${path}: signed-out people and non-owners see no console route`);
@@ -38,6 +38,12 @@ app.use(createConsoleRoutes({
         for (const path of consolePaths) {
             const page = await fetch(`${base}${path}`, { headers: { 'x-test-role': 'owner' } });
             assert.strictEqual(page.status, 200, `${path}: ${await page.text()}`);
+        }
+        for (const section of ['providers', 'models', 'pricebook']) {
+            const data = await fetch(`${base}/console/data/${section}`, { headers: { 'x-test-role': 'owner' } });
+            assert.strictEqual(data.status, 200);
+            assert.ok((data.headers.get('content-type') || '').includes('application/json'));
+            assert.ok(!JSON.stringify(await data.json()).includes(fakeSecret), `${section} data omits key values`);
         }
         const keyWrite = await fetch(`${base}/console/providers/openai/key`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
@@ -54,6 +60,19 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(createProvider.status, 303);
         assert.ok(writes.some((write) => write.path === '/api/v1/admin/console/providers' && write.body.api_key === fakeSecret), 'provider creation uses AI JSON admin API');
+
+        const providerSettings = await fetch(`${base}/console/providers/groq/settings`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ status: 'active', provider_access: 'AUTHORIZED_WHOLESALE', preference_order: '7', markup_percent: '12.5', uncensored: '1' }), redirect: 'manual',
+        });
+        assert.strictEqual(providerSettings.status, 303);
+        assert.ok(writes.some((write) => write.path === '/api/v1/providers/groq' && write.body.markup_percent === 12.5 && write.body.uncensored === true));
+        const modelOverride = await fetch(`${base}/console/models/groq/openai%2Fgpt-oss-120b/override`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ input_per_million: '0.2', cached_per_million: '', output_per_million: '0.7', reason: 'Owner approved adjustment' }), redirect: 'manual',
+        });
+        assert.strictEqual(modelOverride.status, 303);
+        assert.ok(writes.some((write) => write.path === '/api/v1/models/groq/openai%2Fgpt-oss-120b' && write.body.owner_override.reason === 'Owner approved adjustment'));
 
     } finally { await new Promise((resolve) => server.close(resolve)); }
     process.stdout.write('console-merge: owner gate and secret redaction passed\n');

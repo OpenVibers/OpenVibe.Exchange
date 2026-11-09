@@ -7,7 +7,7 @@ const { consolePage } = require('../views/console');
 
 const READS = Object.freeze({
     supply: '/api/v1/admin/console/supply',
-    overview: '/api/v1/admin/console/overview', providers: '/api/v1/admin/console/providers', models: '/api/v1/models', routes: '/api/v1/routes',
+    overview: '/api/v1/admin/console/overview', providers: '/api/v1/admin/console/providers', models: '/api/v1/admin/console/models', routes: '/api/v1/routes',
     templates: '/api/v1/templates', workflows: '/api/v1/workflows', runs: '/api/v1/admin/console/runs', quotas: '/api/v1/admin/console/quotas',
     usage: '/api/v1/admin/console/usage', cache: '/api/v1/admin/console/cache', audit: '/api/v1/admin/console/audit',
     gpus: '/api/v1/admin/console/gpus', pricebook: '/api/v1/admin/console/pricebook', exchange: '/api/v1/admin/console/exchange',
@@ -32,6 +32,18 @@ function createConsoleRoutes({ config, ai }) {
             const data = await ai.adminRequest(`/api/v1/admin/console/gpus/${encodeURIComponent(req.params.model)}/quote${req.query.strategy ? `?strategy=${encodeURIComponent(req.query.strategy)}` : ''}`);
             return page(req, res, 'gpus', { quote: data });
         } catch (err) { return page(req, res, 'gpus', {}, err.message || 'The GPU quote is unavailable.', 502); }
+    });
+    // Small JSON read models for the owner panels and clients. Keep the page renderer out of this path so the
+    // provider, model and pricebook sections can be arranged by the console owner without changing the API shape.
+    r.get('/console/data/:section', async (req, res) => {
+        const section = req.params.section;
+        if (!['providers', 'models', 'pricebook'].includes(section)) return res.sendStatus(404);
+        try {
+            const data = await ai.adminRequest(READS[section]);
+            const scrub = (value) => Array.isArray(value) ? value.map(scrub) : value && typeof value === 'object'
+                ? Object.fromEntries(Object.entries(value).filter(([key]) => !['api_key', 'secret', 'key_value'].includes(key.toLowerCase())).map(([key, child]) => [key, scrub(child)])) : value;
+            return res.set('Cache-Control', 'no-store').json(scrub(data));
+        } catch (err) { return res.status(err.status === 404 ? 404 : 502).json({ error: err.message || 'AI admin API did not answer.' }); }
     });
     r.get('/console/:section/:key', async (req, res) => {
         const { section, key } = req.params;
@@ -83,6 +95,10 @@ function createConsoleRoutes({ config, ai }) {
                 await ai.adminRequest(`/api/v1/providers/${key}/${endpoint}`, { method: 'POST', subject: req.viewer.subject });
             } else if (action === 'reset') await ai.adminRequest(`/api/v1/providers/${key}/reset`, { method: 'POST', subject: req.viewer.subject });
             else if (action === 'key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'POST', subject: req.viewer.subject, body: { api_key: String(req.body.api_key || '') } });
+            else if (action === 'settings') await ai.adminRequest(`/api/v1/providers/${key}`, { method: 'PATCH', subject: req.viewer.subject, body: {
+                status: req.body.status, provider_access: req.body.provider_access, priority: Number(req.body.preference_order),
+                markup_percent: Number(req.body.markup_percent), uncensored: req.body.uncensored === '1',
+            } });
             else return res.sendStatus(404);
             return res.redirect(303, '/console/providers');
         } catch (err) { return page(req, res, 'providers', {}, err.message || 'The change could not be saved.', 502); }
@@ -129,6 +145,19 @@ function createConsoleRoutes({ config, ai }) {
             await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, { method: 'PATCH', subject: req.viewer.subject, body: { status } });
             return res.redirect(303, '/console/models');
         } catch (err) { return page(req, res, 'models', {}, err.message || 'The change could not be saved.', 502); }
+    });
+    r.post('/console/models/:provider/:model/override', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const number = (value) => value === '' || value == null ? null : Number(value);
+        try {
+            const cost = {};
+            for (const [form, field] of [['input_per_million', 'in_per_mtok'], ['cached_per_million', 'cached_per_mtok'], ['output_per_million', 'out_per_mtok']])
+                if (Object.prototype.hasOwnProperty.call(req.body, form)) cost[field] = number(req.body[form]);
+            await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, {
+                method: 'PATCH', subject: req.viewer.subject, body: { owner_override: { reason: String(req.body.reason || ''), cost } },
+            });
+            return res.redirect(303, '/console/models');
+        } catch (err) { return page(req, res, 'models', {}, err.message || 'The model price override could not be saved.', 502); }
     });
     r.post('/console/quotas', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
