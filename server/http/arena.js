@@ -121,7 +121,7 @@ function createArenaRoutes(ctx) {
         const vote = await arenaStore.voteOf(owner(req), round.id);
         return page(req, res, {
             title: 'The Arena', index: false, head: shareHead,
-            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config, action: shareButton(round) })),
+            body: raw(views.arenaRound({ round, vote, revealed: Boolean(vote), problem: problem || notice, config, action: req.arenaApi ? '' : shareButton(round) })),
         }, status);
     }
 
