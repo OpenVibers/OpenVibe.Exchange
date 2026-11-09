@@ -148,26 +148,8 @@ function createPageRoutes(ctx) {
     }
 
     r.get('/m/:org/:model', (req, res) => renderModel(req, res));
-    r.post('/m/:org/:model/try', async (req, res) => {
-        if (!signedIn(req)) return signInPage(req, res, { title: 'Sign in to try it', text: 'A try is one run on your own free allowance.', next: `/m/${req.params.org}/${req.params.model}` });
-        if (!sameOrigin(req, config.baseUrl)) return notFromHere(req, res);
-        const text = String((req.body && req.body.text) || '').slice(0, config.chat.maxChars);
-        if (!text.trim()) return renderModel(req, res, { problem: 'Write something to send.', status: 422 });
-        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
-        const model = await modelFrom(catalog, req.params.org, req.params.model);
-        if (!model) return renderModel(req, res);
-        if (model.uncensored && !(await adult.confirmed(owner(req)))) {
-            return page(req, res, { title: model.name, index: false, body: raw(views.modelPage({ model, viewer: req.viewer, problem: 'Confirm you are 18 or over first.', adult: false, community })) }, 403);
-        }
-        const best = model.offers.find((o) => o.id) || model.offers[0];
-        const modelId = (best && best.id) || 'openvibe/auto';
-        try {
-            const out = await ai.chat({ model: modelId, messages: [{ role: 'user', content: text }], subject: owner(req) });
-            return renderModel(req, res, { result: out, text });
-        } catch (err) {
-            return renderModel(req, res, { problem: err.message || 'The model did not answer.', text, status: err.status === 429 ? 429 : 502 });
-        }
-    });
+    r.post('/m/:org/:model/try', (req, res) => res.redirect(301,
+        `https://openvibe.chat/vibe?models=${encodeURIComponent(`${req.params.org}/${req.params.model}`)}`));
 
     // ── Chat ─────────────────────────────────────────────────
     async function chatCatalog() {

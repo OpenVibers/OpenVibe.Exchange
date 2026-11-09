@@ -22,7 +22,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // "OpenVibe..."). Icons are the navbar's own glyphs; the brand is the way home.
 const NAV = [
     { label: 'Models', href: '/models', icon: 'fa-microchip' },
-    { label: 'Chat', href: '/chat', icon: 'fa-comments' },
+    { label: 'Chat', href: 'https://openvibe.chat/vibe', icon: 'fa-comments' },
     { label: 'Arena', href: '/arena', icon: 'fa-hand-fist' },
     { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line' },
     { label: 'Start building', href: '/start', icon: 'fa-bolt' },
