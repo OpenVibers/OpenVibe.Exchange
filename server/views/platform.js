@@ -37,15 +37,27 @@ const code = (m) =>
         id: 'platform-curl',
         code: `curl https://api.openvibe.exchange/v1/chat/completions \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({ model: m || 'openvibe/auto', messages: [{ role: 'user', content: 'Hello' }] })}'`,
     });
+/** "$0.05" / "$0.40": prices per million tokens in a person's terms (free shows as Free). */
+const perM = (v) => (v == null ? '–' : Number(v) === 0 ? 'Free' : `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 4 })}`);
+const dash = (v, unit = '') => (v == null ? '–' : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 })}${unit}`);
+/**
+ * The models as rows (home's popular models and /models): the name and its maker with badges, in / out per million,
+ * uptime and speed with their labels, and Try in Chat / How it ranks as small quiet buttons. Opus, 11-09.
+ */
 function table(models) {
-    return `<div class="xp-models"><table><thead><tr><th>Model</th><th>Input / output per million</th><th>Tokens/s</th><th>Uptime</th><th>Explore</th></tr></thead><tbody>${models
-        .map((m) => {
-            const o = best(m);
-            return `<tr><td><a href="/models/${encodeURIComponent(id(m))}"><strong>${esc(m.name)}</strong></a><small>${esc(legacy.familyLabel(m))}${(m.offers || []).some(free) ? ' · Free to try' : (m.offers || []).some(paused) ? ' · Free paused' : ''}${m.uncensored ? ' · 18+' : ''}</small></td><td data-label="Input / output per million">${price(o.price?.in)} / ${price(o.price?.out)}${o.fixed_price ? ' · Fixed' : ''}</td><td data-label="Tokens/s">${metric(o.speed?.tokens_per_second)}</td><td data-label="Uptime">${metric(o.uptime == null ? null : o.uptime * 100, '%')}</td><td><a href="${chat(m)}">Try in Chat</a><a href="${rank(m)}">How it ranks →</a></td></tr>`;
-        })
-        .join(
-            '',
-        )}</tbody></table>${!models.length ? '<p>No models match these filters.</p>' : ''}</div>`;
+    if (!models.length) return '<p class="xm-empty">No models match these filters.</p>';
+    return `<ul class="xm-list">${models.map((m) => {
+        const o = best(m);
+        const badges = [
+            (m.offers || []).some(free) ? kit.badge('Free to try') : (m.offers || []).some(paused) ? kit.badge('Free paused') : '',
+            m.uncensored ? kit.badge('18+', 'bad') : '',
+            o.fixed_price ? kit.badge('Fixed price') : '',
+        ].filter(Boolean).join(' ');
+        const fact = (label, value) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
+        return `<li class="xm-row"><div class="xm-name"><a href="/models/${encodeURIComponent(id(m))}">${esc(m.name)}</a><span class="xm-maker">${esc(legacy.familyLabel(m))}</span>${badges ? `<span class="xm-badges">${badges}</span>` : ''}</div>`
+            + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second == null ? '–' : `${dash(o.speed.tokens_per_second)} tok/s`)}</dl>`
+            + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', kind: 'quiet', small: true })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet', small: true })}</p></li>`;
+    }).join('')}</ul>`;
 }
 function pricing() {
     return section(
@@ -95,6 +107,7 @@ function modelsPage({ catalog, query = {} }) {
         );
         if (q.get(key) === value) q.delete(key);
         else q.set(key, value);
+        if (!count && query[key] !== value) return `<span class="ex-chip is-empty" aria-disabled="true">${esc(label)} (0)</span>`;
         return `<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(q.toString())}">${esc(label)} (${count})</a>`;
     };
     for (const [key, test] of Object.entries(tests))

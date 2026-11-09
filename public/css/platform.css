@@ -226,3 +226,61 @@
 .ex-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .ex-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+
+/* ── The model rows (home's popular models, /models): Opus, 11-09 ── */
+.xm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.xm-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xm-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.xm-name > a { font-weight: 700; font-size: 1.05rem; color: var(--ovk-text); text-decoration: none; min-height: 0; }
+.xm-name > a:hover { text-decoration: underline; }
+.xm-maker { color: var(--ovk-muted); font-size: .86rem; }
+.xm-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.xm-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.xm-facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xm-facts dt { color: var(--ovk-muted); font-size: .76rem; }
+.xm-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.xm-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.xm-acts .ovk-btn { min-height: 40px; }
+.xm-empty { color: var(--ovk-muted); }
+.ex-chip.is-empty { opacity: .45; cursor: default; }
+@media (min-width: 900px) {
+    .xm-row { grid-template-columns: minmax(220px, 1.3fr) minmax(0, 2fr) auto; align-items: center; gap: 16px; }
+}
+
+/* ── /search: engines by kind, the try form as a card, results side by side ── */
+.xs { padding-block: 32px 48px; display: grid; gap: 22px; }
+.xs-group h2, .xs-try h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.12rem; }
+.xs-engines { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xs-engine { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }
+.xs-engine:first-child { border-top: 0; }
+.xs-engine.is-off { color: var(--ovk-muted); }
+.xs-engine-main { display: grid; gap: 2px; min-width: 0; }
+.xs-engine-main span { color: var(--ovk-muted); font-size: .86rem; }
+.xs-engine-price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.xs-try { padding: 18px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xs-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; align-items: end; }
+.xs-field { display: grid; gap: 6px; min-width: 0; }
+.xs-field > span { font-weight: 600; font-size: .9rem; }
+.xs-field--wide { grid-column: 1 / -1; }
+.xs-field input, .xs-field select { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ovk-line); border-radius: 10px; background: var(--ovk-bg, transparent); color: var(--ovk-text); font: inherit; }
+.xs-go { grid-column: 1 / -1; margin: 0; }
+.xs-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.xs-result { min-width: 0; padding: 12px 14px; border-radius: 12px; background: var(--ovk-panel-2); }
+.xs-result h3 { margin: 0 0 2px; font-size: 1rem; }
+.xs-result ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; }
+.xs-result li p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .86rem; overflow-wrap: anywhere; }
+.xs-receipt, .xs-note { margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+@media (max-width: 760px) {
+    .xs { padding-block: 20px 36px; }
+    .xs-engine { grid-template-columns: minmax(0, 1fr) auto; }
+    .xs-engine > .ovk-badge { grid-column: 2; }
+    .xs-form, .xs-results { grid-template-columns: minmax(0, 1fr); }
+    .xs-try { padding: 14px; }
+}
+/* Grid children never stretch the page for a long line (the head's subtitle widened /search to 514 px on a phone). */
+.xs > * { min-width: 0; }
+@media (max-width: 760px) {
+    /* 44 px targets on a phone: a model's name and its two buttons. */
+    .xm-name > a { display: inline-flex; align-items: center; min-height: 44px; }
+    .xm-acts .ovk-btn { min-height: 44px; }
+}

@@ -87,6 +87,21 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         }
     }
 
+    /** AI's search engines (GET /api/v1/exchange/search/engines, public): ids, kinds, prices, availability. */
+    let enginesHit = { at: 0, value: null };
+    async function searchEngines() {
+        if (enginesHit.value && now() - enginesHit.at < CATALOG_MS) return enginesHit.value;
+        try {
+            const body = await get('/api/v1/exchange/search/engines', 'search engines');
+            const value = Array.isArray(body.engines) ? body.engines : [];
+            enginesHit = { at: now(), value };
+            return value;
+        } catch (err) {
+            warned('search engines', err);
+            return enginesHit.value || [];
+        }
+    }
+
     async function usage(days = 30) {
         const key = String(days);
         const hit = usageHit.get(key);
@@ -313,7 +328,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
+    return { catalog, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
 }
 
 /**
