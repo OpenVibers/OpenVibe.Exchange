@@ -51,6 +51,7 @@ function createDashboardRoutes({ config, ai }) {
                 method: 'POST',
                 body: {
                     name: req.body.name,
+                    ...(req.body.expires_at ? { expires_at: String(req.body.expires_at) + 'Z' } : {}),
                     monthly_cap_usd: Number(req.body.monthly_cap_usd),
                     allowed_models: String(req.body.allowed_models || '')
                         .split(',')

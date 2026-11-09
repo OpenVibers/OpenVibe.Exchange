@@ -26,6 +26,13 @@ const day = (iso) => {
     const d = new Date(`${String(iso).slice(0, 10)}T12:00:00Z`);
     return Number.isNaN(d.getTime()) ? String(iso || '') : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 };
+/** A key's expiry, to the minute and with its year: "Jan 1, 2027, 00:00 UTC". */
+const expiry = (iso) => {
+    const d = new Date(String(iso || ''));
+    if (Number.isNaN(d.getTime())) return String(iso || '');
+    const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return `${date}, ${d.toISOString().slice(11, 16)} UTC`;
+};
 const plural = (n, one, many = `${one}s`) => `${Number(n).toLocaleString('en-US')} ${Number(n) === 1 ? one : many}`;
 
 /** The frame every tab shares: the page head, the tab rail, the tab's body. */
@@ -40,7 +47,7 @@ function keyCard(k) {
     const made = k.created_at ? `made ${day(k.created_at)}` : '';
     const revoked = !!k.revoked_at;
     return `<li class="xd-key${revoked ? ' is-revoked' : ''}"><div class="xd-key-main"><strong>${esc(k.name)}</strong><code>${esc(k.prefix)}…</code></div>`
-        + `<p class="xd-key-meta">${esc([`${money(k.monthly_cap_usd)} a month`, models, revoked ? `revoked ${day(k.revoked_at)}` : made].filter(Boolean).join(' · '))}</p>`
+        + `<p class="xd-key-meta">${esc([`${money(k.monthly_cap_usd)} a month`, models, k.expires_at ? `expires ${expiry(k.expires_at)}` : '', revoked ? `revoked ${day(k.revoked_at)}` : made].filter(Boolean).join(' · '))}</p>`
         + (revoked ? '' : `<form method="post" action="/dashboard/keys/${encodeURIComponent(k.id)}/revoke" class="xd-key-act">${kit.button({ label: 'Revoke', type: 'submit', kind: 'danger', small: true })}</form>`)
         + '</li>';
 }
@@ -55,6 +62,7 @@ function keysPage(keys = []) {
         + '<form class="xd-form" method="post" action="/dashboard/keys">'
         + '<label><span>Name</span><input name="name" required maxlength="80" placeholder="My application" autocomplete="off"></label>'
         + '<label><span>Monthly cap</span><span class="xd-money"><span aria-hidden="true">$</span><input name="monthly_cap_usd" type="number" min="1" step="0.01" value="5" required inputmode="decimal" aria-describedby="cap-hint"></span><small id="cap-hint">Each call holds up to $1 (or its max_cost_usd) until it finishes; the unused part comes back.</small></label>'
+        + '<label><span>Expiry (UTC; optional)</span><input name="expires_at" type="datetime-local"></label>'
         + '<label><span>Models it may call</span><input name="allowed_models" placeholder="Every model" autocomplete="off" aria-describedby="models-hint"><small id="models-hint">Model ids, comma separated, e.g. deepseek/deepseek-chat. Empty allows every model.</small></label>'
         + `${kit.button({ label: 'Make the key', type: 'submit' })}</form></section>`);
 }

@@ -23,7 +23,9 @@ const { createFakeAi } = require('./helpers/ai');
                           },
                       ],
                   }
-                : { keys: [] };
+                : options?.method === 'POST'
+                  ? { secret: 'fixture-only', key: { name: options.body.name } }
+                  : { keys: [{ id: 'fixture', name: 'Expiring key', prefix: 'fixture', monthly_cap_usd: 5, allowed_models: [], expires_at: '2027-01-01T00:00:00.000Z' }] };
         },
     };
     const t = await boot({ ai });
@@ -37,8 +39,20 @@ const { createFakeAi } = require('./helpers/ai');
                 assert.equal(r.status, 200);
                 assert.ok(r.headers.get('cache-control').includes('no-store'));
                 assert.ok(r.text.includes('Monthly cap'));
+                assert.ok(r.text.includes('name="expires_at"'));
+                assert.ok(r.text.includes('expires Jan 1, 2027, 00:00 UTC'), 'the expiry reads as a date with its year and time');
+                assert.ok(r.text.includes('xd-key-main'), 'main dashboard cards are preserved');
             },
         );
+        await check('key creation forwards optional UTC expiry', async () => {
+            const response = await t.get('/dashboard/keys', {
+                as: user,
+                form: { name: 'Expires', monthly_cap_usd: '5', allowed_models: '', expires_at: '2027-01-01T00:00' },
+            });
+            assert.equal(response.status, 200);
+            assert.equal(calls.at(-1).options.body.expires_at, '2027-01-01T00:00Z');
+            assert.ok(response.text.includes('Copy your key now'));
+        });
         await check('foreign site cannot create keys', async () => {
             const n = calls.length;
             assert.equal(

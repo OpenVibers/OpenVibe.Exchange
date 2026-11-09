@@ -95,6 +95,7 @@ function createPageRoutes(ctx) {
 
     r.get('/pricing', (req, res) => page(req, res, { title: 'Pricing', description: 'What a call to OpenVibe.Exchange costs: your own key at 0%, managed models at their listed price, your own endpoint by the hour, search per 1,000.', body: raw(platform.pricingPage()) }));
     r.get('/docs', (req,res) => res.redirect(301,'/api'));
+    r.get('/docs/migrate', (req,res) => page(req,res,{title:'Migrate to Exchange', description:'Move an OpenAI or Anthropic client to Exchange, validate routing and inspect API receipts.', jsonLd:[{'@context':'https://schema.org','@type':'TechArticle',headline:'Move your application to Exchange',url:'https://openvibe.exchange/docs/migrate'}], body:raw(require('../views/migration').migrationPage())}));
 
     // ── Home ─────────────────────────────────────────────────
     r.get('/', async (req, res) => {
