@@ -198,10 +198,55 @@ function pricebookSection(data = {}) {
   ${open ? `<form method="post" action="/console/pricebook/changes/${encodeURIComponent(c.id)}" class="exc-inline exc-decide"><button class="ovk-btn ovk-btn--primary" name="decision" value="approve">Accept</button><button class="ovk-btn ovk-btn--quiet" name="decision" value="reject">Keep the current price</button></form>` : `<p class="exc-note">${esc(c.status === 'applied' ? 'Applied' : c.status || '')}${c.decided_at ? ` ${esc(day(c.decided_at))}` : ''}</p>`}
 </li>`;
     };
+    // Waiting changes, grouped the way the owner decides them: by provider, then one row per model with its input,
+    // cached and output prices together. Accept for a model, for a provider, or for everything waiting (one form each,
+    // carrying the change ids; /console/pricebook/decide applies them one by one through AI).
+    const ids = (list) => list.map((c) => c.id).join(',');
+    const decide = (list, accept, keep, kind = 'primary') => `<form method="post" action="/console/pricebook/decide" class="exc-inline exc-decide"><input type="hidden" name="ids" value="${esc(ids(list))}">${accept ? `<button class="ovk-btn ovk-btn--${kind}${kind === 'primary' ? '' : ' exc-pb-yes'}" name="decision" value="approve">${esc(accept)}</button>` : ''}${keep ? `<button class="ovk-btn ovk-btn--quiet" name="decision" value="reject">${esc(keep)}</button>` : ''}</form>`;
+    const ORDER = ['in_per_mtok', 'cached_per_mtok', 'out_per_mtok'];
+    const LABEL = { in_per_mtok: 'Input', cached_per_mtok: 'Cached', out_per_mtok: 'Output' };
+    const providers = new Map();
+    for (const c of pending) {
+        const p = providers.get(c.provider_key) || new Map();
+        const m = p.get(c.model_key) || [];
+        m.push(c); p.set(c.model_key, m); providers.set(c.provider_key, p);
+    }
+    const isNew = (list) => list.every((c) => c.old_price == null);
+    const fieldLine = (c) => {
+        const pct = c.change_pct == null || !Number.isFinite(Number(c.change_pct)) ? null : Number(c.change_pct) * (Math.abs(Number(c.change_pct)) <= 5 ? 100 : 1);
+        const dir = c.old_price == null ? 'new' : Number(c.new_price) > Number(c.old_price) ? 'up' : 'down';
+        return `<span class="exc-pb-price is-${dir}"><em>${esc(LABEL[c.field] || FIELD[c.field] || c.field || '')}</em>${c.old_price != null ? `<s>${esc(money(c.old_price) || '')}</s>` : ''}<b>${esc(money(c.new_price) || '–')}</b>${pct != null && c.old_price != null ? `<i>${pct > 0 ? '+' : ''}${esc(pct.toFixed(Math.abs(pct) < 10 ? 1 : 0))}%</i>` : ''}</span>`;
+    };
+    const sourceOf = (list) => (list.find((c) => c.source) || {}).source || '';
+    const modelRow = (model, list, { common, mixed }) => {
+        const sorted = [...list].sort((a, b) => ORDER.indexOf(a.field) - ORDER.indexOf(b.field));
+        const src = sourceOf(sorted);
+        return `<li class="exc-pb-model">
+  <div class="exc-pb-name"><b>${esc(model || '')}</b>${mixed && isNew(sorted) ? tag('New model', 'ok') : ''}${src && src !== common ? `<a href="${esc(src)}" rel="noopener noreferrer" target="_blank">${esc(host(src) || 'their page')}</a>` : ''}</div>
+  <p class="exc-pb-prices">${sorted.map(fieldLine).join('')}</p>
+  ${decide(sorted, 'Accept', 'Keep', 'quiet')}
+</li>`;
+    };
+    const groups = [...providers.entries()].sort((a, b) => b[1].size - a[1].size || String(a[0]).localeCompare(String(b[0])));
+    const fresh = [...providers.values()].reduce((n, models) => n + [...models.values()].filter(isNew).length, 0);
+    const modelCount = [...providers.values()].reduce((n, models) => n + models.size, 0);
+    const providerCard = ([provider, models]) => {
+        const all = [...models.values()].flat();
+        const read = all.map((c) => c.checked_at).filter(Boolean).sort().pop();
+        const sources = [...models.values()].map(sourceOf).filter(Boolean);
+        const common = sources.length && sources.every((x) => x === sources[0]) ? sources[0] : '';
+        const newCount = [...models.values()].filter(isNew).length;
+        const newWords = !newCount ? '' : newCount === models.size ? (models.size === 1 ? ', new' : ', all new') : `, ${newCount} new`;
+        return `<li class="exc-pb-prov">
+  <div class="exc-prov-head">${mark(provider, 32)}<span class="exc-prov-name"><b>${esc(provider || '')}</b><small>${models.size === 1 ? '1 model' : `${models.size} models`}${newWords} · ${all.length === 1 ? '1 price' : `${all.length} prices`}${read ? ` · read ${esc(day(read))}` : ''}${common ? ` · <a href="${esc(common)}" rel="noopener noreferrer" target="_blank">${esc(host(common) || 'their page')}</a>` : ''}</small></span>${models.size > 1 ? decide(all, `Accept all ${models.size}`, '', 'quiet') : ''}</div>
+  <ul class="exc-pb-models">${[...models.entries()].map(([model, list]) => modelRow(model, list, { common, mixed: newCount > 0 && newCount < models.size })).join('')}</ul>
+</li>`;
+    };
     return `<div class="exc">
 <header class="exc-head"><h2>Price book</h2><p>OpenVibe reads every provider's own price page on a schedule. A change waits here for your yes; nothing a provider publishes reaches people's bills unseen.</p>
 <form method="post" action="/console/pricebook/run" class="exc-inline">${btn('Read their pages now')}${rep && rep.finished_at ? `<span class="exc-note">Last read ${esc(day(rep.finished_at))}${Array.isArray(rep.sources) ? ` · ${rep.sources.length} pages` : ''}</span>` : ''}</form></header>
-<section class="exc-sec"><h3>Waiting for you <span class="exc-n">${pending.length}</span></h3>${pending.length ? `<ul class="exc-list">${pending.map((c) => change(c, true)).join('')}</ul>` : '<p class="exc-note">Nothing waiting: every price matches its provider\'s page.</p>'}</section>
+<section class="exc-sec"><h3>Waiting for you <span class="exc-n">${pending.length}</span></h3>${pending.length ? `<div class="exc-pb-all"><p class="exc-note">${modelCount === 1 ? '1 model' : `${modelCount} models`} from ${groups.length === 1 ? '1 provider' : `${groups.length} providers`}${fresh ? `: ${fresh === modelCount ? (fresh === 1 ? 'new to OpenVibe' : 'all new to OpenVibe') : `${fresh} new to OpenVibe`}` : ''}. A new model stays switched off until you turn it on in Models.</p>${groups.length > 1 ? decide(pending, `Accept all ${pending.length} prices`, '') : ''}</div>
+<ul class="exc-list">${groups.map(providerCard).join('')}</ul>` : '<p class="exc-note">Nothing waiting: every price matches its provider\'s page.</p>'}</section>
 ${recent.length ? `<section class="exc-sec"><h3>Applied lately <span class="exc-n">${recent.length}</span></h3><ul class="exc-list">${recent.slice(0, 20).map((c) => change(c, false)).join('')}</ul></section>` : ''}
 </div>`;
 }
