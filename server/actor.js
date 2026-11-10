@@ -63,7 +63,7 @@ function createActor({ config, fetchImpl = globalThis.fetch, log = console, now 
     }
 
     /** One conversation turn answered by Actor. The person's Bearer goes on the wire, nobody else's. */
-    async function turn({ token, task, model = null, budgetUsd, conversation, idempotencyKey, tools = [], poll = true, waitMs: turnWaitMs = null } = {}) {
+    async function turn({ token, task, model = null, tier = null, budgetUsd, conversation, idempotencyKey, tools = [], poll = true, waitMs: turnWaitMs = null } = {}) {
         const limitMs = turnWaitMs != null ? Math.max(5000, Number(turnWaitMs)) : waitMs;
         if (!token) throw new TurnError(401, 'actor.not_allowed', 'The answer needs a fresh sign-in. Sign in again and send once more.');
         const started = now();
@@ -71,6 +71,9 @@ function createActor({ config, fetchImpl = globalThis.fetch, log = console, now 
             task: String(task),
             mode: 'cheapest',
             ...(model ? { model: String(model).slice(0, 256) } : {}),
+            // The content tier (the 18+ one). Actor refuses it for a task that names nobody, and OpenVibe.AI checks
+            // the person's 18+ confirmation before it answers on that tier.
+            ...(tier ? { tier: String(tier).slice(0, 40) } : {}),
             ...(budgetUsd != null ? { budget: { per_task_usd: Number(budgetUsd) } } : {}),
             ...(idempotencyKey ? { idempotency_key: String(idempotencyKey) } : {}),
             ...(conversation ? { conversation } : {}),

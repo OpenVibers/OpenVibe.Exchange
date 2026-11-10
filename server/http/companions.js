@@ -1210,12 +1210,15 @@ function createCompanionRoutes(ctx) {
             notes: notesSaw, notes_used_tokens: noteResult.usedTokens, notes_budget_tokens: noteResult.budgetTokens,
             lorebook: entriesSaw, lorebook_used_tokens: entryResult.usedTokens, lorebook_budget_tokens: entryResult.budgetTokens,
         };
-        // The 18+ tier has no Actor route yet (one-engine slice): an adult card keeps the gate above and the
-        // floor check below, and answers through Actor like every other card. The header's temperature and preset
-        // stay saved on the chat; sampling is the loop's until a later slice carries them. A picked model rides
-        // along; with none picked the call names none, and Actor answers on its default on any server.
+        // The 18+ tier rides the turn (one-engine slice): an adult card asked OpenVibe.AI for the uncensored policy
+        // before, and it asks the same of Actor now. The check is the same one Exchange always used — the person's
+        // own account confirmation — and it fails closed. The floor check below is unchanged and always holds.
+        // The header's temperature and preset stay saved on the chat; sampling is the loop's until a later slice
+        // carries them. A picked model rides along; with none picked the call names none.
         const picked = settings.model || card.model || null;
         const model = picked ? await modelIdOf(picked) : null;
+        const adultOk = card.rating === 'adult' ? await isAdult(req) : false;
+        const tier = adultOk ? 'uncensored' : 'standard';
         await reconcilePending(req, chat, { table: 'chat' });
         let out = null;
         try {
@@ -1223,6 +1226,7 @@ function createCompanionRoutes(ctx) {
                 token,
                 task: turnTextFor({ system, history, userText }),
                 ...(model ? { model } : {}),
+                ...(tier === 'uncensored' ? { tier } : {}),
                 budgetUsd: config.companions.maxCostUsd,
                 conversation: { product: 'exchange', id: `companion-chat:${chat.id}/turn:${turnId}/v${variant}` },
                 idempotencyKey: `exchange-companion-${chat.id}-${turnId}-v${variant}`,
@@ -1546,10 +1550,11 @@ function createCompanionRoutes(ctx) {
         const names = {};
         for (const c of cards) names[c.id] = c.name;
         const token = tokenOf(req);
-        // The 18+ tier has no Actor route yet (one-engine slice): like a one-character chat, a group answer
-        // keeps the floor check and runs through Actor on the standard tier.
+        // The 18+ tier rides the turn (one-engine slice): like a one-character chat, a group answer asks for the
+        // uncensored policy exactly when the card is an adult one and the person confirmed it on their account.
         const picked = group.model || (cards[0] && cards[0].model) || null;
         const model = picked ? await modelIdOf(picked) : null;
+        const groupAdultOk = await isAdult(req);
         await reconcilePending(req, group, { table: 'group' });
         const turnId = ctx.s.newId('ext');
         const userMessageId = await groups.append({ owner: owner(req), groupId: group.id, role: 'user', content: text, turnId, seq: 0 });
@@ -1569,6 +1574,7 @@ function createCompanionRoutes(ctx) {
                     token,
                     task: turnTextFor({ system, history: asked.slice(0, -1), userText: text }),
                     ...(model ? { model } : {}),
+                    ...(card.rating === 'adult' && groupAdultOk ? { tier: 'uncensored' } : {}),
                     budgetUsd: config.companions.maxCostUsd,
                     conversation: { product: 'exchange', id: `exchange-group:${group.id}/turn:${turnId}/${card.id}` },
                     idempotencyKey: `exchange-group-${group.id}-${turnId}-${card.id}`,

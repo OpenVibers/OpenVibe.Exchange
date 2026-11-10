@@ -27,13 +27,15 @@ const loudAi = () => createFakeAi({
     chat: () => { throw new Error('ai.chat must not be called for companions any more'); },
 });
 
-async function makeChat(t, as, name = 'Ada') {
-    const made = await t.get('/companions/new', { as, form: { ...FORM, name } });
+async function makeChat(t, as, name = 'Ada', form = {}) {
+    const made = await t.get('/companions/new', { as, form: { ...FORM, name, ...form } });
     assert.strictEqual(made.status, 303, made.text);
     const cardUrl = made.headers.get('location');
     const mine = await t.ctx.characters.listByOwner(as.subject);
     const card = mine.find((c) => c.name === name);
-    const talk = await t.get(`/c/${as.username}/${name.toLowerCase()}/talk`, { as, method: 'POST' });
+    // The card's own slug (the name, with what is not a letter or a digit turned into a dash).
+    const slug = String(cardUrl).split('/').pop();
+    const talk = await t.get(`/c/${as.username}/${encodeURIComponent(slug)}/talk`, { as, method: 'POST' });
     assert.strictEqual(talk.status, 303, talk.text);
     return { cardUrl, card, chatUrl: talk.headers.get('location') };
 }
@@ -65,6 +67,43 @@ async function makeChat(t, as, name = 'Ada') {
         assert.ok(page.text.includes('ex-receipt'), 'the folded receipt');
         assert.ok(page.text.includes('$0.000120'), 'the cost line shows what the turn cost');
         assert.ok(page.text.includes('What the model saw'), 'the transparency panel stays');
+    });
+
+    await check('an adult companion asks for the uncensored tier, and the person\'s own 18+ check decides it', async () => {
+        const adult = t.network.addUser('ada_adult', { adult: true });
+        const { chatUrl } = await makeChat(t, adult, 'After hours', { rating: 'adult', age: '24' });
+        const before = actor.turns.length;
+        const sent = await t.get(chatUrl + '/send', { as: adult, form: { text: 'Good evening' } });
+        assert.strictEqual(sent.status, 303, sent.text);
+        assert.strictEqual(actor.turns.length, before + 1, 'one Actor turn');
+        const call = actor.turns[actor.turns.length - 1];
+        // The tier rides the turn, so OpenVibe.AI can check this person's 18+ confirmation on their account and
+        // refuse the tier without it. The floor still holds on every answer.
+        assert.strictEqual(call.tier, 'uncensored', 'the adult card asks for the uncensored policy, as it did before');
+    });
+
+    await check('a person without the 18+ confirmation never asks for the uncensored tier', async () => {
+        const plain = t.network.addUser('ada_plain');
+        const made = await t.get('/companions/new', { as: plain, form: { ...FORM, name: 'After hours too', rating: 'adult', age: '24' } });
+        assert.strictEqual(made.status, 303, made.text);
+        const slug = String(made.headers.get('location')).split('/').pop();
+        // The gate is in front of the card: a person who has not confirmed never reaches the companion at all,
+        // so no turn of theirs can ask for the adult tier.
+        const page = await t.get(`/c/${plain.username}/${encodeURIComponent(slug)}`, { as: plain });
+        assert.strictEqual(page.status, 403, `status ${page.status}: ` + page.text.slice(0, 200));
+        assert.ok(/18\+|adult/i.test(page.text), `the 18+ gate: ` + page.text.slice(0, 400));
+        const before = actor.turns.length;
+        await t.get(`/c/${plain.username}/${encodeURIComponent(slug)}/talk`, { as: plain, method: 'POST' });
+        assert.strictEqual(actor.turns.length, before, 'no turn was asked for');
+    });
+
+    await check('an everyday companion never asks for the uncensored tier', async () => {
+        const { chatUrl } = await makeChat(t, alice);
+        const before = actor.turns.length;
+        await t.get(chatUrl + '/send', { as: alice, form: { text: 'Good day' } });
+        assert.strictEqual(actor.turns.length, before + 1, 'one Actor turn');
+        const call = actor.turns[actor.turns.length - 1];
+        assert.ok(!call.tier || call.tier === 'standard', 'the standard tier');
     });
 
     await check('a refusal is words in the chat, charged never twice', async () => {
