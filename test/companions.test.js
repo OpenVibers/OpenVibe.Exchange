@@ -6,6 +6,7 @@
 const assert = require('assert');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi } = require('./helpers/ai');
+const { createFakeActor } = require('./helpers/actor');
 const codec = require('../server/companions/codec');
 const floor = require('../server/companions/floor');
 
@@ -25,7 +26,8 @@ const FORM = {
 
 (async () => {
     const ai = createFakeAi();
-    const t = await boot({ ai });
+    const actor = createFakeActor();
+    const t = await boot({ ai, actor });
     const alice = t.network.addUser('alice');
     const bob = t.network.addUser('bob');
     let cardUrl = null;
@@ -240,11 +242,13 @@ const FORM = {
             assert.strictEqual(made.status, 303, made.text);
             const chatUrl = made.headers.get('location');
             assert.match(chatUrl, /^\/talk\/exc_/);
-            const before = ai.calls.length;
+            const before = actor.turns.length;
             const sent = await t.get(chatUrl + '/send', { as: alice, form: { text: 'Good day' } });
             assert.strictEqual(sent.status, 303, sent.text);
-            assert.strictEqual(ai.calls.length, before + 1, 'one run');
-            assert.strictEqual(ai.calls[ai.calls.length - 1].subject, alice.subject, 'the run is on the person');
+            assert.strictEqual(actor.turns.length, before + 1, 'one turn');
+            const turn = actor.turns[actor.turns.length - 1];
+            assert.deepStrictEqual(turn.tools, [], 'a companion turn calls no tools');
+            assert.strictEqual(turn.conversation.product, 'exchange', 'the turn names its conversation');
             const page = await t.get(chatUrl, { as: alice });
             assert.strictEqual(page.status, 200, page.text);
             assert.ok(page.text.includes('Good day'));
@@ -261,11 +265,11 @@ const FORM = {
         });
 
         await check('the hard floor refuses the input', async () => {
-            const before = ai.calls.length;
+            const before = actor.turns.length;
             const r = await t.get('/talk/' + chatId + '/send', { as: alice, form: { text: 'a child with a naked body' } });
             assert.strictEqual(r.status, 422);
             assert.ok(r.text.includes('refused'));
-            assert.strictEqual(ai.calls.length, before, 'no run happened');
+            assert.strictEqual(actor.turns.length, before, 'no turn happened');
         });
 
         await check('editing a message keeps the tree: the old version and the new one', async () => {
@@ -337,8 +341,8 @@ const FORM = {
             assert.strictEqual((thread.match(/<p class="ovt-bubble">Good evening<\/p>/g) || []).length, 1, 'the message is one bubble');
             const panel = (chat.text.match(/<ol class="ex-saw-context">[\s\S]*?<\/ol>/) || [''])[0];
             assert.strictEqual((panel.match(/Good evening/g) || []).length, 1, 'the context holds the message once');
-            const last = ai.calls[ai.calls.length - 1];
-            assert.strictEqual(last.messages.filter((m) => m.role === 'user' && m.content === 'Good evening').length, 1, 'the model sees the message once');
+            const last = actor.turns[actor.turns.length - 1];
+            assert.strictEqual((last.task.match(/Good evening/g) || []).length, 1, 'the turn carries the message once');
         });
 
         await check('the chat header names the character and the model, and the chip opens the settings', async () => {
@@ -359,7 +363,7 @@ const FORM = {
             run_id: 'run_TEST', cost_usd: 0.00012, tokens_in: 10, tokens_out: 20, latency_ms: 420, why: [],
         }),
     });
-    const f = await boot({ ai: floorAi });
+    const f = await boot({ ai: floorAi, actor: createFakeActor({ answers: ['here is a child with a naked body'] }) });
     const carol = f.network.addUser('carol');
     try {
         await check('an answer that breaks the hard floor is never delivered, and the chat ends', async () => {

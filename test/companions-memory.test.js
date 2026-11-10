@@ -18,6 +18,7 @@ const assert = require('assert');
 const { ids } = require('openvibe-contracts');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi } = require('./helpers/ai');
+const { createFakeActor } = require('./helpers/actor');
 const locker = require('openvibe-sdk/locker');
 
 /**
@@ -80,6 +81,9 @@ function createFakeMemory() {
 }
 
 const AI_ANSWER = 'The clocks are safe with me.';
+const NOTES_JSON = '[{"kind":"fact","text":"The person is called Ada and likes clocks."}]';
+const actorAnswers = (call) => String(call.conversation && call.conversation.id || '').startsWith('exchange-notes:') ? NOTES_JSON : AI_ANSWER;
+
 function fakeAi() {
     return createFakeAi({
         chat(args) {
@@ -99,8 +103,9 @@ const FORM = {
 (async () => {
     const memory = createFakeMemory();
     const ai = fakeAi();
+    const actor = createFakeActor({ answers: actorAnswers });
     const t = await boot({
-        ai, aiFetchImpl: memory.fetchImpl,
+        ai, actor, aiFetchImpl: memory.fetchImpl,
         env: { EXCHANGE_COMPANIONS_NOTES_EVERY_TURNS: '100', EXCHANGE_COMPANIONS_MEMORY_BUDGET_TOKENS: '100', EXCHANGE_COMPANIONS_LOREBOOK_BUDGET_TOKENS: '100' },
     });
     try {
@@ -163,15 +168,15 @@ const FORM = {
             const pinned = await t.ctx.notes.add(alice.subject, card.id, { kind: 'preference', text: 'Ada prefers short answers.', pinned: true }, alice.subject);
             await t.ctx.notes.add(alice.subject, card.id, { kind: 'fact', text: 'Ada keeps a notebook of pendulum designs.', pinned: false }, alice.subject);
             await t.ctx.notes.add(alice.subject, card.id, { kind: 'event', text: 'A long note that is over the whole budget: ' + 'x'.repeat(320), pinned: false }, alice.subject);
-            ai.calls.length = 0;
+            actor.turns.length = 0;
             const sent = await t.get(chatUrl + '/send', { as: alice, method: 'POST', form: { text: 'What do you remember about me?' } });
             assert.strictEqual(sent.status, 303, sent.text);
-            const call = ai.calls[0];
-            const system = call.messages[0].content;
+            const call = actor.turns[0];
+            const system = call.task;
             assert.ok(system.includes('Ada prefers short answers.'), 'the pinned note joined');
             assert.ok(system.includes('pendulum designs'), 'the newest note joined');
             assert.ok(!system.includes('over the whole budget'), 'the note over the budget did not join');
-            assert.ok(call.max_cost_usd <= t.config.companions.maxCostUsd, 'under the free-use ceiling');
+            assert.ok(call.budgetUsd <= t.config.companions.maxCostUsd, 'under the free-use ceiling');
             const page = await t.get(chatUrl, { as: alice });
             assert.ok(page.text.includes('Your notes'), 'the panel has a notes section');
             assert.ok(page.text.includes('Ada prefers short answers.'));
@@ -186,10 +191,10 @@ const FORM = {
             await t.ctx.lorebooks.addEntry(alice.subject, book.id, { keys: 'clock', content: 'This entry is far too long for the tiny budget: ' + 'y'.repeat(1200), priority: 50 });
             await t.ctx.lorebooks.addEntry(alice.subject, book.id, { content: 'The engine is always in the room.', constant: true, priority: 2 });
             await t.ctx.lorebooks.addEntry(alice.subject, book.id, { keys: 'unrelated', content: 'A fact that must not join.', priority: 99 });
-            ai.calls.length = 0;
+            actor.turns.length = 0;
             const sent = await t.get(chatUrl + '/send', { as: alice, method: 'POST', form: { text: 'Tell me about the clock again.' } });
             assert.strictEqual(sent.status, 303, sent.text);
-            const system = ai.calls[0].messages[0].content;
+            const system = actor.turns[0].task;
             assert.ok(system.includes('The high priority fact about clocks.'));
             assert.ok(system.includes('The engine is always in the room.'), 'a constant entry joins');
             assert.ok(!system.includes('This entry is far too long'), 'the entry over the budget did not join');
@@ -242,8 +247,9 @@ const FORM = {
             // A second app, so the notes cadence is two turns and does not disturb the budget checks above.
             memory.calls.length = 0;
             const ai2 = fakeAi();
+            const actor2 = createFakeActor({ answers: actorAnswers });
             const t2 = await boot({
-                ai: ai2, aiFetchImpl: memory.fetchImpl,
+                ai: ai2, actor: actor2, aiFetchImpl: memory.fetchImpl,
                 env: { EXCHANGE_COMPANIONS_NOTES_EVERY_TURNS: '2' },
             });
             try {
@@ -253,12 +259,12 @@ const FORM = {
                 const chat2 = talk2.headers.get('location');
                 await t2.get(chat2 + '/send', { as: user, method: 'POST', form: { text: 'I am Carol, I like clocks.' } });
                 assert.strictEqual((await t2.ctx.notes.indexRows(user.subject, c2.id)).length, 0, 'not on the first turn');
-                ai2.calls.length = 0;
+                actor2.turns.length = 0;
                 const second = await t2.get(chat2 + '/send', { as: user, method: 'POST', form: { text: 'Remember me.' } });
                 assert.strictEqual(second.status, 303, second.text);
-                const noteCall = ai2.calls.find((c) => c.model === 'openvibe/economy');
+                const noteCall = actor2.turns.find((c) => String(c.conversation && c.conversation.id || '').startsWith('exchange-notes:'));
                 assert.ok(noteCall, 'the economy model took the notes');
-                assert.ok(noteCall.max_cost_usd <= t2.config.companions.maxCostUsd, 'under the free-use ceiling');
+                assert.ok(noteCall.budgetUsd <= t2.config.companions.maxCostUsd, 'under the free-use ceiling');
                 const rows = await t2.ctx.notes.indexRows(user.subject, c2.id);
                 assert.strictEqual(rows.length, 1);
                 assert.strictEqual(rows[0].origin, 'model');
@@ -333,15 +339,15 @@ const FORM = {
                 { role: 'user', content: 'What do you remember about me?' },
                 { role: 'assistant', content: AI_ANSWER },
             ];
-            ai.calls.length = 0;
+            actor.turns.length = 0;
             const res = await t.get(chatUrl + '/send', {
                 as: alice, method: 'POST',
                 form: { text: 'One more clock, please.', locker_context: JSON.stringify({ history, messages: {}, notes: [] }) },
             });
             assert.strictEqual(res.status, 303, res.text);
-            const call = ai.calls[0];
-            assert.strictEqual(call.messages[call.messages.length - 1].content, 'One more clock, please.');
-            assert.ok(call.messages.some((m) => m.content === 'What do you remember about me?'), 'the browser’s opened history reached the model for this turn');
+            const call = actor.turns[0];
+            assert.ok(call.task.includes('One more clock, please.'), 'the new words reached the turn');
+            assert.ok(call.task.includes('What do you remember about me?'), 'the browser’s opened history reached the model for this turn');
             const messages = await t.ctx.companionChats.messages(chatUrl.split('/').pop());
             const last = messages.filter((m) => m.role === 'user').pop();
             assert.strictEqual(last.meta.sealed, true);
