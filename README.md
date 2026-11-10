@@ -2,6 +2,9 @@
 
 > Every AI model, one account.
 
+**Live site:** https://openvibe.exchange · **API docs:** https://openvibe.services · **For AI:** https://openvibe.exchange/llms.txt
+**Run it:** `npm ci && npm run dev` (Node 22 or newer) · **Tests:** `npm test`
+
 **Status:** the remake (2026-11-06) — see [STATUS.json](STATUS.json).
 **Domain:** `openvibe.exchange` · **Port:** 5150 · **Service id:** `exchange` · **Env prefix:** `EXCHANGE`
 **License:** AGPL-3.0-only (same as every OpenVibe service).
