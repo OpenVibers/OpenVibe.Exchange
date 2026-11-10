@@ -46,7 +46,7 @@ function consolePage({ section = 'overview', data = {}, error = null }) {
         if (data.run && ['queued', 'running'].includes(data.run.status)) actions += `<form class="ex-console-action" method="post" action="/console/runs/${encodeURIComponent(data.run.id)}/cancel"><button class="ovk-btn ovk-btn--quiet" type="submit">Cancel run</button></form>`;
     }
     return `<div class="ex-wrap ex-page ex-console">
-<header class="ex-console-head"><p class="ex-eyebrow">OpenVibe.Exchange · owner</p><h1>AI operator console</h1><p class="ex-prose">Manage the AI router through its JSON admin API. Provider secrets are never shown here.</p></header>
+<header class="ex-console-head"><p class="ex-eyebrow">Owner</p><h1>AI operator console</h1><p class="ex-prose">Manage the AI router through its JSON admin API. Provider secrets are never shown here.</p></header>
 <nav class="ex-console-nav" aria-label="AI console">${nav}</nav>
 ${error ? `<p class="ex-console-error" role="alert">${esc(error)}</p>` : ''}
 ${designed.SECTIONS[section] && !error ? `<section class="ex-console-panel ex-console-panel--designed">${designed.SECTIONS[section](data)}<details class="exc-fold exc-raw"><summary>The data as JSON (${esc(String(json.length))} characters)</summary><pre><code>${json}</code></pre></details></section>` : `<section class="ex-console-panel"><h2>${esc(section[0].toUpperCase() + section.slice(1))}</h2>${actions}<pre><code>${json}</code></pre></section>`}
