@@ -278,6 +278,22 @@ function createConsoleRoutes({ config, ai }) {
             return res.redirect(303, '/console/pricebook');
         } catch (err) { return page(req, res, 'pricebook', {}, err.message || 'The price decision could not be saved.', 502); }
     });
+    // Several changes at once (a model's three prices, a provider's, everything waiting): one by one, never in
+    // parallel, because each approval rewrites its model's cost row from a fresh read.
+    r.post('/console/pricebook/decide', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const decision = String(req.body.decision) === 'approve' ? 'approve' : 'reject';
+        const ids = [...new Set(String(req.body.ids || '').split(',').map((s) => s.trim().slice(0, 60)).filter(Boolean))].slice(0, 500);
+        if (!ids.length) return res.redirect(303, '/console/pricebook');
+        const failed = [];
+        for (const id of ids) {
+            try {
+                await ai.adminRequest(`/api/v1/admin/console/pricebook/changes/${encodeURIComponent(id)}`, { method: 'POST', subject: req.viewer.subject, body: { decision } });
+            } catch (err) { failed.push(err.message || 'refused'); }
+        }
+        if (!failed.length) return res.redirect(303, '/console/pricebook');
+        return page(req, res, 'pricebook', {}, `${failed.length} of ${ids.length} could not be saved: ${failed[0]}`, 502);
+    });
     r.post('/console/pricebook/run', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         try {

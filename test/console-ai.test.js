@@ -50,4 +50,20 @@ const book = pricebookSection({ pending: [{ id: 'pc_1', provider_key: 'deepseek'
 assert.ok(book.includes('value="approve"'), 'Accept sends approve, the word AI takes');
 assert.ok(book.includes('$1.20') && book.includes('$0.90') && book.includes('-25%'), 'old, new and the change');
 assert.ok(pricebookSection({ pending: [], recent: [] }).includes('Nothing waiting'), 'an empty price book says so');
+
+// Grouped: a card per provider, one row per model with its prices together, Accept per model, provider and all.
+const many = pricebookSection({ pending: [
+    { id: 'pc_a', provider_key: 'deepinfra', model_key: 'qwen3-14b', field: 'in_per_mtok', old_price: null, new_price: 0.06, source: 'https://deepinfra.com/pricing', checked_at: '2026-11-10' },
+    { id: 'pc_b', provider_key: 'deepinfra', model_key: 'qwen3-14b', field: 'out_per_mtok', old_price: null, new_price: 0.24, source: 'https://deepinfra.com/pricing', checked_at: '2026-11-10' },
+    { id: 'pc_c', provider_key: 'deepinfra', model_key: 'gpt-oss-120b', field: 'out_per_mtok', old_price: null, new_price: 0.17, checked_at: '2026-11-10' },
+    { id: 'pc_d', provider_key: 'sambanova', model_key: 'gpt-oss-120b', field: 'in_per_mtok', old_price: 0.3, new_price: 0.22, change_pct: -0.2667, checked_at: '2026-11-10' },
+], recent: [] });
+assert.equal((many.match(/class="exc-pb-prov"/g) || []).length, 2, 'one card per provider');
+assert.equal((many.match(/class="exc-pb-model"/g) || []).length, 3, 'one row per model');
+assert.ok(many.includes('name="ids" value="pc_a,pc_b"'), 'a model row decides its prices together');
+assert.ok(many.includes('Accept all 2</button>'), 'a provider with several models can be accepted at once');
+assert.ok(many.includes('Accept all 4 prices') && many.includes('name="ids" value="pc_a,pc_b,pc_c,pc_d"'), 'everything waiting can be accepted at once');
+assert.ok(many.includes('3 models from 2 providers: 2 new to OpenVibe'), 'the summary counts models and the new ones');
+assert.ok(many.includes('<s>$0.30</s><b>$0.22</b><i>-27%</i>'), 'a changed price shows old, new and the change');
+assert.ok(!/action="\/console\/pricebook\/changes\//.test(many), 'the waiting list decides through the grouped route');
 console.log('console-ai: providers, models and the price book passed');

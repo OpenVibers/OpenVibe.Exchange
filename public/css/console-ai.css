@@ -70,8 +70,34 @@
 .exc-delta.is-down em{color:color-mix(in srgb,var(--ovk-ok) 60%,var(--ovk-text))}
 .exc-decide .ovk-btn{min-height:44px}
 
+/* Waiting prices, grouped: a card per provider, a row per model (its prices on one line, Accept / Keep beside). */
+.exc-pb-all{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.exc-pb-all .exc-note{flex:1 1 20rem}
+.exc-pb-prov{display:grid;gap:6px;min-width:0;padding:14px;border:1px solid var(--ovk-line);border-radius:16px;background:var(--ovk-panel)}
+.exc-pb-prov>.exc-prov-head .exc-decide{margin-left:auto}
+.exc-prov-name small a{color:inherit}
+.exc-pb-models{list-style:none;margin:0;padding:0;display:grid}
+.exc-pb-model{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name act" "prices act";gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--ovk-line)}
+.exc-pb-name{grid-area:name;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0}
+.exc-pb-name b{overflow-wrap:anywhere}
+.exc-pb-name a{color:var(--ovk-muted);font-size:.78rem}
+.exc-pb-prices{grid-area:prices;display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:.86rem;font-variant-numeric:tabular-nums}
+.exc-pb-price{display:inline-flex;align-items:baseline;gap:5px}
+.exc-pb-price em{font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ovk-muted)}
+.exc-pb-price s{color:var(--ovk-muted)}
+.exc-pb-price i{font-style:normal;font-weight:700;font-size:.78rem}
+.exc-pb-price.is-up i{color:color-mix(in srgb,var(--ovk-bad) 60%,var(--ovk-text))}
+.exc-pb-price.is-down i{color:color-mix(in srgb,var(--ovk-ok) 60%,var(--ovk-text))}
+.exc-pb-model .exc-decide{grid-area:act;flex-wrap:nowrap;gap:8px}
+.exc-pb-yes{color:var(--ovk-accent);border-color:color-mix(in srgb,var(--ovk-accent) 45%,var(--ovk-line))}
+.exc-pb-yes:hover{background:color-mix(in srgb,var(--ovk-accent) 12%,transparent)}
+
 @media (max-width:600px){
   .exc-prov-head{flex-wrap:wrap}
   .exc-quick{margin-left:0;width:100%}
   .exc-quick .ovk-btn{flex:1}
+  .exc-pb-model{grid-template-columns:minmax(0,1fr);grid-template-areas:"name" "prices" "act"}
+  .exc-pb-prov>.exc-prov-head{flex-wrap:wrap}
+  .exc-pb-prov>.exc-prov-head .exc-decide{flex-basis:100%;margin-left:0}
+  .exc-pb-all .exc-decide,.exc-pb-all .exc-decide .ovk-btn{flex:1}
 }
