@@ -25,6 +25,8 @@ assert.ok(html.includes('type="password"'), 'keys are typed into password fields
 assert.ok(html.includes('Key ends in …abcd') && html.includes('set on 2026-11-10'), 'only the key marker and date are rendered');
 assert.ok(html.includes('http_401') && html.includes('42 ms'), 'the last check and latency are visible');
 assert.ok(html.includes('action="/console/providers/openai/check"') && html.includes('action="/console/providers/openai/remove-key"'), 'explicit check and removal controls');
+const locked = providersSection({ providers: [{ ...providers[0], key_present: false }], models: [], presets: [] });
+assert.ok(locked.includes('action="/console/providers/openai/remove-key"'), 'a stored key remains removable when it cannot be decrypted');
 const order = ['Cheap', 'Pricey', 'Unpriced'].map((n) => html.indexOf(`<b>${n}</b>`));
 assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'presets: cheapest first, unpriced last');
 assert.ok(!html.includes('<b>OpenAI</b><small>api.openai.com · 0'), 'an added provider is not offered again as a preset');
