@@ -37,9 +37,9 @@ app.use(createConsoleRoutes({
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
     const base = 'http://127.0.0.1:' + server.address().port;
     try {
-        // Owner rank only: no viewer, a person and an admin all get 404.
+        // Owner rank only: signed-in non-owners are forbidden; signed-out people see no route.
         for (const role of ['', 'user', 'admin']) {
-            assert.strictEqual((await fetch(base + '/console/defaults', { headers: role ? { 'x-role': role } : {} })).status, 404, `${role || 'signed out'} is not the owner`);
+            assert.strictEqual((await fetch(base + '/console/defaults', { headers: role ? { 'x-role': role } : {} })).status, role ? 403 : 404, `${role || 'signed out'} is not the owner`);
         }
         const page = await fetch(base + '/console/defaults', { headers: { 'x-role': 'owner' } });
         const html = await page.text();

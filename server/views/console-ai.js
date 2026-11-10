@@ -62,6 +62,14 @@ function providerCard(p, models) {
   <label class="exc-check"><input type="checkbox" name="uncensored" value="1"${p.uncensored ? ' checked' : ''}><span>Uncensored models (18+ only)</span></label>
   <p class="exc-actions">${btn('Save settings', 'primary')}</p>
 </form>`;
+    const keyState = p.key_state || {};
+    const check = p.last_check;
+    const keyStatus = keyState.source === 'not_required' ? '<p>No key required.</p>'
+        : keyState.hint ? `<p>Key ends in ${esc(keyState.hint)}${keyState.set_at ? ` · set on ${esc(keyState.set_at)}` : ''}.</p>` : '';
+    const keyActions = `${keyStatus}
+  ${check ? `<p>Check: ${check.ok ? 'OK' : esc(check.error || 'Failed')} · ${esc(check.latency_ms)} ms · ${esc(check.checked_at)}</p>` : ''}
+  <form method="post" action="/console/providers/${key}/check"><button class="ovk-btn ovk-btn--quiet" type="submit">Check provider</button></form>
+  ${p.key_present ? `<form method="post" action="/console/providers/${key}/remove-key"><button class="ovk-btn ovk-btn--quiet" type="submit">Remove key and disable</button></form>` : ''}`;
     const keyForm = `<form class="exc-form exc-form--key" method="post" action="/console/providers/${key}/key">
   <label><span>${p.key_present ? 'Replace the key' : 'Add the key'}</span><input name="api_key" type="password" autocomplete="off" minlength="8" maxlength="400" required placeholder="Paste the provider's API key"><small>Stored sealed and bound to ${esc(host(p.base_url) || 'this provider')}; never shown again.</small></label>
   <p class="exc-actions">${btn(p.key_present ? 'Replace key' : 'Save key')}</p>
@@ -71,7 +79,7 @@ function providerCard(p, models) {
     <form method="post" action="/console/providers/${key}/status" class="exc-quick"><input type="hidden" name="status" value="${on ? 'disabled' : 'active'}">${btn(on ? 'Turn off' : 'Turn on')}</form></div>
   <p class="exc-tags">${tags}</p>
   ${accessNote ? `<p class="exc-note">${esc(accessNote)}</p>` : ''}
-  <details class="exc-fold"><summary>Settings and key</summary><div class="exc-fold-body">${settings}${keyForm}
+  <details class="exc-fold"><summary>Settings and key</summary><div class="exc-fold-body">${settings}${keyState.source === 'not_required' ? '' : keyForm}${keyActions}
     <form method="post" action="/console/providers/${key}/reset" class="exc-inline"><p class="exc-note">Reset clears its failure count and opens it to traffic again.</p>${btn('Reset health')}</form></div></details>
 </li>`;
 }

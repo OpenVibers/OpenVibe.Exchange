@@ -27,7 +27,7 @@ app.use(createConsoleRoutes({
         const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/gpus/model-a/quote', '/console/data/providers', '/console/data/models', '/console/data/pricebook'];
         for (const path of consolePaths) for (const headers of [{}, { 'x-test-role': 'user' }, { 'x-test-role': 'admin' }]) {
             const response = await fetch(`${base}${path}`, { headers });
-            assert.strictEqual(response.status, 404, `${path}: signed-out people and non-owners see no console route`);
+            assert.strictEqual(response.status, headers['x-test-role'] ? 403 : 404, `${path}: signed-in non-owners are forbidden; signed-out people see no console route`);
         }
         const response = await fetch(`${base}/console/providers`, { headers: { 'x-test-role': 'owner' } });
         const html = await response.text();
@@ -53,6 +53,29 @@ app.use(createConsoleRoutes({
         assert.strictEqual(keyWrite.status, 303);
         assert.ok(!keyAnswer.includes(fakeSecret), 'a provider key POST never echoes its value');
         assert.deepStrictEqual(writes[0], { path: '/api/v1/admin/console/providers/openai/key', method: 'POST', subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', body: { api_key: fakeSecret } });
+        for (const action of ['key', 'remove-key', 'check']) {
+            for (const role of ['user', 'admin']) {
+                const count = writes.length;
+                const denied = await fetch(`${base}/console/providers/openai/${action}`, {
+                    method: 'POST', headers: { 'x-test-role': role, Origin: 'https://openvibe.exchange' },
+                });
+                assert.strictEqual(denied.status, 403);
+                assert.strictEqual(writes.length, count, 'non-owners cannot reach the AI service');
+            }
+            const csrf = await fetch(`${base}/console/providers/openai/${action}`, {
+                method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://evil.example' },
+            });
+            assert.strictEqual(csrf.status, 403);
+        }
+        for (const [action, method, endpoint] of [['check', 'POST', 'check'], ['remove-key', 'DELETE', 'key']]) {
+            const count = writes.length;
+            const result = await fetch(`${base}/console/providers/openai/${action}`, {
+                method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
+            });
+            assert.strictEqual(result.status, 303);
+            assert.strictEqual(writes.length, count + 1);
+            assert.deepStrictEqual(writes.at(-1), { path: `/api/v1/admin/console/providers/openai/${endpoint}`, method, subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX' });
+        }
 
         const createProvider = await fetch(`${base}/console/providers`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },

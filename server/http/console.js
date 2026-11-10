@@ -27,7 +27,7 @@ function createConsoleRoutes({ config, ai }) {
         head: ['providers', 'models', 'pricebook'].includes(section) ? DESIGNED_HEAD : undefined,
         body: raw(consolePage({ section, data, error })),
     });
-    r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(404));
+    r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(req.viewer?.kind === 'user' ? 403 : 404));
     // The owner's AI defaults: one row per task, the model inline, and the fallback order. Posting one task's form
     // saves only that task, and AI resolves it within a minute.
     const DEFAULTS_HEAD = raw('<link rel="stylesheet" href="/css/task-defaults.css"><script src="/js/task-defaults.js" defer></script>');
@@ -145,13 +145,15 @@ function createConsoleRoutes({ config, ai }) {
                 await ai.adminRequest(`/api/v1/providers/${key}/${endpoint}`, { method: 'POST', subject: req.viewer.subject });
             } else if (action === 'reset') await ai.adminRequest(`/api/v1/providers/${key}/reset`, { method: 'POST', subject: req.viewer.subject });
             else if (action === 'key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'POST', subject: req.viewer.subject, body: { api_key: String(req.body.api_key || '') } });
+            else if (action === 'remove-key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'DELETE', subject: req.viewer.subject });
+            else if (action === 'check') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/check`, { method: 'POST', subject: req.viewer.subject });
             else if (action === 'settings') await ai.adminRequest(`/api/v1/providers/${key}`, { method: 'PATCH', subject: req.viewer.subject, body: {
                 status: req.body.status, provider_access: req.body.provider_access, priority: Number(req.body.preference_order),
                 markup_percent: Number(req.body.markup_percent), uncensored: req.body.uncensored === '1',
             } });
             else return res.sendStatus(404);
             return res.redirect(303, '/console/providers');
-        } catch (err) { return page(req, res, 'providers', {}, err.message || 'The change could not be saved.', 502); }
+        } catch { return page(req, res, 'providers', {}, 'The change could not be saved.', 502); }
     });
     r.post('/console/provider-credits', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);

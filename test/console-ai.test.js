@@ -5,7 +5,9 @@ const { providersSection, modelsSection, pricebookSection } = require('../server
 
 const secret = 'sk-live-never-on-a-page';
 const providers = [
-    { key: 'openai', display_name: 'OpenAI', base_url: 'https://api.openai.com/v1', status: 'active', key_present: true, preference_order: 10, markup_percent: 0, provider_access: 'AUTHORIZED_WHOLESALE', health: { state: 'up' }, api_key: secret },
+    { key: 'openai', display_name: 'OpenAI', base_url: 'https://api.openai.com/v1', status: 'active', key_present: true, preference_order: 10, markup_percent: 0, provider_access: 'AUTHORIZED_WHOLESALE', health: { state: 'up' }, api_key: secret,
+        key_state: { source: 'stored', hint: '…abcd', set_at: '2026-11-10T00:00:00.000Z' },
+        last_check: { ok: false, error: 'http_401', latency_ms: 42, checked_at: '2026-11-10T00:01:00.000Z' } },
     { key: 'venice', display_name: 'Venice AI', base_url: 'https://api.venice.ai/api/v1', status: 'disabled', key_present: false, preference_order: 60, uncensored: true, provider_access: 'UNVERIFIED' },
 ];
 const presets = [
@@ -20,6 +22,9 @@ assert.ok(!html.includes(secret), 'a key value never reaches the page');
 assert.ok(html.includes('Key stored') && html.includes('No key'), 'a key is only present or not');
 assert.ok(html.includes('18+'), 'the uncensored tier is marked 18+');
 assert.ok(html.includes('type="password"'), 'keys are typed into password fields');
+assert.ok(html.includes('Key ends in …abcd') && html.includes('set on 2026-11-10'), 'only the key marker and date are rendered');
+assert.ok(html.includes('http_401') && html.includes('42 ms'), 'the last check and latency are visible');
+assert.ok(html.includes('action="/console/providers/openai/check"') && html.includes('action="/console/providers/openai/remove-key"'), 'explicit check and removal controls');
 const order = ['Cheap', 'Pricey', 'Unpriced'].map((n) => html.indexOf(`<b>${n}</b>`));
 assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], 'presets: cheapest first, unpriced last');
 assert.ok(!html.includes('<b>OpenAI</b><small>api.openai.com · 0'), 'an added provider is not offered again as a preset');
