@@ -74,12 +74,20 @@ function providerCard(p, models) {
   <label><span>${p.key_present ? 'Replace the key' : 'Add the key'}</span><input name="api_key" type="password" autocomplete="off" minlength="8" maxlength="400" required placeholder="Paste the provider's API key"><small>Stored sealed and bound to ${esc(host(p.base_url) || 'this provider')}; never shown again.</small></label>
   <p class="exc-actions">${btn(p.key_present ? 'Replace key' : 'Save key')}</p>
 </form>`;
+    const modelActions = p.metadata?.models_endpoint || ['openai', 'anthropic', 'responses', 'gemini'].includes(p.kind) ? `
+  <p><a href="/console/providers/${key}/models">Models</a> · <a href="/console/sync">Sync log</a></p>
+  <form method="post" action="/console/providers/${key}/sync"><button class="ovk-btn ovk-btn--quiet" type="submit">Sync models</button></form>
+  <form method="post" action="/console/providers/${key}/model-settings">
+    <label><input type="checkbox" name="auto_list_new_models" value="1"${p.metadata?.auto_list_new_models ? ' checked' : ''}>List new models automatically</label>
+    <label>Sync schedule<select name="model_sync_interval_minutes">${[[0, 'Off'], [60, 'Hourly'], [360, 'Every six hours'], [1440, 'Daily']].map(([minutes, name]) => `<option value="${minutes}"${Number(p.metadata?.model_sync_interval_minutes || 0) === minutes ? ' selected' : ''}>${name}</option>`).join('')}</select></label>
+    <button class="ovk-btn ovk-btn--quiet" type="submit">Save model settings</button>
+  </form>` : '';
     return `<li class="exc-prov${on ? '' : ' is-off'}" id="p-${esc(p.key)}">
   <div class="exc-prov-head">${mark(p.key || p.display_name)}<div class="exc-prov-name"><b>${esc(p.display_name || p.key)}</b><small>${esc(host(p.base_url))}${mine.length ? ` · ${mine.length} ${mine.length === 1 ? 'model' : 'models'}` : ''} · order ${esc(p.preference_order ?? p.priority ?? '–')}${Number(p.markup_percent) ? ` · +${esc(p.markup_percent)}%` : ''}</small></div>
     <form method="post" action="/console/providers/${key}/status" class="exc-quick"><input type="hidden" name="status" value="${on ? 'disabled' : 'active'}">${btn(on ? 'Turn off' : 'Turn on')}</form></div>
   <p class="exc-tags">${tags}</p>
   ${accessNote ? `<p class="exc-note">${esc(accessNote)}</p>` : ''}
-  <details class="exc-fold"><summary>Settings and key</summary><div class="exc-fold-body">${settings}${keyState.source === 'not_required' ? '' : keyForm}${keyActions}
+  <details class="exc-fold"><summary>Settings and key</summary><div class="exc-fold-body">${settings}${keyState.source === 'not_required' ? '' : keyForm}${keyActions}${modelActions}
     <form method="post" action="/console/providers/${key}/reset" class="exc-inline"><p class="exc-note">Reset clears its failure count and opens it to traffic again.</p>${btn('Reset health')}</form></div></details>
 </li>`;
 }
@@ -146,6 +154,13 @@ function modelsSection(data = {}) {
   <div class="exc-model-head"><b>${esc(m.display_name || id)}</b><small>${esc(id)}</small>
     <form method="post" action="${path}/status" class="exc-quick"><select name="status" aria-label="Status of ${esc(id)}">${['active', 'disabled'].map((s) => `<option value="${s}"${(m.status || 'active') === s ? ' selected' : ''}>${s === 'active' ? 'On' : 'Off'}</option>`).join('')}</select>${btn('Set')}</form></div>
   <div class="exc-model-prices"><span><em>Accepted</em>${priceTriple(accepted)}</span>${o ? `<span class="is-override"><em>Your price</em>${priceTriple(o.cost)}<small>${esc(o.reason || '')}</small></span>` : ''}</div>
+  ${m.metadata?.missing_since ? `<p>Gone from the provider list since ${esc(m.metadata.missing_since)}.</p>` : ''}
+  ${accepted?.source ? `<p>Price source: <a href="${esc(accepted.source)}" rel="noopener noreferrer">${esc(accepted.source)}</a></p>` : ''}
+  <form method="post" action="${path}/settings">
+    <label>Display name<input name="display_name" required maxlength="200" value="${esc(m.display_name || id)}"></label>
+    <label>Content tier<select name="content_tier"><option value="standard"${m.content_tier !== 'uncensored' ? ' selected' : ''}>Standard</option><option value="uncensored"${m.content_tier === 'uncensored' ? ' selected' : ''}>Uncensored (18+)</option></select></label>
+    <button class="ovk-btn ovk-btn--quiet" type="submit">Save model settings</button>
+  </form>
   <details class="exc-fold"><summary>${o ? 'Change your price' : 'Set your own price'}</summary><div class="exc-fold-body"><form class="exc-form exc-form--price" method="post" action="${path}/override">
     <label><span>In / 1M</span><input name="input_per_million" type="number" min="0" step="0.0001" inputmode="decimal" value="${esc(o && o.cost && o.cost.in_per_mtok != null ? o.cost.in_per_mtok : '')}"></label>
     <label><span>Cached / 1M</span><input name="cached_per_million" type="number" min="0" step="0.0001" inputmode="decimal" value="${esc(o && o.cost && o.cost.cached_per_mtok != null ? o.cost.cached_per_mtok : '')}"></label>
@@ -157,7 +172,13 @@ function modelsSection(data = {}) {
     return `<div class="exc">
 <header class="exc-head"><h2>Models</h2><p>Every model by provider. The accepted price is what the price book confirmed on the provider's own page; your price, with its reason, replaces it until you clear it. The provider's markup applies on top.</p></header>
 ${models.length ? [...byProvider.entries()].map(([prov, list]) => `<section class="exc-sec"><h3>${mark(prov, 24)} ${esc(prov)} <span class="exc-n">${list.length}</span></h3><ul class="exc-list">${list.map(row).join('')}</ul></section>`).join('') : '<p class="exc-note">No models yet: add a provider and its models arrive.</p>'}
+${Array.isArray(data.sync_log) ? syncSection(data) : ''}
 </div>`;
+}
+
+function syncSection(data = {}) {
+    const rows = Array.isArray(data.sync_log) ? data.sync_log : [];
+    return `<table><caption>Model sync log</caption><thead><tr><th>Provider</th><th>Started</th><th>Status</th><th>Added</th><th>Updated</th><th>Gone</th><th>Error</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.provider_key)}</td><td>${esc(r.started_at)}</td><td>${esc(r.status)}</td><td>${esc(r.added)}</td><td>${esc(r.updated)}</td><td>${esc(r.missing)}</td><td>${esc(r.error_code || '')}</td></tr>`).join('')}</tbody></table>`;
 }
 
 // ── Price book ──
@@ -185,5 +206,5 @@ ${recent.length ? `<section class="exc-sec"><h3>Applied lately <span class="exc-
 </div>`;
 }
 
-const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection };
-module.exports = { providersSection, modelsSection, pricebookSection, SECTIONS, CSS: marks.CSS };
+const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, sync: syncSection };
+module.exports = { providersSection, modelsSection, pricebookSection, syncSection, SECTIONS, CSS: marks.CSS };
