@@ -191,7 +191,6 @@ function home({ catalog, usage, viewer, q = '', config = null }) {
     return `<div class="ex-wrap ex-home">
 <section class="ex-hero">
 <div class="ex-hero-copy">
-<p class="ex-kicker">OpenVibe.Exchange</p>
 <h1>Every AI model, one account.</h1>
 <p class="ex-lead">${families.length ? `${esc(listSaid(families.slice(0, 6)))} now, more as their providers join. ` : ''}Live prices, speed and uptime, one OpenAI-compatible endpoint, and a chat that puts models side by side.</p>
 ${kit.find({ action: '/models', name: 'q', placeholder: families.length ? `Find a model: ${families.slice(0, 3).join(', ')}…` : 'Find a model or a provider', value: q, icon: 'search' })}
