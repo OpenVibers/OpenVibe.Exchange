@@ -28,6 +28,8 @@ function createFakeAi({ chat = null, community = [] } = {}) {
                         price: { in: 0.2, out: 0.3, cached: 0.02, per: '1M tokens', currency: 'USD' },
                         speed: { p50_ms: 700, p95_ms: 2000 }, uptime: 0.9, requests_7d: 20, requests_today: 5,
                         data_policy: null, updated_at: null,
+                        service_tier: 'flex', latency_class: ['background', 'batch'],
+                        free_allowance: { tokens: 100, used: 40, left: 60, period: 'month', shared: true, ends_at: '2026-11-24T08:00:00Z', ended: false },
                     },
                 ],
             },
