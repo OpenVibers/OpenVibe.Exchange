@@ -8,7 +8,7 @@ const SECTIONS = [
     ['Routes', '/console/routes'], ['Templates', '/console/templates'], ['Workflows', '/console/workflows'],
     ['Runs', '/console/runs'], ['Quotas', '/console/quotas'], ['Usage', '/console/usage'],
     ['Cache', '/console/cache'], ['GPUs', '/console/gpus'], ['Price book', '/console/pricebook'],
-    ['Exchange', '/console/exchange'], ['Abuse', '/console/abuse'], ['Audit', '/console/audit'], ['Glossary', '/console/glossary'],
+    ['Exchange', '/console/exchange'], ['Abuse', '/console/abuse'], ['Audit', '/console/audit'], ['Glossary', '/console/glossary'], ['Model syncs', '/console/sync'],
 ];
 
 function safe(value) {

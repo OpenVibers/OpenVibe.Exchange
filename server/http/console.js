@@ -13,6 +13,7 @@ const READS = Object.freeze({
     usage: '/api/v1/admin/console/usage', cache: '/api/v1/admin/console/cache', audit: '/api/v1/admin/console/audit',
     gpus: '/api/v1/admin/console/gpus', pricebook: '/api/v1/admin/console/pricebook', exchange: '/api/v1/admin/console/exchange',
     abuse: '/api/v1/admin/console/abuse', glossary: '/api/v1/admin/console/glossary',
+    sync: '/api/v1/admin/console/sync',
 });
 
 function createConsoleRoutes({ config, ai }) {
@@ -95,6 +96,10 @@ function createConsoleRoutes({ config, ai }) {
             return res.set('Cache-Control', 'no-store').json(scrub(data));
         } catch (err) { return res.status(err.status === 404 ? 404 : 502).json({ error: err.message || 'AI admin API did not answer.' }); }
     });
+    r.get('/console/providers/:key/models', async (req, res) => {
+        try { return page(req, res, 'models', await ai.adminRequest(`/api/v1/admin/console/models?provider=${encodeURIComponent(req.params.key)}`)); }
+        catch { return page(req, res, 'models', {}, 'The models could not be read.', 502); }
+    });
     r.get('/console/:section/:key', async (req, res) => {
         const { section, key } = req.params;
         const path = section === 'providers' && key === 'new' ? '/api/v1/admin/console/providers'
@@ -147,6 +152,12 @@ function createConsoleRoutes({ config, ai }) {
             else if (action === 'key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'POST', subject: req.viewer.subject, body: { api_key: String(req.body.api_key || '') } });
             else if (action === 'remove-key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'DELETE', subject: req.viewer.subject });
             else if (action === 'check') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/check`, { method: 'POST', subject: req.viewer.subject });
+            else if (action === 'sync') {
+                await ai.adminRequest(`/api/v1/admin/console/providers/${key}/sync`, { method: 'POST', subject: req.viewer.subject });
+                return res.redirect(303, `/console/providers/${key}/models`);
+            } else if (action === 'model-settings') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/model-settings`, { method: 'POST', subject: req.viewer.subject, body: {
+                auto_list_new_models: req.body.auto_list_new_models === '1', model_sync_interval_minutes: Number(req.body.model_sync_interval_minutes || 0),
+            } });
             else if (action === 'settings') await ai.adminRequest(`/api/v1/providers/${key}`, { method: 'PATCH', subject: req.viewer.subject, body: {
                 status: req.body.status, provider_access: req.body.provider_access, priority: Number(req.body.preference_order),
                 markup_percent: Number(req.body.markup_percent), uncensored: req.body.uncensored === '1',
@@ -197,6 +208,15 @@ function createConsoleRoutes({ config, ai }) {
             await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, { method: 'PATCH', subject: req.viewer.subject, body: { status } });
             return res.redirect(303, '/console/models');
         } catch (err) { return page(req, res, 'models', {}, err.message || 'The change could not be saved.', 502); }
+    });
+    r.post('/console/models/:provider/:model/settings', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, {
+                method: 'PATCH', subject: req.viewer.subject, body: { display_name: String(req.body.display_name || ''), content_tier: req.body.content_tier },
+            });
+            return res.redirect(303, `/console/providers/${encodeURIComponent(req.params.provider)}/models`);
+        } catch { return page(req, res, 'models', {}, 'The model settings could not be saved.', 502); }
     });
     r.post('/console/models/:provider/:model/override', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);

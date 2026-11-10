@@ -24,7 +24,7 @@ app.use(createConsoleRoutes({
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
     try {
-        const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/gpus/model-a/quote', '/console/data/providers', '/console/data/models', '/console/data/pricebook'];
+        const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/providers/openai/models', '/console/gpus/model-a/quote', '/console/data/providers', '/console/data/models', '/console/data/pricebook'];
         for (const path of consolePaths) for (const headers of [{}, { 'x-test-role': 'user' }, { 'x-test-role': 'admin' }]) {
             const response = await fetch(`${base}${path}`, { headers });
             assert.strictEqual(response.status, headers['x-test-role'] ? 403 : 404, `${path}: signed-in non-owners are forbidden; signed-out people see no console route`);
@@ -53,7 +53,7 @@ app.use(createConsoleRoutes({
         assert.strictEqual(keyWrite.status, 303);
         assert.ok(!keyAnswer.includes(fakeSecret), 'a provider key POST never echoes its value');
         assert.deepStrictEqual(writes[0], { path: '/api/v1/admin/console/providers/openai/key', method: 'POST', subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', body: { api_key: fakeSecret } });
-        for (const action of ['key', 'remove-key', 'check']) {
+        for (const action of ['key', 'remove-key', 'check', 'sync', 'model-settings']) {
             for (const role of ['user', 'admin']) {
                 const count = writes.length;
                 const denied = await fetch(`${base}/console/providers/openai/${action}`, {
@@ -76,6 +76,24 @@ app.use(createConsoleRoutes({
             assert.strictEqual(writes.length, count + 1);
             assert.deepStrictEqual(writes.at(-1), { path: `/api/v1/admin/console/providers/openai/${endpoint}`, method, subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX' });
         }
+        const sync = await fetch(`${base}/console/providers/openai/sync`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
+        });
+        assert.strictEqual(sync.status, 303);
+        assert.strictEqual(sync.headers.get('location'), '/console/providers/openai/models');
+        assert.strictEqual(writes.at(-1).path, '/api/v1/admin/console/providers/openai/sync');
+        const schedule = await fetch(`${base}/console/providers/openai/model-settings`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ auto_list_new_models: '1', model_sync_interval_minutes: '360' }), redirect: 'manual',
+        });
+        assert.strictEqual(schedule.status, 303);
+        assert.deepStrictEqual(writes.at(-1).body, { auto_list_new_models: true, model_sync_interval_minutes: 360 });
+        const modelSettings = await fetch(`${base}/console/models/openai/model-a/settings`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ display_name: 'Owner name', content_tier: 'uncensored' }), redirect: 'manual',
+        });
+        assert.strictEqual(modelSettings.status, 303);
+        assert.deepStrictEqual(writes.at(-1).body, { display_name: 'Owner name', content_tier: 'uncensored' });
 
         const createProvider = await fetch(`${base}/console/providers`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },

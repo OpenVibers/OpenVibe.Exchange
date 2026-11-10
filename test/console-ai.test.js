@@ -5,7 +5,8 @@ const { providersSection, modelsSection, pricebookSection } = require('../server
 
 const secret = 'sk-live-never-on-a-page';
 const providers = [
-    { key: 'openai', display_name: 'OpenAI', base_url: 'https://api.openai.com/v1', status: 'active', key_present: true, preference_order: 10, markup_percent: 0, provider_access: 'AUTHORIZED_WHOLESALE', health: { state: 'up' }, api_key: secret,
+    { key: 'openai', kind: 'openai', display_name: 'OpenAI', base_url: 'https://api.openai.com/v1', status: 'active', key_present: true, preference_order: 10, markup_percent: 0, provider_access: 'AUTHORIZED_WHOLESALE', health: { state: 'up' }, api_key: secret,
+        metadata: { auto_list_new_models: true, model_sync_interval_minutes: 60 },
         key_state: { source: 'stored', hint: '…abcd', set_at: '2026-11-10T00:00:00.000Z' },
         last_check: { ok: false, error: 'http_401', latency_ms: 42, checked_at: '2026-11-10T00:01:00.000Z' } },
     { key: 'venice', display_name: 'Venice AI', base_url: 'https://api.venice.ai/api/v1', status: 'disabled', key_present: false, preference_order: 60, uncensored: true, provider_access: 'UNVERIFIED' },
@@ -25,6 +26,8 @@ assert.ok(html.includes('type="password"'), 'keys are typed into password fields
 assert.ok(html.includes('Key ends in …abcd') && html.includes('set on 2026-11-10'), 'only the key marker and date are rendered');
 assert.ok(html.includes('http_401') && html.includes('42 ms'), 'the last check and latency are visible');
 assert.ok(html.includes('action="/console/providers/openai/check"') && html.includes('action="/console/providers/openai/remove-key"'), 'explicit check and removal controls');
+assert.ok(html.includes('action="/console/providers/openai/sync"') && html.includes('href="/console/providers/openai/models"'), 'models can be read and opened per provider');
+assert.ok(html.includes('name="auto_list_new_models" value="1" checked') && html.includes('value="60" selected'), 'stored model sync preferences render');
 const locked = providersSection({ providers: [{ ...providers[0], key_present: false }], models: [], presets: [] });
 assert.ok(locked.includes('action="/console/providers/openai/remove-key"'), 'a stored key remains removable when it cannot be decrypted');
 const order = ['Cheap', 'Pricey', 'Unpriced'].map((n) => html.indexOf(`<b>${n}</b>`));
@@ -41,6 +44,7 @@ const models = modelsSection({ models: [
 assert.ok(models.includes('Your price') && models.includes('promo'), 'the owner price shows with its reason');
 assert.ok(models.includes('name="clear" value="1"'), 'the owner price can be cleared');
 assert.ok(models.includes('name="reason" required'), 'a price needs a reason');
+assert.ok(models.includes('name="display_name"') && models.includes('name="content_tier"'), 'model names and content tiers are editable');
 
 const book = pricebookSection({ pending: [{ id: 'pc_1', provider_key: 'deepseek', model_key: 'v4-flash', field: 'out_per_mtok', old_price: 1.2, new_price: 0.9, change_pct: -0.25, source: 'https://example/pricing', checked_at: '2026-11-09' }], recent: [] });
 assert.ok(book.includes('value="approve"'), 'Accept sends approve, the word AI takes');
