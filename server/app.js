@@ -84,6 +84,7 @@ async function createApp(opts = {}) {
     // Network, read and changed with the person's own token: their machines and their machine pools.
     const network = opts.network || createNetwork({ config, fetchImpl, log });
     const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
+    const analysis = opts.analysis || require('./analysis').createAnalysis({ config, ai, bench, fetchImpl: opts.aiFetchImpl || globalThis.fetch, now: s.now });
     const arenaStore = createArenaStore(s);
     const history = createCatalogHistory({ s, log });
     const chats = createChatStore(s);
@@ -115,7 +116,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, network, bench, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
+    const ctx = { config, s, keys, sso, principal, ai, network, bench, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -251,6 +252,8 @@ async function createApp(opts = {}) {
         const suffix = ids.length ? `?models=${encodeURIComponent(ids.join(','))}` : '';
         return res.redirect(301, `https://openvibe.chat/vibe${suffix}`);
     });
+
+    app.use('/api/v1/analysis', rateLimit({ windowMs: 60000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 120, standardHeaders: true, legacyHeaders: false }), require('./http/analysis').createAnalysisRoutes(ctx));
 
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {

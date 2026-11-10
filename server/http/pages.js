@@ -140,6 +140,9 @@ function createPageRoutes(ctx) {
             return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such model', text: `Nothing here serves ${esc(`${req.params.org}/${req.params.model}`)}. <a href="/models">Browse the models</a>.` })}</div>`) }, 404);
         }
         const isAdult = signedIn(req) ? await adult.confirmed(owner(req)) : false;
+        let analysis = null;
+        try { analysis = await ctx.analysis.model(model, { rating_kind: typeof req.query.rating_kind === 'string' ? req.query.rating_kind : 'chat.arena' }); }
+        catch (err) { log.warn('[exchange] model analysis unavailable: ' + String(err.message || err).slice(0, 160)); }
         const jsonLd = seo.jsonLd.webPage({
             name: `${model.name} on OpenVibe.Exchange`, url: `${config.baseUrl}${modelPath(model)}`,
             description: `${model.name}: ${model.offers.length} live offers with price, speed and uptime.`.slice(0, 160), siteUrl: config.baseUrl,
@@ -148,7 +151,7 @@ function createPageRoutes(ctx) {
             index: true, cache: req.method === 'GET' ? PUBLIC_CACHE : null, agentLayer: true,
             title: model.name, description: `${model.name}: price, speed, uptime and data policy of every offer.`,
             jsonLd: [jsonLd], head: '',
-            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community })),
+            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis })),
         }, status);
     }
 
