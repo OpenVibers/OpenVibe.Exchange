@@ -40,7 +40,7 @@ const handleOf = (name) => String(name || 'someone').toLowerCase().replace(/[^a-
 const tagsOf = (s) => String(s || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 5);
 
 function createCompanionRoutes(ctx) {
-    const { config, ai, adult, adultAccount, characters, companionChats, groups, voice, sharing, memory, notes, lorebooks, locker, noteTaker, log } = ctx;
+    const { config, ai, actor, adult, adultAccount, characters, companionChats, groups, voice, sharing, memory, notes, lorebooks, locker, noteTaker, log } = ctx;
     const db = ctx.s && ctx.s.db;
     const r = asyncRouter();
     // A card may arrive as a file (a PNG with the card inside, or plain JSON).
@@ -988,6 +988,8 @@ function createCompanionRoutes(ctx) {
     }
 
     async function renderChat(req, res, chat, card, { problem = null, status = 200 } = {}) {
+        // A turn still running at the last send fills its answer in here, from its task.
+        await reconcilePending(req, chat, { table: 'chat' });
         const messages = await companionChats.messages(chat.id);
         const query = req.query || {};
         const turns = readTurns(messages, query);
@@ -1067,6 +1069,93 @@ function createCompanionRoutes(ctx) {
         return out;
     }
 
+    /**
+     * One conversation turn for OpenVibe.Actor, in plain words: the character's system, the conversation so
+     * far, and the person's new words. The page, the assembly and the words do not change — only the engine
+     * reading them does.
+     */
+    function turnTextFor({ system, history, userText }) {
+        const lines = [String(system || ''), '', 'The conversation so far:'];
+        for (const m of history || []) {
+            const text = String((m && m.content) == null ? '' : m.content);
+            if (!text) continue;
+            lines.push((m.role === 'assistant' ? 'The companion: ' : 'The person: ') + text);
+        }
+        lines.push('', 'The person now says:', String(userText || ''));
+        return lines.join('\n').slice(0, 60000);
+    }
+
+    /** The receipt meta of an Actor answer: its task, its model, its cost, what it saw. */
+    function actorMeta(out, { settings, model, saw, sealed }) {
+        const reasons = out.explanation && out.explanation.length && Array.isArray(out.explanation[0].reasons)
+            ? out.explanation[0].reasons : ['Answered by OpenVibe.Actor on your allowance.'];
+        return {
+            actor_task: out.taskId, provider: 'actor', answered_model: out.model || model || 'OpenVibe',
+            cost_usd: out.costUsd, latency_ms: out.latencyMs, why: reasons,
+            sealed: sealed === true,
+            saw: { ...saw, sealed: sealed === true, model: out.model || model },
+        };
+    }
+
+    /** An Actor failure as the words the chat shows: the task's own refusal, or the outage line. */
+    function actorWords(err) {
+        if (err && err.code === 'actor.unreachable') return 'OpenVibe.Actor could not be reached just now. Nothing was charged, and the words stayed here. Try again in a moment.';
+        if (err && err.code === 'actor.not_allowed') return 'The answer needs a fresh sign-in. Sign in again and send once more.';
+        const detail = err && (err.detail || err.message);
+        if (detail) return String(detail).slice(0, 500);
+        return 'The answer did not come back. Nothing more was charged. Try again in a moment.';
+    }
+
+    /**
+     * A turn still running when the page's wait ended is stored pending, with these words; the next view
+     * (or the next send) reconciles it: a finished task fills the answer in, a failed one its words.
+     */
+    async function reconcilePending(req, chat, { table, idColumn }) {
+        const token = tokenOf(req);
+        if (!token) return;
+        const messages = table === 'group'
+            ? await groups.messages(chat.id)
+            : await companionChats.messages(chat.id);
+        const pending = messages.filter((m) => m.role === 'assistant' && m.meta && m.meta.pending_actor_task);
+        for (const m of pending) {
+            const taskId = String(m.meta.pending_actor_task);
+            let t = null;
+            try {
+                t = await actor.read({ token, taskId });
+            } catch (err) {
+                log.warn('[Companions] the pending turn could not be read:', String((err && err.message) || err).slice(0, 200));
+                continue;
+            }
+            if (t.state === 'queued' || t.state === 'running') continue;
+            const meta = { ...(m.meta || {}) };
+            delete meta.pending_actor_task;
+            let content = m.content;
+            if (t.state === 'succeeded' && t.result && typeof t.result.answer === 'string' && t.result.answer.trim()) {
+                const answer = t.result.answer;
+                const check = floor.check(answer);
+                if (check.ok) {
+                    content = answer;
+                    meta.actor_task = taskId;
+                    meta.answered_model = t.result.model || meta.answered_model || 'OpenVibe';
+                    meta.cost_usd = t.cost && t.cost.usd != null ? Number(t.cost.usd) : null;
+                    const reasons = t.explanation && t.explanation.length && Array.isArray(t.explanation[0].reasons) ? t.explanation[0].reasons : null;
+                    if (reasons) meta.why = reasons;
+                } else {
+                    content = null;
+                    meta.error = 'floor';
+                }
+            } else {
+                const err = t.error || {};
+                content = actorWords({ code: err.code, detail: err.detail });
+                meta.error = err.code || `actor.task.${t.state}`;
+                meta.actor_task = taskId;
+            }
+            const name = table === 'group' ? 'exchange_group_messages' : 'exchange_companion_messages';
+            await db.prepare(`UPDATE ${name} SET content = ?, meta = ? WHERE id = ? AND owner = ?`)
+                .run(content, JSON.stringify(meta), m.id, owner(req));
+        }
+    }
+
     async function answerTurn(req, res, chat, card, { userMessage, turnId, variant, plainText = null, lockerBundle = null, keys = null }) {
         const subject = owner(req);
         const token = tokenOf(req);
@@ -1121,19 +1210,46 @@ function createCompanionRoutes(ctx) {
             notes: notesSaw, notes_used_tokens: noteResult.usedTokens, notes_budget_tokens: noteResult.budgetTokens,
             lorebook: entriesSaw, lorebook_used_tokens: entryResult.usedTokens, lorebook_budget_tokens: entryResult.budgetTokens,
         };
-        const adultOk = await isAdult(req);
-        const model = await modelIdOf(settings.model || card.model);
+        // The 18+ tier has no Actor route yet (one-engine slice): an adult card keeps the gate above and the
+        // floor check below, and answers through Actor like every other card. The header's temperature and preset
+        // stay saved on the chat; sampling is the loop's until a later slice carries them. A picked model rides
+        // along; with none picked the call names none, and Actor answers on its default on any server.
+        const picked = settings.model || card.model || null;
+        const model = picked ? await modelIdOf(picked) : null;
+        await reconcilePending(req, chat, { table: 'chat' });
+        let out = null;
         try {
-            const out = await ai.chat({
-                model,
-                messages: [{ role: 'system', content: system }].concat(asked),
-                temperature: settings.temperature,
-                subject,
-                policy: card.rating === 'adult' && adultOk ? 'uncensored' : 'standard',
-                preset: settings.preset || null,
-                max_cost_usd: config.companions.maxCostUsd,
+            out = await actor.turn({
+                token,
+                task: turnTextFor({ system, history, userText }),
+                ...(model ? { model } : {}),
+                budgetUsd: config.companions.maxCostUsd,
+                conversation: { product: 'exchange', id: `companion-chat:${chat.id}/turn:${turnId}/v${variant}` },
+                idempotencyKey: `exchange-companion-${chat.id}-${turnId}-v${variant}`,
+                tools: [],
             });
-            const answer = out.content || '(no text)';
+        } catch (err) {
+            // A refusal or an outage is words in the chat, never a silent second engine.
+            await companionChats.append({
+                owner: subject, chatId: chat.id, role: 'assistant', content: actorWords(err),
+                turnId, variant, parentId: userMessage.id, model: settings.model || null,
+                meta: { error: (err && err.code) || 'actor.failed', actor_task: (err && err.taskId) || null, sealed: locked },
+            });
+            return res.redirect(303, '/talk/' + chat.id);
+        }
+        if (out.pending) {
+            // Still running when the page's wait ended: these words hold its place, and the next view fills
+            // the answer in from the task.
+            await companionChats.append({
+                owner: subject, chatId: chat.id, role: 'assistant',
+                content: 'The answer is taking longer than usual — it will appear here by itself. Refresh in a bit.',
+                turnId, variant, parentId: userMessage.id, model: settings.model || null,
+                meta: { pending_actor_task: out.taskId, sealed: locked, saw: { ...sawBase, model, system: locked ? null : system, context: locked ? [] : asked } },
+            });
+            return res.redirect(303, '/talk/' + chat.id);
+        }
+        {
+            const answer = out.answer;
             const check = floor.check(answer);
             if (!check.ok) {
                 // The answer breaks the floor: it is never delivered, the chat ends, the account is reviewed.
@@ -1147,12 +1263,10 @@ function createCompanionRoutes(ctx) {
                 return renderChat(req, res, chat, card, { problem: 'That answer broke the hard floor, so it was not delivered. The chat has ended and the account is reviewed.', status: 403 });
             }
             const stored = locked ? await locker.seal(answer, keys) : answer;
-            const answerMeta = {
-                run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
-                tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
-                sealed: locked,
-                saw: { ...sawBase, model: out.model || model, system: locked ? null : system, context: locked ? [] : asked },
-            };
+            const answerMeta = actorMeta(out, {
+                settings, model, sealed: locked,
+                saw: { ...sawBase, system: locked ? null : system, context: locked ? [] : asked },
+            });
             const answerId = await companionChats.append({
                 owner: subject, chatId: chat.id, role: 'assistant', content: stored,
                 turnId, variant, parentId: userMessage.id, model: settings.model || null,
@@ -1176,12 +1290,6 @@ function createCompanionRoutes(ctx) {
             } catch (err) {
                 log.warn('[Companions] the notes were not taken:', String((err && err.message) || err).slice(0, 200));
             }
-        } catch (err) {
-            await companionChats.append({
-                owner: subject, chatId: chat.id, role: 'assistant', content: null,
-                turnId, variant, parentId: userMessage.id, model: settings.model || null,
-                meta: { error: String(err.message || 'the model did not answer').slice(0, 400), code: err.code || null },
-            });
         }
         return res.redirect(303, '/talk/' + chat.id);
     }
@@ -1438,8 +1546,11 @@ function createCompanionRoutes(ctx) {
         const names = {};
         for (const c of cards) names[c.id] = c.name;
         const token = tokenOf(req);
-        const adultOk = await isAdult(req);
-        const model = await modelIdOf(group.model || (cards[0] && cards[0].model));
+        // The 18+ tier has no Actor route yet (one-engine slice): like a one-character chat, a group answer
+        // keeps the floor check and runs through Actor on the standard tier.
+        const picked = group.model || (cards[0] && cards[0].model) || null;
+        const model = picked ? await modelIdOf(picked) : null;
+        await reconcilePending(req, group, { table: 'group' });
         const turnId = ctx.s.newId('ext');
         const userMessageId = await groups.append({ owner: owner(req), groupId: group.id, role: 'user', content: text, turnId, seq: 0 });
         let seq = 1;
@@ -1454,19 +1565,25 @@ function createCompanionRoutes(ctx) {
             const asked = groupContext(history, card.id, names).concat([{ role: 'user', content: text }]);
             let out = null;
             try {
-                out = await ai.chat({
-                    model,
-                    messages: [{ role: 'system', content: system }].concat(asked),
-                    temperature: group.temperature,
-                    subject: owner(req),
-                    policy: card.rating === 'adult' && adultOk ? 'uncensored' : 'standard',
-                    preset: group.preset || null,
-                    max_cost_usd: config.companions.maxCostUsd,
+                out = await actor.turn({
+                    token,
+                    task: turnTextFor({ system, history: asked.slice(0, -1), userText: text }),
+                    ...(model ? { model } : {}),
+                    budgetUsd: config.companions.maxCostUsd,
+                    conversation: { product: 'exchange', id: `exchange-group:${group.id}/turn:${turnId}/${card.id}` },
+                    idempotencyKey: `exchange-group-${group.id}-${turnId}-${card.id}`,
+                    tools: [],
                 });
             } catch (err) {
-                log.warn('[Companions] the group answer failed:', String((err && err.message) || err).slice(0, 200));
+                // A refusal or an outage is words in the chat, never a silent second engine.
+                await groups.append({ owner: owner(req), groupId: group.id, role: 'assistant', characterId: card.id, content: actorWords(err), turnId, seq: seq++, model, meta: { error: (err && err.code) || 'actor.failed', actor_task: (err && err.taskId) || null, notes: noteResult.notes.map((n) => ({ kind: n.kind, text: n.text })) } });
+                continue;
             }
-            const answer = (out && out.content) || '(no text)';
+            if (out.pending) {
+                await groups.append({ owner: owner(req), groupId: group.id, role: 'assistant', characterId: card.id, content: 'The answer is taking longer than usual — it will appear here by itself. Refresh in a bit.', turnId, seq: seq++, model, meta: { pending_actor_task: out.taskId, notes: noteResult.notes.map((n) => ({ kind: n.kind, text: n.text })) } });
+                continue;
+            }
+            const answer = out.answer;
             const check = floor.check(answer);
             if (!check.ok) {
                 await groups.append({ owner: owner(req), groupId: group.id, role: 'assistant', characterId: card.id, content: null, turnId, seq: seq++, meta: { error: 'floor', rule: check.rule, label: check.label, review: true } });
@@ -1474,9 +1591,10 @@ function createCompanionRoutes(ctx) {
                 log.warn('[Companions] a group answer broke the hard floor (' + check.rule + '); the chat ended and the account is reviewed.');
                 return renderGroup(req, res, group, { problem: 'That answer broke the hard floor, so it was not delivered. The chat has ended and the account is reviewed.', status: 403 });
             }
+            const reasons = out.explanation && out.explanation.length && Array.isArray(out.explanation[0].reasons) ? out.explanation[0].reasons : ['Answered by OpenVibe.Actor on your allowance.'];
             const meta = {
-                run_id: out && out.run_id, answered_model: out && out.model, cost_usd: out && out.cost_usd,
-                tokens_in: out && out.tokens_in, tokens_out: out && out.tokens_out, latency_ms: out && out.latency_ms,
+                actor_task: out.taskId, provider: 'actor', answered_model: out.model || model, cost_usd: out.costUsd,
+                latency_ms: out.latencyMs, why: reasons,
                 voice: card.voice || null,
                 // The notes this character answered with: its own, never another's.
                 notes: noteResult.notes.map((n) => ({ kind: n.kind, text: n.text })),

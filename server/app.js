@@ -28,6 +28,7 @@ const { createKeyStore } = require('./auth/keys');
 const { createSso } = require('./auth/sso');
 const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
+const { createActor } = require('./actor');
 const { createNetwork } = require('./network');
 const { createBench } = require('./bench');
 const { createOpenApi } = require('./openapi');
@@ -81,6 +82,7 @@ async function createApp(opts = {}) {
     const principal = createPrincipal({ config, keys });
 
     const ai = opts.ai || createAi({ config, fetchImpl: opts.aiFetchImpl || globalThis.fetch, log, now: s.now });
+    const actor = opts.actor || createActor({ config, fetchImpl: opts.actorFetchImpl || globalThis.fetch, log, now: s.now });
     // Network, read and changed with the person's own token: their machines and their machine pools.
     const network = opts.network || createNetwork({ config, fetchImpl, log });
     const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
@@ -106,7 +108,7 @@ async function createApp(opts = {}) {
     const notes = createCompanionNotes({ db: s.db, memory, config, log });
     const lorebooks = createLorebooks({ db: s.db, config, log });
     const locker = createLocker({ config, fetchImpl, log });
-    const noteTaker = createNoteTaker({ ai, notes, config, log });
+    const noteTaker = createNoteTaker({ actor, notes, config, log });
 
     // Account export and deletion (ADR-033). The sender posts to Network's internal routes with this service's own
     // client-credentials token; a test injects a stand-in through opts.accountSend.
@@ -116,7 +118,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, network, bench, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
+    const ctx = { config, s, keys, sso, principal, ai, actor, network, bench, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
 
     const app = express();
     app.disable('x-powered-by');

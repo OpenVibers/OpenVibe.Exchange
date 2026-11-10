@@ -64,9 +64,8 @@ function transcriptOf(turns, max = 2400) {
     return text.length > max ? text.slice(text.length - max) : text;
 }
 
-function createNoteTaker({ ai, notes, config, log = console } = {}) {
+function createNoteTaker({ actor, notes, config, log = console } = {}) {
     const every = Math.max(1, Number((config && config.companions && config.companions.notesEveryTurns) || 4));
-    const model = String((config && config.companions && config.companions.noteModel) || 'openvibe/economy');
     const maxCost = (config && config.companions && config.companions.maxCostUsd) || 0.05;
 
     /**
@@ -84,24 +83,24 @@ function createNoteTaker({ ai, notes, config, log = console } = {}) {
     async function take({ owner, characterId, token, turns, protect = null }) {
         const transcript = transcriptOf(turns);
         if (!transcript.trim()) return { notes: [] };
-        let out = null;
+        // Notes are a turn of their own, answered with no tools: best effort, a short wait, skipped on failure.
+        let answer = null;
         try {
-            out = await ai.chat({
-                model,
-                messages: [
-                    { role: 'system', content: SYSTEM },
-                    { role: 'user', content: transcript },
-                ],
-                subject: owner,
-                policy: 'standard',
-                max_cost_usd: maxCost,
-                maxTokens: 600,
+            const out = await actor.turn({
+                token,
+                task: `${SYSTEM}\n\nThe conversation so far:\n${transcript}`,
+                budgetUsd: maxCost,
+                conversation: { product: 'exchange', id: `exchange-notes:${characterId}` },
+                tools: [],
+                waitMs: 25_000,
             });
+            if (!out.pending) answer = out.answer;
         } catch (err) {
             log.warn('[Companions] the notes were not taken:', String((err && err.message) || err).slice(0, 200));
             return { notes: [] };
         }
-        const parsed = parseNotes(out && out.content);
+        if (!answer) return { notes: [] };
+        const parsed = parseNotes(answer);
         const written = [];
         for (const note of parsed) {
             try {
@@ -113,7 +112,7 @@ function createNoteTaker({ ai, notes, config, log = console } = {}) {
         return { notes: written };
     }
 
-    return { take, due, parseNotes, transcriptOf, every, model };
+    return { take, due, parseNotes, transcriptOf, every };
 }
 
 module.exports = { createNoteTaker, parseNotes, transcriptOf, MAX_NOTES };
