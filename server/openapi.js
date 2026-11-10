@@ -14,8 +14,19 @@ const FALLBACK = (config) => ({
         description: 'One OpenAI- and Anthropic-compatible endpoint over every model OpenVibe routes.',
     },
     servers: [{ url: config.api.publicUrl }],
-    paths: {},
+    paths: analysisPaths(config),
 });
+
+function analysisPaths(config) {
+    const make = (id, parameters) => ({ get: { operationId: id, security: [], servers: [{ url: config.baseUrl }], parameters, responses: { '200': { description: 'Public measured performance and shared Bench ratings; minimum twenty samples' }, '422': { description: 'Invalid selection' }, '503': { description: 'Source unavailable' } } } });
+    const query = (name) => ({ name, in: 'query', schema: { type: 'string' } });
+    const param = (name) => ({ name, in: 'path', required: true, schema: { type: 'string' } });
+    return {
+        '/api/v1/analysis/compare': make('exchange.analysis.compare', ['models', 'measures', 'kind', 'day', 'rating_kind'].map(query)),
+        '/api/v1/analysis/models/{model}': make('exchange.analysis.model', [param('model'), query('days'), query('rating_kind')]),
+        '/api/v1/analysis/ratings/{kind}': make('exchange.analysis.ratings', [param('kind')]),
+    };
+}
 
 function createOpenApi({ config, fetchImpl = globalThis.fetch, log = console, now = () => Date.now() }) {
     const ttl = config.api.openapiCacheMs;
@@ -31,6 +42,7 @@ function createOpenApi({ config, fetchImpl = globalThis.fetch, log = console, no
         const doc = await res.json();
         if (!doc || typeof doc !== 'object' || typeof doc.openapi !== 'string') throw new Error('openapi document is not OpenAPI');
         doc.servers = [{ url: config.api.publicUrl }];
+        doc.paths = { ...(doc.paths || {}), ...analysisPaths(config) };
         return doc;
     }
 

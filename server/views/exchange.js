@@ -310,7 +310,7 @@ ${communityPools(community)}
 }
 
 // ── One model ──────────────────────────────────────────────
-function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null }) {
+function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null, analysis = null }) {
     const offers = model.offers || [];
     const best = cheapest(model);
     const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : (offers.some(freePaused) ? kit.badge('Free paused') : '')].join('');
@@ -367,6 +367,7 @@ ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
 ${activityPanel(model.activity)}
+${require('./analysis').modelFacts(analysis)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
 ${panel({ title: 'Try it', id: 'try', body: `<p class="ex-actions">${kit.button({ href: chatModel(model), label: `Chat with ${model.name}` })} ${kit.button({ href: `https://openvibe.report/ai/models/${encodeURIComponent(model.slug || model.canonical)}`, label: 'How it ranks', kind: 'quiet' })}</p>` })}
 ${panel({ title: 'Use it from code', id: 'code', body: `${kit.snippet({ code, id: 'model-curl' })}

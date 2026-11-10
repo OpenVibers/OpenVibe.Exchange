@@ -21,6 +21,7 @@ async function jsonOf(res) {
 }
 
 function createBench({ config, fetchImpl = globalThis.fetch, log = console, now = () => Date.now() }) {
+    const shared = require('openvibe-sdk/bench').createBenchClient(require('openvibe-sdk/core').createClient({ fetch: fetchImpl, retries: 0 }), { baseUrl: config.bench.url });
     const tokens = config.oauth.clientSecret ? createServiceTokenClient({
         tokenUrl: `${config.networkInternalUrl}/oauth/token`,
         clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
@@ -82,8 +83,8 @@ function createBench({ config, fetchImpl = globalThis.fetch, log = console, now 
         const hit = boardHit.get(key);
         if (hit && now() - hit.at < BOARD_MS) return hit.value;
         try {
-            const body = await call('GET', `/api/v1/boards/${encodeURIComponent(kind)}?category=${encodeURIComponent(category)}`);
-            const value = body && body.board ? body.board : { unavailable: true, kind_id: kind, category, rows: [] };
+            const body = await shared.ratings.get(kind, { category, signal: AbortSignal.timeout(config.bench.timeoutMs) });
+            const value = body && body.board ? { ...body.board, rows: (body.board.rows || []).filter((row) => row.games >= 20) } : { unavailable: true, kind_id: kind, category, rows: [] };
             boardHit.set(key, { at: now(), value });
             if (boardHit.size > 16) boardHit.delete(boardHit.keys().next().value);
             return value;
