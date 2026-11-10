@@ -10,7 +10,7 @@
 .skip:focus { left: 12px; top: 12px; z-index: 99; padding: 8px 12px; border-radius: 10px; background: var(--ovk-panel); color: inherit; }
 
 /* One container: the content, and the head's text, start on the same line at every width. */
-.ex-wrap { width: 100%; max-width: var(--ex-max); margin: 0 auto; padding: 0 16px 28px; }
+.ex-wrap { width: 100%; max-width: var(--ex-max); margin: 0 auto; padding: 0 16px; }
 .ex-narrow { max-width: 760px; }
 .ex-page { padding-top: 10px; }
 .ex-muted { color: var(--ovk-muted); }
