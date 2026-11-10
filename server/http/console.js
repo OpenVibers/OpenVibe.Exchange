@@ -13,7 +13,7 @@ const READS = Object.freeze({
     usage: '/api/v1/admin/console/usage', cache: '/api/v1/admin/console/cache', audit: '/api/v1/admin/console/audit',
     gpus: '/api/v1/admin/console/gpus', pricebook: '/api/v1/admin/console/pricebook', exchange: '/api/v1/admin/console/exchange',
     abuse: '/api/v1/admin/console/abuse', glossary: '/api/v1/admin/console/glossary',
-    sync: '/api/v1/admin/console/sync',
+    sync: '/api/v1/admin/console/sync', orders: '/api/v1/admin/console/orders',
 });
 
 function createConsoleRoutes({ config, ai }) {
@@ -124,6 +124,19 @@ function createConsoleRoutes({ config, ai }) {
         if (!origin) return false;
         try { return new URL(origin).origin === new URL(config.baseUrl).origin; } catch { return false; }
     };
+    r.post('/console/orders/:capability', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        let choices;
+        try { choices = JSON.parse(String(req.body.choices || '[]')); }
+        catch { return page(req, res, 'orders', {}, 'Choices must be a JSON array.', 422); }
+        if (!Array.isArray(choices) || !['0', '1'].includes(req.body.enabled)) return res.sendStatus(422);
+        try {
+            await ai.adminRequest(`/api/v1/admin/console/orders/${encodeURIComponent(req.params.capability)}`, {
+                method: 'POST', subject: req.viewer.subject, body: { enabled: req.body.enabled === '1', choices },
+            });
+            return res.redirect(303, '/console/orders');
+        } catch (err) { return page(req, res, 'orders', {}, 'Provider order could not be saved.', err.status === 422 ? 422 : 502); }
+    });
     r.post('/console/supply', async (req,res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         const body = { model: req.body.model, runtime: req.body.runtime };

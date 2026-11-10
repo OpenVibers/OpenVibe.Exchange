@@ -45,6 +45,14 @@ app.use(createConsoleRoutes({
             assert.ok((data.headers.get('content-type') || '').includes('application/json'));
             assert.ok(!JSON.stringify(await data.json()).includes(fakeSecret), `${section} data omits key values`);
         }
+        for (const role of ['user', 'admin']) {
+            const count = writes.length;
+            const deniedOrder = await fetch(`${base}/console/orders/chat`, { method: 'POST', headers: { 'x-test-role': role, Origin: 'https://openvibe.exchange' } });
+            assert.strictEqual(deniedOrder.status, 403);
+            assert.strictEqual(writes.length, count);
+        }
+        const orderCsrf = await fetch(`${base}/console/orders/chat`, { method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://evil.example' } });
+        assert.strictEqual(orderCsrf.status, 403);
         const keyWrite = await fetch(`${base}/console/providers/openai/key`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ api_key: fakeSecret }), redirect: 'manual',
@@ -53,6 +61,15 @@ app.use(createConsoleRoutes({
         assert.strictEqual(keyWrite.status, 303);
         assert.ok(!keyAnswer.includes(fakeSecret), 'a provider key POST never echoes its value');
         assert.deepStrictEqual(writes[0], { path: '/api/v1/admin/console/providers/openai/key', method: 'POST', subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', body: { api_key: fakeSecret } });
+        const orderWrite = await fetch(`${base}/console/orders/chat`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ enabled: '1', choices: '[{"provider":"openai","model":"m"}]' }), redirect: 'manual',
+        });
+        assert.strictEqual(orderWrite.status, 303);
+        assert.deepStrictEqual(writes.at(-1).body, { enabled: true, choices: [{ provider: 'openai', model: 'm' }] });
+        const orderHtml = require('../server/views/console').consolePage({ section: 'orders', data: { orders: [{ capability: 'chat', enabled: true, choices: [{ provider: '<x>', model: 'm' }] }] } });
+        assert.ok(orderHtml.includes('/console/orders/chat'));
+        assert.ok(orderHtml.includes('&lt;x&gt;'));
         for (const action of ['key', 'remove-key', 'check', 'sync', 'model-settings']) {
             for (const role of ['user', 'admin']) {
                 const count = writes.length;
