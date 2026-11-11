@@ -281,8 +281,7 @@ async function createApp(opts = {}) {
     const directoryRows = async () => {
         const [directory, catalog] = await Promise.all([ai.directory(), ai.catalog()]);
         if (directory.unavailable) return null;
-        const live = new Map((catalog.models || []).map(m => [m.slug, m]));
-        return directory.models.map(m => ({ ...m, slug: m.id, offers: live.get(m.id)?.offers || [] }));
+        return require('./model-directory').withLiveCatalog(directory.models, catalog.models || [], catalog.generated_at);
     };
     app.get('/api/v1/models', async (req, res) => {
         const rows = await directoryRows();
