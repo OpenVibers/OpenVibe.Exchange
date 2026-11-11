@@ -267,7 +267,7 @@ async function createApp(opts = {}) {
         try {
             const { parseSearch, searchCatalog } = require('./model-search');
             const params = parseSearch(req.query);
-            const [catalog, board] = await Promise.all([ai.catalog(), bench.board({ kind: 'chat.arena' }).catch(() => ({ rows: [], unavailable: true }))]);
+            const [catalog, board] = await Promise.all([ai.catalog(), bench.board({ kind: params.ratingKind }).catch(() => ({ rows: [], unavailable: true }))]);
             if (catalog.unavailable) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'catalog_unavailable' });
             const results = searchCatalog(catalog, board.rows || [], params);
             return res.set('Cache-Control', 'public, max-age=30').json({ q: params.q, count: results.length, results: results.slice(0, 100), quality_unavailable: Boolean(board.unavailable) });

@@ -160,7 +160,7 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
     }
     const searchMeta = searchResults && new Map(searchResults.map((r) => [r.model, r]));
     const field = (name, label, value = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(value)}"></label>`;
-    const filters = `<form action="/models" method="get">${field('q', 'Search', 'cheap vision model')} ${field('provider', 'Provider')} ${field('capability', 'Capability', 'vision')} ${field('min_price', 'Min $/M out')} ${field('max_price', 'Max $/M out')} ${field('max_speed_ms', 'Max median ms')} ${kit.button({ label: 'Find', type: 'submit' })}</form>`;
+    const filters = `<form action="/models" method="get">${field('q', 'Search', 'cheap vision model')} ${field('provider', 'Provider')} ${field('capability', 'Capability', 'vision')} ${field('min_price', 'Min $/M out')} ${field('max_price', 'Max $/M out')} ${field('max_speed_ms', 'Max median ms')} ${field('rating_kind', 'Benchmark', 'chat.arena')} ${kit.button({ label: 'Find', type: 'submit' })}</form>`;
     return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${filters}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
 module.exports = { home, modelsPage, pricing, pricingPage, table };

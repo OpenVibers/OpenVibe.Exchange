@@ -26,12 +26,15 @@ function parseSearch(query = {}) {
     const capability = String(query.capability || '').toLowerCase();
     if ([minPrice, maxPrice, maxSpeed].some((n) => n !== null && (n < 0 || n > 1e6))) throw new RangeError('Filters must be between 0 and 1000000.');
     if (capability && !/^[a-z0-9_-]{1,40}$/.test(capability)) throw new RangeError('Invalid capability.');
-    return { q, words, intent, maxPrice, minPrice, maxSpeed, capability, provider: String(query.provider || '').slice(0, 80), sort: String(query.sort || '') };
+    const ratingKind = String(query.rating_kind || 'chat.arena');
+    if (!/^[a-z0-9][a-z0-9_.-]{0,79}$/.test(ratingKind)) throw new RangeError('Invalid benchmark kind.');
+    return { q, words, intent, maxPrice, minPrice, maxSpeed, capability, ratingKind,
+        provider: String(query.provider || '').slice(0, 80), sort: ['price', 'speed', 'quality'].includes(query.sort) ? query.sort : 'relevance' };
 }
 
 function searchCatalog(catalog, rows, params) {
     const { words, intent, minPrice, maxPrice, maxSpeed, capability, provider } = params;
-    const ignored = new Set(['model', 'models', 'a', 'an', 'the', 'for', 'with', 'under', 'below', 'less', 'than', 'de', 'sous', 'cheap', 'budget', 'affordable', 'fast', 'quick', 'coder', 'coding', 'vision', 'image', 'images', 'picture', 'visual', 'code', 'programming', 'developer', 'agent', 'function', 'tool', 'json', 'structured']);
+    const ignored = new Set(['model', 'models', 'a', 'an', 'the', 'for', 'with', 'under', 'below', 'less', 'than', 'de', 'sous', 'cheap', 'budget', 'affordable', 'fast', 'quick', 'coder', 'coding', 'vision', 'image', 'images', 'picture', 'visual', 'code', 'programming', 'developer', 'agent', 'function', 'tool', 'json', 'structured', 'benchmark', 'benchmarks', 'quality']);
     const terms = words.filter((w) => !ignored.has(w) && !/^\d+(?:\.\d+)?$/.test(w));
     const results = [];
     for (const model of catalog.models || []) {
@@ -57,10 +60,10 @@ function searchCatalog(catalog, rows, params) {
         const nameScore = terms.reduce((score, term) => score + (clean(model.name).includes(term) ? 2 : 0), 0);
         results.push({ model: model.slug, name: model.name, family: model.family, capabilities: caps,
             provider: best.provider_name || best.provider, price: best.price || null, speed: best.speed || null,
-            quality: rating ? { elo: rating.elo, games: rating.games, kind: 'chat.arena' } : null,
+            quality: rating ? { elo: rating.elo, games: rating.games, kind: params.ratingKind } : null,
             offers: offers.length, score: nameScore + (model.requests_7d || 0) / 10000 });
     }
-    const sort = params.sort || (intent.fast ? 'speed' : intent.cheap ? 'price' : 'relevance');
+    const sort = params.sort !== 'relevance' ? params.sort : intent.fast ? 'speed' : intent.cheap ? 'price' : 'relevance';
     const metric = (r) => sort === 'speed' ? number(r.speed?.p50_ms) ?? Infinity : sort === 'quality' ? -(number(r.quality?.elo) ?? -Infinity) : number(r.price?.out) ?? Infinity;
     results.sort((a, b) => sort === 'relevance' ? b.score - a.score || metric(a) - metric(b) : metric(a) - metric(b) || b.score - a.score);
     return results;

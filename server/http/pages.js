@@ -123,11 +123,11 @@ function createPageRoutes(ctx) {
         const family = typeof req.query.family === 'string' ? req.query.family.slice(0, 60) : '';
         const sort = ['cheap', 'fast'].includes(req.query.sort) ? req.query.sort : '';
         let searchResults = null;
-        if (q || req.query.capability || req.query.provider || req.query.max_price || req.query.min_price || req.query.max_speed_ms) {
+        if (q || req.query.capability || req.query.provider || req.query.max_price || req.query.min_price || req.query.max_speed_ms || req.query.rating_kind) {
             const { parseSearch, searchCatalog } = require('../model-search');
             try {
                 const params = parseSearch(req.query);
-                const board = await ctx.bench.board({ kind: 'chat.arena' }).catch(() => ({ rows: [] }));
+                const board = await ctx.bench.board({ kind: params.ratingKind }).catch(() => ({ rows: [] }));
                 searchResults = searchCatalog(catalog, board.rows || [], params);
             } catch (err) {
                 if (err instanceof RangeError) return page(req, res, { title: 'Invalid search', body: raw(`<p>${esc(err.message)}</p>`) }, 400);
