@@ -1,7 +1,7 @@
 'use strict';
 // The owner console's designed AI sections (views/console-ai.js): providers, models and the price book.
 const assert = require('assert');
-const { providersSection, modelsSection, pricebookSection, syncSection } = require('../server/views/console-ai');
+const { providersSection, modelsSection, pricebookSection, supplySection, syncSection } = require('../server/views/console-ai');
 
 const secret = 'sk-live-never-on-a-page';
 const providers = [
@@ -46,6 +46,36 @@ assert.ok(models.includes('Your price') && models.includes('promo'), 'the owner 
 assert.ok(models.includes('name="clear" value="1"'), 'the owner price can be cleared');
 assert.ok(models.includes('name="reason" required'), 'a price needs a reason');
 assert.ok(models.includes('name="display_name"') && models.includes('name="content_tier"'), 'model names and content tiers are editable');
+
+// The offer's route: waiting prices are approved and the offer switched on in one owner action, and a
+// missing key is said before the button rather than after a failed write.
+const routed = modelsSection({ models: [
+    { provider: 'refuseless', model: 'abliterated-model', accepted_price: { in_per_mtok: 1, out_per_mtok: 3 }, status: 'disabled',
+        route: { live: false, reasons: ['provider_off', 'model_off'], key_present: true, pending_prices: 2 } },
+    { provider: 'keyless', model: 'abliterated-model', accepted_price: { in_per_mtok: 1, out_per_mtok: 3 }, status: 'disabled',
+        route: { live: false, reasons: ['provider_off', 'no_key', 'model_off'], key_present: false, pending_prices: 0 } },
+    { provider: 'openai', model: 'gpt-5-mini', accepted_price: { in_per_mtok: 0.25, out_per_mtok: 2 },
+        route: { live: true, reasons: [], key_present: true, pending_prices: 0 } },
+] });
+assert.ok(routed.includes('Not routed') && routed.includes('provider off · model off'), 'the closed gates are named');
+assert.ok(routed.includes('action="/console/models/refuseless/abliterated-model/open"'), 'the owner can open the offer');
+assert.ok(routed.includes('Approve prices and open route') && routed.includes('2 waiting prices'), 'waiting prices show beside the action');
+assert.ok(routed.includes('Add the provider key first'), 'a missing key disables the action with its reason');
+assert.ok(routed.includes('Live route') && !routed.includes('action="/console/models/openai/gpt-5-mini/open"'), 'a live route needs no open action');
+
+// GPU supply: fixed per-token prices, the approved ceilings, the selected host and the fixed route it serves.
+const supply = supplySection({ gate: { ok: true }, live: true, settings: [{ model: 'deepseek-r1-32b-abliterated', runtime: 'vllm',
+    input_per_million: 1, output_per_million: 2, hourly_ceiling_usd: 0.5, monthly_ceiling_usd: 300, required_vram_mb: 24000, idle_minutes: 10, enabled: true }],
+    reports: [{ model: 'deepseek-r1-32b-abliterated', enabled: true, active: true, action: 'would_rent', price: { in: 1, out: 2 },
+        selected: { provider: 'vast', gpu: 'RTX 4090', region: 'US', hourly_usd: 0.5 }, rental_cost_usd: 12, reseller_cost_usd: null,
+        route: { registered: true, provider_key: 'gpu.deepseek-r1-32b-abliterated', provider_status: 'active', model_status: 'active', fixed: true, price: { in: 1, out: 2 }, live: true } }] });
+assert.ok(supply.includes('Fixed route live') && supply.includes('gpu.deepseek-r1-32b-abliterated'), 'the fixed route is named');
+assert.ok(supply.includes('RTX 4090') && supply.includes('$0.50') && supply.includes('Would rent the selected host'), 'the selected host and the decision');
+assert.ok(supply.includes('name="enabled"') && supply.includes('value="1" selected'), 'the owner switch renders on the saved plan');
+assert.ok(supply.includes('Type open to confirm a live plan'), 'live supply needs the typed confirmation');
+const closed = supplySection({ gate: { ok: false, reason: 'Add a Vast.ai or RunPod API key first; nothing was changed.' }, settings: [], reports: [] });
+assert.ok(closed.includes('Gate closed: Add a Vast.ai or RunPod API key first'), 'the owner gate is said in words');
+assert.ok(!/\$0(?!\.)/.test(supply), 'a missing price is never $0');
 
 const book = pricebookSection({ pending: [{ id: 'pc_1', provider_key: 'deepseek', model_key: 'v4-flash', field: 'out_per_mtok', old_price: 1.2, new_price: 0.9, change_pct: -0.25, source: 'https://example/pricing', checked_at: '2026-11-09' }], recent: [] });
 assert.ok(book.includes('value="approve"'), 'Accept sends approve, the word AI takes');

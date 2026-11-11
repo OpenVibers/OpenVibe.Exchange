@@ -4,7 +4,7 @@ const { esc } = require('../render/html');
 const designed = require('./console-ai');
 
 const SECTIONS = [
-    ['Overview', '/console'], ['Defaults', '/console/defaults'], ['GPU supply (dry run)', '/console/supply'], ['Providers', '/console/providers'], ['Models', '/console/models'],
+    ['Overview', '/console'], ['Defaults', '/console/defaults'], ['GPU supply', '/console/supply'], ['Providers', '/console/providers'], ['Models', '/console/models'],
     ['Routes', '/console/routes'], ['Templates', '/console/templates'], ['Workflows', '/console/workflows'],
     ['Runs', '/console/runs'], ['Quotas', '/console/quotas'], ['Usage', '/console/usage'],
     ['Cache', '/console/cache'], ['GPUs', '/console/gpus'], ['Price book', '/console/pricebook'],
@@ -23,7 +23,6 @@ function consolePage({ section = 'overview', data = {}, error = null }) {
     const json = esc(JSON.stringify(safe(data), null, 2));
     let actions = '';
     if (section === 'orders' && Array.isArray(data.orders)) actions = data.orders.map(order => `<form class="ovk-form" method="post" action="/console/orders/${encodeURIComponent(order.capability)}"><h2>${esc(order.capability)}</h2><label>Use this order<select name="enabled"><option value="0"${order.enabled ? '' : ' selected'}>Off</option><option value="1"${order.enabled ? ' selected' : ''}>On</option></select></label><label>Provider and model choices<textarea name="choices" rows="6" required>${esc(JSON.stringify(order.choices || [], null, 2))}</textarea></label><p>First healthy choice answers. An empty enabled array allows no provider. Version ${esc(order.version || 'none')}.</p><button class="ovk-btn ovk-btn--primary" type="submit">Save order</button></form>`).join('');
-    if (section === 'supply') actions = `<p>Dry run only. No GPU is rented or stopped. Missing measurements are shown as missing.</p><form method="post" action="/console/supply" class="ovk-form"><label>Model<input name="model" required></label><label>Runtime<select name="runtime"><option value="vllm">vLLM</option><option value="sglang">SGLang</option></select></label>${[['input_per_million','Input USD / million'],['output_per_million','Output USD / million'],['hourly_ceiling_usd','Hourly spend ceiling USD'],['monthly_ceiling_usd','Monthly spend ceiling USD'],['required_vram_mb','Required VRAM MB'],['idle_minutes','Stop after idle minutes']].map(([key,label])=>`<label>${label}<input name="${key}" type="number" min="0" step="any" required></label>`).join('')}<button class="ovk-btn ovk-btn--primary" type="submit">Save prices and ceilings</button></form>`;
 
     if (section === 'providers' && Array.isArray(data.providers)) actions = data.providers.map((p) => {
         const key = encodeURIComponent(p.key || '');
