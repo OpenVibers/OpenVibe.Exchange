@@ -167,7 +167,7 @@ function createConsoleRoutes({ config, ai }) {
             else if (action === 'check') {
                 const pasted = Boolean(req.body.api_key);
                 const result = await ai.adminRequest(`/api/v1/admin/console/providers/${key}/check`, { method: 'POST', subject: req.viewer.subject,
-                    body: pasted ? { api_key: String(req.body.api_key) } : {} });
+                    ...(pasted ? { body: { api_key: String(req.body.api_key) } } : {}) });
                 if (pasted) {
                     const data = await ai.adminRequest('/api/v1/admin/console/providers');
                     data.providers = (data.providers || []).map(p => p.key === req.params.key ? { ...p, last_check: result } : p);
