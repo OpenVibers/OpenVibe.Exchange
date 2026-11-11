@@ -7,6 +7,7 @@
 const assert = require('assert');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi, downAi } = require('./helpers/ai');
+const contracts = require('openvibe-contracts');
 
 (async () => {
     const ai = createFakeAi();
@@ -60,11 +61,17 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(twin.text.includes('Gemini Old'));
         });
         await check('public directory JSON and model structured data match the catalog', async () => {
+            const all = await t.get('/api/v1/models');
+            assert.strictEqual(all.status, 200, all.text);
+            const directory = contracts.validate('ai.model-directory-list@1', all.json());
+            assert.strictEqual(directory.valid, true, JSON.stringify(directory.errors));
             const list = await t.get('/api/v1/models?q=deepseek');
             assert.strictEqual(list.status, 200, list.text);
             assert.ok(list.json().models.some(m => m.slug === 'deepseek/deepseek-chat'));
             const one = await t.get('/api/v1/models/deepseek/deepseek-chat');
             assert.strictEqual(one.status, 200, one.text);
+            const entry = contracts.validate('ai.model-directory-entry@1', one.json().model);
+            assert.strictEqual(entry.valid, true, JSON.stringify(entry.errors));
             assert.strictEqual(one.json().model.slug, 'deepseek/deepseek-chat');
             assert.strictEqual((await t.get('/api/v1/models/deepseek%2Fdeepseek-chat')).json().model.slug, 'deepseek/deepseek-chat');
             const liveOnly = await t.get('/api/v1/models/meta-llama/llama-3-8b-abliterated');
