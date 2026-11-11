@@ -8,6 +8,7 @@
  *                                                 machines serve it, never which ones
  *   chat({...})  POST /api/v1/runs                one ai.complete run, on behalf of the person, with this
  *                                                 service's token (ai.run.create, ns ai.complete)
+ *                GET /api/v1/receipts/:id         cached input share for the answer's receipt (best effort)
  *
  * The catalog and usage reads are cached in this process, so a page view does not cost AI a request. When
  * AI cannot be reached the reads answer an empty catalog carrying `unavailable: true`: the pages say the
@@ -217,6 +218,30 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             err.status = 504;
             throw err;
         }
+        // AI's run summary has total tokens; its per-run receipt has the cached input count. Read it with the
+        // same caller token, and leave the answer usable if an older AI or a slow receipt store cannot serve it.
+        let cachedTokens = null;
+        let cachedInputPercent = null;
+        if (run.id) {
+            try {
+                const receiptId = `rcpt_${String(run.id).replace(/^run_/, '')}`;
+                const receiptRes = await fetchImpl(`${config.ai.url}/api/v1/receipts/${encodeURIComponent(receiptId)}`, {
+                    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+                    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(3000)]) : AbortSignal.timeout(3000),
+                });
+                if (receiptRes.ok) {
+                    const receipt = (await jsonOf(receiptRes) || {}).receipt;
+                    if (receipt && receipt.run_id === run.id) {
+                        const input = Number(receipt.usage && receipt.usage.tokens_in);
+                        const cached = Number(receipt.usage && receipt.usage.tokens_cached);
+                        if (Number.isFinite(input) && input > 0 && Number.isFinite(cached) && cached >= 0) {
+                            cachedTokens = Math.min(cached, input);
+                            cachedInputPercent = Math.round(100 * cachedTokens / input);
+                        }
+                    }
+                }
+            } catch { /* The receipt is optional for the answer. */ }
+        }
         const choice = run.output && Array.isArray(run.output.choices) ? run.output.choices[0] : null;
         const content = choice && choice.message && typeof choice.message.content === 'string' ? choice.message.content : '';
         const usage = run.usage || null;
@@ -239,6 +264,8 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             usage,
             tokens_in: usage ? usage.tokens_in || 0 : 0,
             tokens_out: usage ? usage.tokens_out || 0 : 0,
+            tokens_cached: cachedTokens,
+            cached_input_percent: cachedInputPercent,
             latency_ms: Number.isFinite(started) && Number.isFinite(finished) && finished >= started ? finished - started : null,
             why: why == null ? null : (Array.isArray(why) ? why : [String(why)]),
             privacy: privacy ? privacy.label || null : null,

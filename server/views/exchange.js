@@ -490,6 +490,7 @@ function resultCard(result) {
         ['Cost', result.cost_usd == null ? '–' : `$${Number(result.cost_usd).toFixed(6)}`],
         ['Latency', result.latency_ms == null ? '–' : ms(result.latency_ms)],
         ['Tokens', `${count(result.tokens_in)} in · ${count(result.tokens_out)} out`],
+        ...(result.cached_input_percent == null ? [] : [['Cached input', `${result.cached_input_percent}% (${count(result.tokens_cached)} tokens)`]]),
         ['Run', result.run_id || '–'],
     ];
     return kit.receipt({
@@ -1157,6 +1158,7 @@ ${result.content ? `<div class="ex-answer-body"><p class="ex-answer-text">${esc(
 <dt>Chosen</dt><dd>${esc(selected || '—')}${result.provider ? ` · ${esc(providerLabel({ provider: result.provider, provider_name: result.provider }))}` : ''}</dd>
 <dt>Objective</dt><dd>${esc(x.objective || 'balanced')}</dd>
 <dt>Tokens</dt><dd>${count(result.tokens_in)} in · ${count(result.tokens_out)} out</dd>
+${result.cached_input_percent == null ? '' : `<dt>Cached input</dt><dd>${result.cached_input_percent}% (${count(result.tokens_cached)} tokens)</dd>`}
 <dt>Privacy</dt><dd>${esc(result.privacy || '—')}</dd>
 </dl>
 ${reasons.length ? `<h3 class="ex-h3">Why</h3><ul class="ex-list">${reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}

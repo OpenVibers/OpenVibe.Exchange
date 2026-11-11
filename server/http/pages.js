@@ -267,6 +267,7 @@ ${kit.chips({ name: 'models', label: 'Compare up to three models', options: mode
 ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''}
 <dt>Price</dt><dd>${cost == null ? '—' : Number(cost) === 0 ? 'free' : `$${Number(cost).toFixed(6)}`}</dd>
 <dt>Tokens</dt><dd>${m.meta && (m.meta.tokens_in != null || m.meta.tokens_out != null) ? `${Number(m.meta.tokens_in || 0).toLocaleString('en-US')} in · ${Number(m.meta.tokens_out || 0).toLocaleString('en-US')} out` : '—'}</dd>
+${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Number(m.meta.cached_input_percent)}% (${Number(m.meta.tokens_cached || 0).toLocaleString('en-US')} tokens)</dd>` : ''}
 <dt>Latency</dt><dd>${latency == null ? '—' : `${Number(latency).toLocaleString('en-US')} ms`}</dd>
 <dt>Why this offer</dt><dd>${m.meta && Array.isArray(m.meta.why) && m.meta.why.length ? esc(m.meta.why.join(' · ')) : 'The router picked the healthiest offer for your floor, ceiling and policy.'}</dd>
 </dl></details>`;
@@ -444,7 +445,8 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
             return res.json({
                 answer: {
                     content: out.content || '(no text)', model: out.model, provider: out.provider, run_id: out.run_id,
-                    cost_usd: out.cost_usd, tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms,
+                    cost_usd: out.cost_usd, tokens_in: out.tokens_in, tokens_out: out.tokens_out, tokens_cached: out.tokens_cached,
+                    cached_input_percent: out.cached_input_percent, latency_ms: out.latency_ms,
                     why: out.why, privacy: out.privacy, privacy_detail: out.privacy_detail, preset: out.preset,
                 },
             });
@@ -661,7 +663,8 @@ ${m.meta && m.meta.preset ? `<dt>Preset</dt><dd>${esc(m.meta.preset)}</dd>` : ''
                     role: 'assistant', model: slug, content: out.content || '(no text)',
                     meta: {
                         run_id: out.run_id, provider: out.provider, answered_model: out.model, cost_usd: out.cost_usd,
-                        tokens_in: out.tokens_in, tokens_out: out.tokens_out, latency_ms: out.latency_ms, why: out.why,
+                        tokens_in: out.tokens_in, tokens_out: out.tokens_out, tokens_cached: out.tokens_cached,
+                        cached_input_percent: out.cached_input_percent, latency_ms: out.latency_ms, why: out.why,
                         privacy: out.privacy, privacy_detail: out.privacy_detail, preset: out.preset,
                     },
                 });
