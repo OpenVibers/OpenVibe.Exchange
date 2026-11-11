@@ -18,6 +18,7 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(r.text.includes('Get a key') && r.text.includes('api.openvibe.exchange/v1/chat/completions'));
             assert.ok(r.text.includes('tokens routed this week') && r.text.includes('median time to first token'));
             assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Try in Chat') && r.text.includes('How it ranks'));
+            assert.ok(r.text.includes('data-ovt-composer') && r.text.includes('name="q"') && r.text.includes('ov-composer.'));
             assert.strictEqual((r.text.match(/<h1[\s>]/g)||[]).length,1);
         });
 
@@ -26,6 +27,9 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.strictEqual(r.status, 200);
             assert.ok(r.text.includes('DeepSeek Chat'));
             assert.ok(r.text.includes('$0.2 / $0.3'), 'the cheapest offer, not the dearest');
+            assert.ok(r.text.includes('class="ovt-c-row"') && r.text.includes('class="ovt-c-tools"'));
+            assert.ok(r.text.includes('Search filters') && r.text.includes('name="provider"') && r.text.includes('Apply filters'));
+            assert.ok(!r.text.includes('<input name="q"'), 'the main search box is the shared composer');
             const filtered = await t.get('/models?q=llama');
             assert.ok(filtered.text.includes('Llama 3 8B abliterated'));
             assert.ok(!filtered.text.includes('DeepSeek Chat'), 'the search filters');

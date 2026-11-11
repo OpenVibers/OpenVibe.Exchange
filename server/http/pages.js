@@ -31,6 +31,7 @@ const platform = require('../views/platform');
 const credentialViews = require('../views/credentials');
 
 const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 60 });
+const COMPOSER_HEAD = raw(`<link rel="stylesheet" href="${ovServe.url('thread.css')}"><script src="${ovServe.url('ov-composer.js')}" defer></script>`);
 const RETIRED_PATHS = ['/listings', '/listings/*', '/submit', '/sandbox', '/sandbox/*', '/installs', '/offers', '/safety', '/developers'];
 
 const textOf = (s) => esc(String(s || '')).replace(/\n/g, '<br>');
@@ -113,6 +114,7 @@ function createPageRoutes(ctx) {
             title: null,
             description: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
+            head: COMPOSER_HEAD,
             body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config })),
         });
     });
@@ -139,6 +141,7 @@ function createPageRoutes(ctx) {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: q ? `Models: ${q}` : 'Models',
             description: 'Every model on OpenVibe.Exchange with its live offers: price in and out per million tokens, measured speed and uptime, context length and data policy.',
+            head: COMPOSER_HEAD,
             body: raw(platform.modelsPage({ catalog: req.query.status && req.query.status !== 'available' ? { ...catalog, models: [] } : catalog, query: req.query, searchResults })
                 + require('../model-directory').directoryList(directory.models || [], req.query, (catalog.models || []).map(m => m.slug))),
         });

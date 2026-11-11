@@ -1,5 +1,6 @@
 'use strict';
 const kit = require('openvibe-shared/kit');
+const thread = require('openvibe-shared/thread');
 const legacy = require('./exchange');
 const listed = (catalog) => legacy.chatModels(catalog);
 const unavailable = (catalog) =>
@@ -32,6 +33,24 @@ const chat = (m) =>
 const rank = (m) =>
     `https://openvibe.compare/things/${encodeURIComponent(id(m))}`;
 const section = (title, body) => kit.section({ title, body });
+const modelSearch = (query = {}, filters = false) => {
+    const field = (name, label, placeholder = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(placeholder)}"></label>`;
+    const options = filters ? { label: 'Search filters', html: [
+        field('provider', 'Provider'), field('capability', 'Capability', 'vision'),
+        field('min_price', 'Min $/M out'), field('max_price', 'Max $/M out'),
+        field('max_speed_ms', 'Max median ms'), field('rating_kind', 'Benchmark', 'chat.arena'),
+        '<button class="ovk-btn ovk-btn--quiet" type="submit">Apply filters</button>',
+    ].join('') } : null;
+    const form = thread.composer({ action: '/models', method: 'get', name: 'q', value: query.q || '',
+        id: filters ? 'model-search' : 'home-model-search', label: 'Search models',
+        placeholder: 'Find a model or a provider', sendLabel: 'Search models', maxlength: 120,
+        options, attrs: { 'data-ovc-no-draft': '', style: '--ovt-line:var(--border,#1f2d47);--ovt-accent:var(--accent,#3b82f6)' },
+        commands: [{ name: 'gemini', hint: 'Find Gemini models', insert: 'gemini' },
+            { name: 'gpt', hint: 'Find GPT models', insert: 'gpt' }],
+    });
+    // The shared prompt is required by default. Filters can be submitted on their own.
+    return filters ? form.replace(' data-ovt-text required', ' data-ovt-text') : form;
+};
 const code = (m) =>
     kit.snippet({
         id: 'platform-curl',
@@ -79,7 +98,7 @@ function pricingPage() {
 }
 function home({ catalog, usage, viewer }) {
     const models = listed(catalog);
-    return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model', icon: 'search' })}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })} ${kit.button({ href: '/compute', label: 'Compute prices', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
+    return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${modelSearch()}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })} ${kit.button({ href: '/compute', label: 'Compute prices', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
         [
             [models.length, 'models'],
             [
@@ -159,8 +178,7 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
         chips.push(`<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(params.toString())}">${label}</a>`);
     }
     const searchMeta = searchResults && new Map(searchResults.map((r) => [r.model, r]));
-    const field = (name, label, value = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(value)}"></label>`;
-    const filters = `<form action="/models" method="get">${field('q', 'Search', 'cheap vision model')} ${field('provider', 'Provider')} ${field('capability', 'Capability', 'vision')} ${field('min_price', 'Min $/M out')} ${field('max_price', 'Max $/M out')} ${field('max_speed_ms', 'Max median ms')} ${field('rating_kind', 'Benchmark', 'chat.arena')} ${kit.button({ label: 'Find', type: 'submit' })}</form>`;
+    const filters = modelSearch(query, true);
     return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${filters}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
 module.exports = { home, modelsPage, pricing, pricingPage, table };
