@@ -81,6 +81,12 @@ const book = pricebookSection({ pending: [{ id: 'pc_1', provider_key: 'deepseek'
 assert.ok(book.includes('value="approve"'), 'Accept sends approve, the word AI takes');
 assert.ok(book.includes('$1.20') && book.includes('$0.90') && book.includes('-25%'), 'old, new and the change');
 assert.ok(pricebookSection({ pending: [], recent: [] }).includes('Nothing waiting'), 'an empty price book says so');
+const reviewed = pricebookSection({ pending: [], recent: [], confirmed: [
+    { provider_key: 'sable', model_key: 'deepseek-v4.1-flash-1017-uncensored', display_name: 'DeepSeek V4.1 Flash (uncensored)',
+        in_per_mtok: 0.15, cached_per_mtok: 0.01, out_per_mtok: 0.6, source: 'https://sableapi.com/models', checked_at: '2026-11-10' }] });
+assert.ok(reviewed.includes('Reviewed readings') && reviewed.includes('DeepSeek V4.1 Flash (uncensored)'), 'a reviewed reading is named');
+assert.ok(reviewed.includes('action="/console/pricebook/confirmed"') && reviewed.includes('Load 1 reading into the waiting list'), 'one action loads it into the waiting list');
+assert.ok(reviewed.includes('$0.15') && reviewed.includes('$0.60') && reviewed.includes('sableapi.com'), 'its own prices and page');
 
 // Grouped: a card per provider, one row per model with its prices together, Accept per model, provider and all.
 const many = pricebookSection({ pending: [
