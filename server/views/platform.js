@@ -79,7 +79,7 @@ function pricingPage() {
 }
 function home({ catalog, usage, viewer }) {
     const models = listed(catalog);
-    return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model', icon: 'search' })}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
+    return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${kit.find({ action: '/models', name: 'q', placeholder: 'Find a model', icon: 'search' })}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })} ${kit.button({ href: '/compute', label: 'Compute prices', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
         [
             [models.length, 'models'],
             [

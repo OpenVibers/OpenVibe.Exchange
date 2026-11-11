@@ -9,9 +9,11 @@
 const assert = require('assert');
 const { boot, check, done } = require('./helpers/boot');
 const { createFakeAi } = require('./helpers/ai');
+const { createFakeActor } = require('./helpers/actor');
 
 (async () => {
     const ai = createFakeAi();
+    const actor = createFakeActor();
     const ttsCalls = [];
     const otherCalls = [];
     let ttsStatus = 200;
@@ -54,7 +56,7 @@ const { createFakeAi } = require('./helpers/ai');
         return await globalThis.fetch(url, opts);
     };
 
-    const t = await boot({ ai, aiFetchImpl: memoryFetch, fetchImpl });
+    const t = await boot({ ai, actor, aiFetchImpl: memoryFetch, fetchImpl });
     const alice = t.network.addUser('alice');
     const bob = t.network.addUser('bob');
 
@@ -103,7 +105,7 @@ const { createFakeAi } = require('./helpers/ai');
         });
 
         await check('the characters take their turns, each in its own voice and its own memory', async () => {
-            ai.calls.length = 0;
+            actor.turns.length = 0;
             ttsCalls.length = 0;
             const sent = await t.get('/talk/group/' + groupId + '/send', { as: alice, form: { text: 'Good morning, everyone' } });
             assert.strictEqual(sent.status, 303, sent.text.slice(0, 300));
@@ -120,14 +122,14 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(!adaAnswer.meta.notes.some((n) => n.text.includes('sailing')), 'Brenda\'s note never joins Ada\'s answer');
             assert.ok(brendaAnswer.meta.notes.some((n) => n.text.includes('sailing')), 'Brenda answers with her own note');
             assert.ok(!brendaAnswer.meta.notes.some((n) => n.text.includes('keeps clocks')), 'Ada\'s note never joins Brenda\'s answer');
-            // And the same, in the system prompt that was sent.
-            const adaCall = ai.calls.find((c) => String(c.messages[0].content).includes('You are Ada.'));
-            const brendaCall = ai.calls.find((c) => String(c.messages[0].content).includes('You are Brenda.'));
+            // And the same, in the turn text that was sent.
+            const adaCall = actor.turns.find((c) => String(c.task).includes('You are Ada.'));
+            const brendaCall = actor.turns.find((c) => String(c.task).includes('You are Brenda.'));
             assert.ok(adaCall && brendaCall);
-            assert.ok(String(adaCall.messages[0].content).includes('keeps clocks'));
-            assert.ok(!String(adaCall.messages[0].content).includes('sailing'));
-            assert.ok(String(brendaCall.messages[0].content).includes('sailing'));
-            assert.ok(!String(brendaCall.messages[0].content).includes('keeps clocks'));
+            assert.ok(String(adaCall.task).includes('keeps clocks'));
+            assert.ok(!String(adaCall.task).includes('sailing'));
+            assert.ok(String(brendaCall.task).includes('sailing'));
+            assert.ok(!String(brendaCall.task).includes('keeps clocks'));
         });
 
         await check('the group page shows every character and every voice', async () => {
@@ -139,7 +141,7 @@ const { createFakeAi } = require('./helpers/ai');
 
         await check('the one named answers, and only the one named', async () => {
             await t.get('/talk/group/' + groupId + '/settings', { as: alice, form: { mode: 'named', turns: '1', speak: '1' } });
-            ai.calls.length = 0;
+            actor.turns.length = 0;
             const sent = await t.get('/talk/group/' + groupId + '/send', { as: alice, form: { text: 'Brenda, what do you think?' } });
             assert.strictEqual(sent.status, 303);
             const messages = await t.ctx.groups.messages(groupId);
