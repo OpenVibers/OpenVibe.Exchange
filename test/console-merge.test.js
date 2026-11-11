@@ -16,7 +16,7 @@ app.use((req, _res, next) => {
 });
 app.use(createConsoleRoutes({
     config: { baseUrl: 'https://openvibe.exchange' },
-    ai: { async adminRequest(path, options = {}) { calls.push(path); if (options.method) writes.push({ path, ...options }); return { providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }] }; } },
+    ai: { async adminRequest(path, options = {}) { calls.push(path); if (options.method) writes.push({ path, ...options }); if (path === '/api/v1/admin/console/pricebook') return { confirmed: [{ provider_key: 'sable', model_key: 'deepseek-v4.1-flash-1017-uncensored', in_per_mtok: 0.15, out_per_mtok: 0.6, source: 'https://sableapi.com/models', checked_at: '2026-11-10' }] }; return { providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }] }; } },
 }));
 
 (async () => {
@@ -125,6 +125,13 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(providerSettings.status, 303);
         assert.ok(writes.some((write) => write.path === '/api/v1/providers/groq' && write.body.markup_percent === 12.5 && write.body.uncensored === true));
+        const loadConfirmed = await fetch(`${base}/console/pricebook/confirmed`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
+        });
+        assert.strictEqual(loadConfirmed.status, 303);
+        assert.strictEqual(writes.at(-1).path, '/api/v1/admin/console/pricebook/proposals');
+        assert.strictEqual(writes.at(-1).body.proposals.length, 1);
+        assert.strictEqual(writes.at(-1).body.proposals[0].provider_key, 'sable');
         const modelOpen = await fetch(`${base}/console/models/groq/openai%2Fgpt-oss-120b/open`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
         });

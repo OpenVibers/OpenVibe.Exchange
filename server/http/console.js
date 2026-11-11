@@ -325,6 +325,18 @@ function createConsoleRoutes({ config, ai }) {
             return res.redirect(303, '/console/pricebook');
         } catch (err) { return page(req, res, 'pricebook', {}, err.message || 'The price book could not run.', 502); }
     });
+    // The reviewed readings bundled with AI's release go into the waiting list; the owner still decides each price,
+    // and loading creates a model row disabled when one does not exist. Nothing is approved by this route.
+    r.post('/console/pricebook/confirmed', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            const data = await ai.adminRequest('/api/v1/admin/console/pricebook');
+            const proposals = Array.isArray(data.confirmed) ? data.confirmed : [];
+            if (!proposals.length) return res.redirect(303, '/console/pricebook');
+            await ai.adminRequest('/api/v1/admin/console/pricebook/proposals', { method: 'POST', subject: req.viewer.subject, body: { proposals } });
+            return res.redirect(303, '/console/pricebook');
+        } catch (err) { return page(req, res, 'pricebook', {}, err.message || 'The reviewed readings could not be loaded.', err.status === 422 ? 422 : 502); }
+    });
     r.post('/console/exchange/credits/:id/resolve', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         try {

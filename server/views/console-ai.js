@@ -212,6 +212,7 @@ function syncSection(data = {}) {
 function pricebookSection(data = {}) {
     const pending = Array.isArray(data.pending) ? data.pending : [];
     const recent = Array.isArray(data.recent) ? data.recent : [];
+    const confirmed = Array.isArray(data.confirmed) ? data.confirmed : [];
     const rep = data.report || null;
     // One change is one price of one model (price_changes: provider_key, model_key, field, old_price, new_price,
     // change_pct, source, checked_at).
@@ -269,9 +270,15 @@ function pricebookSection(data = {}) {
   <ul class="exc-pb-models">${[...models.entries()].map(([model, list]) => modelRow(model, list, { common, mixed: newCount > 0 && newCount < models.size })).join('')}</ul>
 </li>`;
     };
+    const reviewed = confirmed.length ? `<section class="exc-sec"><h3>Reviewed readings <span class="exc-n">${confirmed.length}</span></h3>
+<p class="exc-note">Read from the providers' own pages and reviewed when they were added. Load them to put each price in the waiting list below; loading writes no price and switches no model on.</p>
+<ul class="exc-list">${confirmed.map((c) => `<li class="exc-pb-model"><div class="exc-pb-name"><b>${esc(c.display_name || c.model_key || '')}</b><small>${esc(c.provider_key || '')} · ${esc(c.model_key || '')}${c.checked_at ? ` · read ${esc(day(c.checked_at))}` : ''}${c.source ? ` · <a href="${esc(c.source)}" rel="noopener noreferrer" target="_blank">${esc(host(c.source) || 'their page')}</a>` : ''}</small></div>
+<p class="exc-pb-prices">${[['in_per_mtok', 'Input'], ['cached_per_mtok', 'Cached'], ['out_per_mtok', 'Output']].map(([field, label]) => `<span class="exc-pb-price"><em>${esc(label)}</em><b>${esc(money(c[field]) || '–')}</b></span>`).join('')}</p></li>`).join('')}</ul>
+<form method="post" action="/console/pricebook/confirmed" class="exc-inline">${btn(`Load ${confirmed.length} reading${confirmed.length === 1 ? '' : 's'} into the waiting list`, 'primary')}</form></section>` : '';
     return `<div class="exc">
 <header class="exc-head"><h2>Price book</h2><p>OpenVibe reads every provider's own price page on a schedule. A change waits here for your yes; nothing a provider publishes reaches people's bills unseen.</p>
 <form method="post" action="/console/pricebook/run" class="exc-inline">${btn('Read their pages now')}${rep && rep.finished_at ? `<span class="exc-note">Last read ${esc(day(rep.finished_at))}${Array.isArray(rep.sources) ? ` · ${rep.sources.length} pages` : ''}</span>` : ''}</form></header>
+${reviewed}
 <section class="exc-sec"><h3>Waiting for you <span class="exc-n">${pending.length}</span></h3>${pending.length ? `<div class="exc-pb-all"><p class="exc-note">${modelCount === 1 ? '1 model' : `${modelCount} models`} from ${groups.length === 1 ? '1 provider' : `${groups.length} providers`}${fresh ? `: ${fresh === modelCount ? (fresh === 1 ? 'new to OpenVibe' : 'all new to OpenVibe') : `${fresh} new to OpenVibe`}` : ''}. A new model stays switched off until you turn it on in Models.</p>${groups.length > 1 ? decide(pending, `Accept all ${pending.length} prices`, '') : ''}</div>
 <ul class="exc-list">${groups.map(providerCard).join('')}</ul>` : '<p class="exc-note">Nothing waiting: every price matches its provider\'s page.</p>'}</section>
 ${recent.length ? `<section class="exc-sec"><h3>Applied lately <span class="exc-n">${recent.length}</span></h3><ul class="exc-list">${recent.slice(0, 20).map((c) => change(c, false)).join('')}</ul></section>` : ''}
