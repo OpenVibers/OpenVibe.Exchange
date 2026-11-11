@@ -3,7 +3,7 @@
  * A stand-in OpenVibe.Bench client for the Arena tests: it records every round, vote and board read, and answers
  * in the shape of server/bench.js. A test may pass its own `createRound`, `vote` or `board` to make one fail.
  */
-function createFakeBench({ createRound = null, vote = null, board = null } = {}) {
+function createFakeBench({ createRound = null, vote = null, board = null, boards = null } = {}) {
     const calls = { rounds: [], votes: [], boards: [] };
     let n = 0;
     return {
@@ -30,7 +30,8 @@ function createFakeBench({ createRound = null, vote = null, board = null } = {})
         async board(args) {
             calls.boards.push(args);
             if (board) return board(args);
-            return { unavailable: false, kind_id: 'chat.arena', category: args.category, rows: [] };
+            const rows = boards && Object.prototype.hasOwnProperty.call(boards, args.kind) ? boards[args.kind] : null;
+            return { unavailable: false, kind_id: args.kind || 'chat.arena', category: args.category, rows: rows || [] };
         },
     };
 }

@@ -30,6 +30,7 @@ const { createPrincipal } = require('./http/principal');
 const { createAi } = require('./ai');
 const { createNetwork } = require('./network');
 const { createBench } = require('./bench');
+const { createCompare } = require('./compare');
 const { createOpenApi } = require('./openapi');
 const { createArenaStore } = require('./arena/store');
 const { createCatalogHistory } = require('./catalog-history');
@@ -46,6 +47,7 @@ const { createNoteTaker } = require('./companions/taking-notes');
 const { createPageRoutes } = require('./http/pages');
 const { createConsoleRoutes } = require('./http/console');
 const { createArenaRoutes } = require('./http/arena');
+const { createCompareApi } = require('./http/compare');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
 const { assetVersion, send } = require('./render/layout');
@@ -84,6 +86,8 @@ async function createApp(opts = {}) {
     // Network, read and changed with the person's own token: their machines and their machine pools.
     const network = opts.network || createNetwork({ config, fetchImpl, log });
     const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
+    // openvibe.compare's engine (server/compare.js): the join of AI's price/speed/privacy/tier with Bench's quality.
+    const compare = createCompare({ s, ai, bench, config, now: s.now, log });
     const analysis = opts.analysis || require('./analysis').createAnalysis({ config, ai, bench, fetchImpl: opts.aiFetchImpl || globalThis.fetch, now: s.now });
     const arenaStore = createArenaStore(s);
     const history = createCatalogHistory({ s, log });
@@ -116,7 +120,7 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, network, bench, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
+    const ctx = { config, s, keys, sso, principal, ai, network, bench, compare, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -254,6 +258,10 @@ async function createApp(opts = {}) {
     });
 
     app.use('/api/v1/analysis', rateLimit({ windowMs: 60000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 120, standardHeaders: true, legacyHeaders: false }), require('./http/analysis').createAnalysisRoutes(ctx));
+
+    // ── Compare's JSON API (openvibe.compare) ───────────────
+    // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
+    app.use('/api/v1/compare', createCompareApi(ctx));
 
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {

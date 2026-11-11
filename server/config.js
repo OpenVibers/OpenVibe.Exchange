@@ -134,6 +134,13 @@ function load(env = process.env) {
             maxChars: Math.max(200, int(env.EXCHANGE_CHAT_MAX_CHARS, 8000)),
         },
 
+        // openvibe.compare (plan 297): the comparison site is served by this service behind its own name. The
+        // host is what makes a request the compare site's; the API is also reachable on openvibe.exchange.
+        compare: {
+            host: String(env.COMPARE_HOST || 'openvibe.compare').toLowerCase(),
+            baseUrl: trim(env.COMPARE_BASE_URL || 'https://openvibe.compare'),
+        },
+
         // IndexNow (openvibe-shared/indexnow): a key makes search engines recrawl a page that appeared or
         // changed. Unset → off: nothing mounted, nothing sent.
         indexnow: { key: String(env.INDEXNOW_KEY || '').trim() },
