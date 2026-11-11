@@ -73,6 +73,16 @@ function load(env = process.env) {
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
+        // OpenVibe.Actor (server/actor.js): a companion or group turn is an Actor task of the signed-in
+        // person — their own Bearer on the wire, their allowance. The wait bounds one page POST; a turn still
+        // running then is reconciled on the next view.
+        actor: {
+            url: trim(env.OV_ACTOR_URL || 'https://actor.openvibe.services'),
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_ACTOR_TIMEOUT_MS, 15_000)),
+            waitMs: Math.max(5000, int(env.EXCHANGE_ACTOR_WAIT_MS, 90_000)),
+            pollMs: Math.max(500, int(env.EXCHANGE_ACTOR_POLL_MS, 2000)),
+        },
+
         // OpenVibe.Bench (server/bench.js): the Arena's rounds and each person's vote are a Bench
         // human_pairwise judgement, and the rankings read the board by task category. The token is this
         // service's own client-credentials grant (bench.round.create, bench.judgement.cast, bench.board.read).
