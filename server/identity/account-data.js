@@ -29,6 +29,9 @@ const TABLES = [
     // goes first, then its round (the vote also cascades from the round).
     { table: 'exchange_arena_votes', subject: 'owner', value: (usr) => usr, file: 'arena-votes.json', erase: 'delete' },
     { table: 'exchange_arena_rounds', subject: 'owner', value: (usr) => usr, file: 'arena-rounds.json', erase: 'delete' },
+    // A reader's remark on a comparison (openvibe.compare, plan 300): a signed-in person's pending benchmark
+    // case is theirs, exported and erased with the rest. An anonymous remark has no subject and is not named.
+    { table: 'exchange_compare_remarks', subject: 'subject', value: (usr) => usr, file: 'compare-remarks.json', erase: 'delete' },
     // The companions (2026-11-06): a person's characters, their chats and the messages in them are theirs,
     // exactly like the chats above. The messages go first, then the chats, then the characters: a character
     // may be deleted while somebody else's chat still points at it, and that chat keeps its messages.
