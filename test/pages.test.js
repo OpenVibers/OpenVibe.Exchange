@@ -41,6 +41,7 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             const one = await t.get('/api/v1/models/deepseek/deepseek-chat');
             assert.strictEqual(one.status, 200, one.text);
             assert.strictEqual(one.json().model.slug, 'deepseek/deepseek-chat');
+            assert.strictEqual((await t.get('/api/v1/models/deepseek%2Fdeepseek-chat')).json().model.slug, 'deepseek/deepseek-chat');
             assert.strictEqual((await t.get('/api/v1/models/nope/nope')).status, 404);
             const html = await t.get('/m/deepseek/deepseek-chat');
             assert.ok(html.text.includes('schema.org') && html.text.includes('SoftwareApplication'));
