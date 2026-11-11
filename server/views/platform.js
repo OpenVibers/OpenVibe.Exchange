@@ -30,7 +30,7 @@ const best = (m) =>
 const chat = (m) =>
     `https://openvibe.chat/vibe?models=${encodeURIComponent(id(m))}`;
 const rank = (m) =>
-    `https://openvibe.report/ai/models/${encodeURIComponent(id(m))}`;
+    `https://openvibe.compare/things/${encodeURIComponent(id(m))}`;
 const section = (title, body) => kit.section({ title, body });
 const code = (m) =>
     kit.snippet({
