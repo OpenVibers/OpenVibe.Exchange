@@ -45,10 +45,14 @@ app.use(createConsoleRoutes({
             assert.ok((data.headers.get('content-type') || '').includes('application/json'));
             assert.ok(!JSON.stringify(await data.json()).includes(fakeSecret), `${section} data omits key values`);
         }
-        for (const role of ['user', 'admin']) {
+        for (const role of ['user', 'global_mod', 'admin']) {
             const count = writes.length;
             const deniedOrder = await fetch(`${base}/console/orders/chat`, { method: 'POST', headers: { 'x-test-role': role, Origin: 'https://openvibe.exchange' } });
             assert.strictEqual(deniedOrder.status, 403);
+            for (const path of ['/console/gpu-policy/vast', '/console/gpu-policy/vast/key']) {
+                const denied = await fetch(`${base}${path}`, { method: 'POST', headers: { 'x-test-role': role, Origin: 'https://openvibe.exchange' } });
+                assert.strictEqual(denied.status, 403, `${role} cannot change GPU policy`);
+            }
             assert.strictEqual(writes.length, count);
         }
         const orderCsrf = await fetch(`${base}/console/orders/chat`, { method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://evil.example' } });
@@ -161,6 +165,20 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(supplyOff.status, 303);
         assert.strictEqual(writes.at(-1).body.enabled, false);
+        const gpuPolicy = await fetch(`${base}/console/gpu-policy/vast`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ enabled: '1', classes: 'batch', max_hourly_nano: '500000000', order: '2' }), redirect: 'manual',
+        });
+        assert.strictEqual(gpuPolicy.status, 303);
+        assert.deepStrictEqual(writes.at(-1), { path: '/api/v1/admin/console/gpu-policy/vast', method: 'POST',
+            subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', role: 'owner', body: { enabled: true, order: 2, max_hourly_nano: '500000000', classes: ['batch'] } });
+        const gpuKey = await fetch(`${base}/console/gpu-policy/vast/key`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ api_key: fakeSecret }), redirect: 'manual',
+        });
+        assert.strictEqual(gpuKey.status, 303);
+        assert.strictEqual(writes.at(-1).path, '/api/v1/admin/console/gpu-policy/vast/key');
+        assert.strictEqual(writes.at(-1).role, 'owner');
         const modelOverride = await fetch(`${base}/console/models/groq/openai%2Fgpt-oss-120b/override`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ input_per_million: '0.2', cached_per_million: '', output_per_million: '0.7', reason: 'Owner approved adjustment' }), redirect: 'manual',
