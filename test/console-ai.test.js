@@ -26,6 +26,7 @@ assert.ok(html.includes('type="password"'), 'keys are typed into password fields
 assert.ok(html.includes('Key ends in …abcd') && html.includes('set on 2026-11-10'), 'only the key marker and date are rendered');
 assert.ok(html.includes('http_401') && html.includes('42 ms'), 'the last check and latency are visible');
 assert.ok(html.includes('action="/console/providers/openai/check"') && html.includes('action="/console/providers/openai/remove-key"'), 'explicit check and removal controls');
+assert.ok(html.includes('formaction="/console/providers/openai/check"') && html.includes('Check pasted key'), 'the key field can be checked before saving');
 assert.ok(html.includes('action="/console/providers/openai/sync"') && html.includes('href="/console/providers/openai/models"'), 'models can be read and opened per provider');
 assert.ok(html.includes('name="auto_list_new_models" value="1" checked') && html.includes('value="60" selected'), 'stored model sync preferences render');
 const locked = providersSection({ providers: [{ ...providers[0], key_present: false }], models: [], presets: [] });

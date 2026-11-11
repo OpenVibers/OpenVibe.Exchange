@@ -164,7 +164,16 @@ function createConsoleRoutes({ config, ai }) {
             } else if (action === 'reset') await ai.adminRequest(`/api/v1/providers/${key}/reset`, { method: 'POST', subject: req.viewer.subject });
             else if (action === 'key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'POST', subject: req.viewer.subject, body: { api_key: String(req.body.api_key || '') } });
             else if (action === 'remove-key') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/key`, { method: 'DELETE', subject: req.viewer.subject });
-            else if (action === 'check') await ai.adminRequest(`/api/v1/admin/console/providers/${key}/check`, { method: 'POST', subject: req.viewer.subject });
+            else if (action === 'check') {
+                const pasted = Boolean(req.body.api_key);
+                const result = await ai.adminRequest(`/api/v1/admin/console/providers/${key}/check`, { method: 'POST', subject: req.viewer.subject,
+                    body: pasted ? { api_key: String(req.body.api_key) } : {} });
+                if (pasted) {
+                    const data = await ai.adminRequest('/api/v1/admin/console/providers');
+                    data.providers = (data.providers || []).map(p => p.key === req.params.key ? { ...p, last_check: result } : p);
+                    return page(req, res, 'providers', data);
+                }
+            }
             else if (action === 'sync') {
                 await ai.adminRequest(`/api/v1/admin/console/providers/${key}/sync`, { method: 'POST', subject: req.viewer.subject });
                 return res.redirect(303, `/console/providers/${key}/models`);

@@ -72,7 +72,7 @@ function providerCard(p, models) {
   ${p.key_present || keyState.source === 'stored' ? `<form method="post" action="/console/providers/${key}/remove-key"><button class="ovk-btn ovk-btn--quiet" type="submit">Remove key and disable</button></form>` : ''}`;
     const keyForm = `${p.keys_url ? `<p><a href="${esc(p.keys_url)}" rel="noopener noreferrer" target="_blank">Create or find your API key</a>. Paste it below, save it, then Check provider to list the models it can use.</p>` : ''}<form class="exc-form exc-form--key" method="post" action="/console/providers/${key}/key">
   <label><span>${p.key_present ? 'Replace the key' : 'Add the key'}</span><input name="api_key" type="password" autocomplete="off" minlength="8" maxlength="400" required placeholder="Paste the provider's API key"><small>Stored sealed and bound to ${esc(host(p.base_url) || 'this provider')}; never shown again.</small></label>
-  <p class="exc-actions">${btn(p.key_present ? 'Replace key' : 'Save key')}</p>
+  <p class="exc-actions"><button class="ovk-btn ovk-btn--quiet" type="submit" formaction="/console/providers/${key}/check">Check pasted key</button> ${btn(p.key_present ? 'Replace key' : 'Save key')}</p>
 </form>`;
     const modelActions = p.metadata?.models_endpoint || ['openai', 'anthropic', 'responses', 'gemini'].includes(p.kind) ? `
   <p><a href="/console/providers/${key}/models">Models</a> · <a href="/console/sync">Sync log</a></p>
