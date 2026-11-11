@@ -22,6 +22,7 @@ function analysisPaths(config) {
     const query = (name) => ({ name, in: 'query', schema: { type: 'string' } });
     const param = (name) => ({ name, in: 'path', required: true, schema: { type: 'string' } });
     return {
+        '/api/v1/search': { get: { operationId: 'exchange.catalog.search', summary: 'Find models and provider offers by name, task, capability, price and speed', security: [], servers: [{ url: config.baseUrl }], parameters: ['q', 'provider', 'capability', 'min_price', 'max_price', 'max_speed_ms', 'sort'].map(query), responses: { '200': { description: 'Catalog matches with price, measured speed and optional Bench quality rating' }, '400': { description: 'Invalid filter' }, '503': { description: 'Catalog unavailable' } } } },
         '/api/v1/analysis/compare': make('exchange.analysis.compare', ['models', 'measures', 'kind', 'day', 'rating_kind'].map(query)),
         '/api/v1/analysis/models/{model}': make('exchange.analysis.model', [param('model'), query('days'), query('rating_kind')]),
         '/api/v1/analysis/ratings/{kind}': make('exchange.analysis.ratings', [param('kind')]),

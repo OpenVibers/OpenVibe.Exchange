@@ -34,6 +34,19 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(!family.text.includes('Llama 3 8B'));
         });
 
+        await check('public search returns filtered offers and the models page uses the same query', async () => {
+            const api = await t.get('/api/v1/search?q=DeepInfra&max_price=0.5');
+            assert.strictEqual(api.status, 200, api.text);
+            const body = api.json();
+            assert.strictEqual(body.count, 1);
+            assert.strictEqual(body.results[0].provider, 'DeepInfra');
+            assert.strictEqual(body.results[0].price.out, 0.3);
+            const page = await t.get('/models?q=DeepInfra&max_price=0.5');
+            assert.strictEqual(page.status, 200);
+            assert.ok(page.text.includes('DeepSeek Chat') && page.text.includes('Quality'));
+            assert.ok(!page.text.includes('Qwen3 32B'));
+        });
+
         await check('a model at /models/…: the same page, with first token, errors and How it ranks', async () => {
             const r = await t.get('/models/deepseek%2Fdeepseek-chat');
             assert.strictEqual(r.status, 200);

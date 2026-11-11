@@ -43,7 +43,7 @@ function results(list) {
     if (!list.length) return '';
     return `<div class="xs-results">${list.map((x) => `<section class="xs-result"><h3>${esc(nameOf({ id: x.engine }))}</h3>${x.error
         ? `<p class="xs-note">${esc(x.error)}</p>`
-        : `<p class="xs-receipt">${esc(Number(x.receipt.cost_usd) ? `$${Number(x.receipt.cost_usd)}` : 'Free')} · ${Number(x.receipt.time_ms)} ms</p><ol>${x.results.map((r) => `<li><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">${esc(r.title)}</a>${r.snippet || r.attribution ? `<p>${esc(r.snippet || r.attribution)}</p>` : ''}</li>`).join('') || '<li class="xs-note">Nothing found.</li>'}</ol>`}</section>`).join('')}</div>`;
+        : `<p class="xs-receipt">${esc(Number(x.receipt.cost_usd) ? `$${Number(x.receipt.cost_usd)}` : 'Free')} · ${Number(x.receipt.time_ms)} ms</p><ol>${x.results.map((r) => `<li><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">${esc(r.title)}</a>${r.snippet || r.attribution ? `<p>${esc(r.snippet || r.attribution)}</p>` : ''}${r.thumbnail ? `<img src="${esc(r.thumbnail)}" alt="" loading="lazy" width="160">` : ''}${r.source_page ? `<details><summary>Source and usage</summary><p><a href="${esc(r.source_page)}" rel="noopener noreferrer">Source page</a>${r.author ? ` · ${esc(r.author)}` : ''}${r.license ? ` · ${r.license_url ? `<a href="${esc(r.license_url)}" rel="noopener noreferrer">${esc(r.license)}</a>` : esc(r.license)}` : ' · Reuse rights unknown'}${r.width && r.height ? ` · ${Number(r.width)} × ${Number(r.height)} px` : ''}${r.published ? ` · ${esc(r.published)}` : ''}</p></details>` : ''}</li>`).join('') || '<li class="xs-note">Nothing found.</li>'}</ol>`}</section>`).join('')}</div>`;
 }
 
 function searchPage({ engines = [], found = [], query = {} } = {}) {
@@ -58,6 +58,11 @@ function searchPage({ engines = [], found = [], query = {} } = {}) {
         + `<section class="xs-try"><h2>Try two engines</h2><form method="post" action="/search" class="xs-form">`
         + `<label class="xs-field xs-field--wide"><span>Search for</span><input name="q" required maxlength="500" placeholder="open source live streaming" value="${esc(query.q || '')}"></label>`
         + `<label class="xs-field"><span>Kind</span><select name="kind">${KINDS.map(([k, l]) => `<option value="${k}"${query.kind === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>`
+        + `<label class="xs-field"><span>Size</span><select name="size"><option value="">Any</option>${['small', 'medium', 'large'].map((v) => `<option value="${v}"${query.size === v ? ' selected' : ''}>${v}</option>`).join('')}</select></label>`
+        + `<label class="xs-field"><span>Color</span><select name="color"><option value="">Any</option>${['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'black_and_white'].map((v) => `<option value="${v}"${query.color === v ? ' selected' : ''}>${v.replace('_', ' ')}</option>`).join('')}</select></label>`
+        + `<label class="xs-field"><span>Type</span><select name="type"><option value="">Any</option>${['photo', 'illustration', 'vector'].map((v) => `<option value="${v}"${query.type === v ? ' selected' : ''}>${v}</option>`).join('')}</select></label>`
+        + `<label class="xs-field"><span>License</span><input name="license" value="${esc(query.license || '')}" placeholder="cc0"></label>`
+        + `<label class="xs-field"><span>After</span><input name="after" type="date" value="${esc(query.after || '')}"></label>`
         + `${pick('first', 'First engine', 0)}${pick('second', 'Second engine', 1)}`
         + `<p class="xs-go">${kit.button({ label: 'Compare', type: 'submit' })}</p></form>${results(found)}</section>`
         + `<p class="xs-note">Pictures come with their licence and author: keep the attribution line with each one. With your own engine key a search costs the engine's price and nothing more.</p></div>`;
