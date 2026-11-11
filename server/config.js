@@ -77,7 +77,7 @@ function load(env = process.env) {
         // person — their own Bearer on the wire, their allowance. The wait bounds one page POST; a turn still
         // running then is reconciled on the next view.
         actor: {
-            url: trim(env.OV_ACTOR_URL || 'https://actor.openvibe.services'),
+            url: trim(env.OV_ACTOR_URL || 'https://openvibe.actor'),
             timeoutMs: Math.max(2000, int(env.EXCHANGE_ACTOR_TIMEOUT_MS, 15_000)),
             waitMs: Math.max(5000, int(env.EXCHANGE_ACTOR_WAIT_MS, 90_000)),
             pollMs: Math.max(500, int(env.EXCHANGE_ACTOR_POLL_MS, 2000)),
