@@ -277,6 +277,26 @@ async function createApp(opts = {}) {
         }
     });
 
+    // Public model directory reader. The site and SDK clients share the same live catalog.
+    app.get('/api/v1/models', async (req, res) => {
+        const catalog = await ai.catalog();
+        if (catalog.unavailable) return res.status(503).json({ error: 'catalog_unavailable' });
+        const q = String(req.query.q || '').toLowerCase().slice(0, 120);
+        const provider = String(req.query.provider || '').toLowerCase().slice(0, 80);
+        const models = (catalog.models || []).filter(m => (!q || `${m.name} ${m.slug} ${m.family}`.toLowerCase().includes(q))
+            && (!provider || (m.offers || []).some(o => String(o.provider || o.provider_key || '').toLowerCase() === provider)));
+        return res.set('Cache-Control', 'public, max-age=30').json({ count: models.length, models });
+    });
+    const modelDirectoryDetail = async (req, res) => {
+        const catalog = await ai.catalog();
+        if (catalog.unavailable) return res.status(503).json({ error: 'catalog_unavailable' });
+        const id = (req.params.id || `${req.params.org}/${req.params.model}`).toLowerCase();
+        const model = (catalog.models || []).find(m => m.slug === id);
+        return model ? res.set('Cache-Control', 'public, max-age=30').json({ model }) : res.status(404).json({ error: 'model_not_found' });
+    };
+    app.get('/api/v1/models/:id', modelDirectoryDetail);
+    app.get('/api/v1/models/:org/:model', modelDirectoryDetail);
+
     // ── Compare's JSON API (openvibe.compare) ───────────────
     // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
     app.use('/api/v1/compare', createCompareApi(ctx));
