@@ -84,6 +84,18 @@ function listSaid(xs) {
  * nothing, Anonymized when it declares a policy that is weaker, Community for a person's machine. An offer that
  * declares nothing is Standard. "No training" is said as that when the provider promises only that.
  */
+/** The tier, the latency class and the free allowance of one offer, in words (AI reads them from the provider). */
+function tierOf(offer) { return offer && offer.service_tier === 'flex' ? 'Flex' : null; }
+function latencyOf(offer) {
+    const c = offer && offer.latency_class;
+    return Array.isArray(c) && c.length && !(c.length === 1 && c[0] === 'interactive') ? c.join('/') : null;
+}
+function freeAllowanceOf(offer) {
+    const a = offer && offer.free_allowance;
+    if (!a || a.ended || !(a.left > 0)) return null;
+    return `${count(a.left)} free tokens left${a.ends_at ? ' until ' + String(a.ends_at).slice(0, 10) : ''}`;
+}
+
 function privacyOf(offer) {
     if (!offer) return null;
     if (offer.trust === 'community') return { label: 'Community', kind: 'accent', short: 'Community' };
@@ -159,6 +171,9 @@ function modelRow(m, { withTry = true } = {}) {
     if (refuses) bits.push(refuses);
     const pv = privacyOf(best || m.offers[0]);
     if (pv) bits.push(pv.short);
+    if (best && tierOf(best)) bits.push(tierOf(best));
+    if (best && latencyOf(best)) bits.push(latencyOf(best) + ' only');
+    if (best && freeAllowanceOf(best)) bits.push(freeAllowanceOf(best));
     return `<li class="ex-mrow">
 <a class="ex-mrow-main" href="${hrefOf(m)}">${mark(familyLabel(m))}<span class="ex-mrow-text"><span class="ex-mrow-title"><b>${esc(m.name)}</b>${badgesOf(m, best)}</span><small>${bits.map((b) => esc(b)).join(' · ')}</small></span></a>
 ${withTry ? `<a class="ex-try-link" href="${chatModel(m)}">Try it</a>` : ''}
@@ -344,12 +359,14 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         return {
             provider: `<a class="ex-offer-name" href="#try">${esc(providerLabel(o))}</a> ${communityBadge}${freeTier(o) ? ` ${kit.badge('Free to try')}` : (freePaused(o) ? ` ${kit.badge('Free paused')}` : '')}`,
             status: statusCell(o),
-            price: o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}${o.fixed_price ? ` ${kit.badge('Fixed price')}` : ''}` : '<span class="ex-muted">free capacity</span>',
+            price: (o.price ? `<b>${money(o.price.in)}</b> / ${money(o.price.out)}${o.fixed_price ? ` ${kit.badge('Fixed price')}` : ''}` : '<span class="ex-muted">free capacity</span>')
+                + (tierOf(o) ? `<br>${kit.badge(tierOf(o), 'accent')}` : '')
+                + (freeAllowanceOf(o) ? `<br><small>${esc(freeAllowanceOf(o))}</small>` : ''),
             speed: `${ms(o.speed.p50_ms)} <small>p50</small> · ${ms(o.speed.p95_ms)} <small>p95</small>`,
             first: o.speed && o.speed.ttft_ms != null ? ms(o.speed.ttft_ms) : '–',
             uptime: o.uptime == null ? '–' : pct(o.uptime),
             errors: o.error_rate == null ? '–' : pct(o.error_rate),
-            privacy: `${p ? kit.badge(p.label, p.kind) : ''}${refuses ? `<br><small>${esc(refuses)}</small>` : ''}` || '–',
+            privacy: `${p ? kit.badge(p.label, p.kind) : ''}${refuses ? `<br><small>${esc(refuses)}</small>` : ''}${latencyOf(o) ? `<br><small>${esc(latencyOf(o))} only</small>` : ''}` || '–',
             policy: policyText(o.data_policy),
             try: `<a class="ex-mini" href="${chatModel(model)}">Try it</a>`,
         };
@@ -515,6 +532,8 @@ ${switchBox}
 <p class="ex-prose">Chat completions and Messages accept <code>provider.order</code>, <code>only</code>, <code>ignore</code>, <code>allow_fallbacks</code>, <code>sort</code>, <code>max_price</code>, <code>data_collection</code> and <code>zdr</code>. Put model fallbacks in <code>models: ["maker/first", "maker/backup"]</code>. All attempts share one request hold; an <code>Idempotency-Key</code> replay does not charge again.</p>
 <p class="ex-prose">Sort by <code>price</code>, <code>throughput</code>, <code>latency</code>, <code>quality</code> or <code>value</code>. Quality uses the Bench board rating shown by Report; value is rating per dollar. Offers without the required evidence are excluded. Ratings arrive through the existing Bench event feed; provisional ratings are excluded. Speed uses observed decode throughput or time to first token.</p>
 <p class="ex-prose"><code>max_price: {"prompt": 1, "completion": 2}</code> caps dollars per million tokens. <code>data_collection: "deny"</code> requires no training; <code>zdr: true</code> requires no retention. Unknown facts cannot satisfy a hard limit. Append <code>:free</code>, <code>:floor</code> or <code>:nitro</code> to require zero prices, prefer the lowest price, or prefer measured throughput. Explicit provider credentials and only-my-keys mode cannot currently combine with these routing controls.</p>
+<h3 class="ex-h3" id="tiers">Service tier and data policy</h3>
+<p class="ex-prose">Send <code>service_tier: "flex"</code> on Chat Completions or Messages to ask for the provider's slower, cheaper Flex tier: the request runs in the background class, and the answer says which tier really ran. Send <code>data_policy: "private"</code> to keep the prompt off every provider that trains on or retains it (the router refuses rather than fall back to one); <code>"anonymized"</code> marks work that is not sensitive, and <code>"community"</code> allows a person's machine.</p>
 <h3 class="ex-h3">Request accounting</h3>
 <p class="ex-prose"><code>usage: {"include": true}</code> adds cost in dollars, latency in milliseconds and provider to token usage. Look up your own request with <code>GET /v1/generation?id=&lt;response-id&gt;</code>. A different owner receives 404.</p>
 <h3 class="ex-h3">Saved request presets</h3>

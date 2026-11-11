@@ -45,6 +45,13 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.strictEqual((await t.get('/models/nope%2Fnope')).status, 404);
         });
 
+        await check('an offer shows its tier, its latency class and the free allowance left', async () => {
+            const r = await t.get('/models/deepseek%2Fdeepseek-chat');
+            assert.ok(r.text.includes('Flex'), 'the Flex tier is named');
+            assert.ok(r.text.includes('60 free tokens left'), 'the free allowance left is named');
+            assert.ok(r.text.includes('background/batch only'), 'the latency class is named');
+        });
+
         await check('one model: every offer, its price, speed, uptime, data policy, Try it, curl and SDK', async () => {
             const r = await t.get('/m/deepseek/deepseek-chat');
             assert.strictEqual(r.status, 200, r.text);
