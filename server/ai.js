@@ -61,12 +61,12 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
 
     /** Owner console calls to AI's JSON admin API. No HTML is fetched or relayed. */
-    async function adminRequest(path, { method = 'GET', body = null, subject = null } = {}) {
+    async function adminRequest(path, { method = 'GET', body = null, subject = null, role = null } = {}) {
         if (!adminTokens) throw Object.assign(new Error('AI console service credentials are not configured'), { status: 503 });
         const token = await adminTokens.getToken();
         const res = await fetchImpl(`${config.ai.url}${path}`, {
             method,
-            headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(subject ? { 'X-OV-Subject': String(subject) } : {}), ...(body == null ? {} : { 'Content-Type': 'application/json' }) },
+            headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(subject ? { 'X-OV-Subject': String(subject) } : {}), ...(role ? { 'X-OV-Role': String(role) } : {}), ...(body == null ? {} : { 'Content-Type': 'application/json' }) },
             ...(body == null ? {} : { body: JSON.stringify(body) }),
             signal: AbortSignal.timeout(config.ai.timeoutMs),
         });

@@ -8,6 +8,7 @@ const { defaultsPage } = require('../views/task-defaults');
 
 const READS = Object.freeze({
     supply: '/api/v1/admin/console/supply',
+    'gpu-policy': '/api/v1/admin/console/gpu-policy',
     overview: '/api/v1/admin/console/overview', providers: '/api/v1/admin/console/providers', models: '/api/v1/admin/console/models', routes: '/api/v1/routes',
     templates: '/api/v1/templates', workflows: '/api/v1/workflows', runs: '/api/v1/admin/console/runs', quotas: '/api/v1/admin/console/quotas',
     usage: '/api/v1/admin/console/usage', cache: '/api/v1/admin/console/cache', audit: '/api/v1/admin/console/audit',
@@ -147,6 +148,33 @@ function createConsoleRoutes({ config, ai }) {
         for (const k of ['input_per_million','output_per_million','hourly_ceiling_usd','monthly_ceiling_usd','required_vram_mb','idle_minutes']) body[k] = Number(req.body[k]);
         try { await ai.adminRequest('/api/v1/admin/console/supply', { method:'POST', subject:req.viewer.subject, body }); return res.redirect(303,'/console/supply'); }
         catch (err) { return page(req,res,'supply',{},err.message || 'Supply settings could not be saved.',err.status === 409 || err.status === 422 ? err.status : 502); }
+    });
+    r.post('/console/gpu-policy/:scope', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const scope = String(req.params.scope || '');
+        const input = req.body || {};
+        const body = {};
+        for (const key of ['enabled', 'interruptible_allowed', 'quote_only']) if (Object.hasOwn(input, key)) body[key] = input[key] === '1';
+        for (const key of ['order', 'max_replicas', 'monthly_cap_share_percent']) if (Object.hasOwn(input, key)) body[key] = Number(input[key]);
+        for (const key of ['monthly_cap_nano', 'interactive_cap_nano', 'batch_cap_nano', 'max_hourly_nano']) if (Object.hasOwn(input, key)) body[key] = input[key] || null;
+        if (Object.hasOwn(input, 'classes')) body.classes = String(input.classes).split(',').map(x => x.trim()).filter(Boolean);
+        if (Object.hasOwn(input, 'regions')) body.regions = String(input.regions).split(',').map(x => x.trim()).filter(Boolean);
+        try {
+            await ai.adminRequest(`/api/v1/admin/console/gpu-policy/${encodeURIComponent(scope)}`, {
+                method: 'POST', subject: req.viewer.subject, role: req.viewer.role, body,
+            });
+            return res.redirect(303, '/console/supply');
+        } catch (err) { return page(req, res, 'supply', {}, err.message || 'GPU supply policy could not be saved.', err.status === 422 ? 422 : 502); }
+    });
+    r.post('/console/gpu-policy/:scope/key', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            await ai.adminRequest(`/api/v1/admin/console/gpu-policy/${encodeURIComponent(req.params.scope)}/key`, {
+                method: 'POST', subject: req.viewer.subject, role: req.viewer.role,
+                body: { api_key: String(req.body.api_key || '') },
+            });
+            return res.redirect(303, '/console/supply');
+        } catch (err) { return page(req, res, 'supply', {}, err.message || 'GPU provider key could not be saved.', err.status === 422 ? 422 : 502); }
     });
     r.post('/console/providers', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
