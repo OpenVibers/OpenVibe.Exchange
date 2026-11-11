@@ -62,7 +62,9 @@ function searchPage({ engines = [], found = [], query = {} } = {}) {
     }).join('');
     const kind = KINDS.some(([k]) => k === query.kind) ? query.kind : 'web';
     // The engines in each list grouped by what they find; the first two that work are picked unless the search named some.
-    const ready = engines.filter((e) => e.available !== false);
+    // The first two that work for the chosen kind (Web picked two picture engines when those came first in AI's list).
+    const forKind = (e) => !Array.isArray(e.kinds) || e.kinds.includes(kind);
+    const ready = [...engines.filter((e) => e.available !== false && forKind(e)), ...engines.filter((e) => e.available !== false && !forKind(e))];
     const defaults = [query.first || (ready[0] || engines[0] || {}).id, query.second || (ready[1] || engines[1] || {}).id];
     const pick = (field, label, chosen) => `<label class="xs-field"><span>${label}</span><select name="${field}">${KINDS.map(([k, l]) => {
         const rows = engines.filter((e) => (Array.isArray(e.kinds) ? e.kinds[0] === k : k === 'web'));

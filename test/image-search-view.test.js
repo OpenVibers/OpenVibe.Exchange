@@ -10,4 +10,9 @@ assert.ok(html.includes('Source and usage'));
 assert.ok(html.includes('Reuse rights unknown') === false);
 assert.ok(html.includes('2400 × 1600 px'));
 assert.ok(html.includes('name="color"') && html.includes('name="after"'));
+// The default engines follow the kind: Web picks the first two working web engines even when picture engines come first.
+const E = (id, kinds, available = true) => ({ id, kinds, available, price_per_1000: 0 });
+const web = searchPage({ engines: [E('searxng', ['web'], false), E('openverse', ['images']), E('commons', ['images']), E('openvibe', ['web']), E('deepseek', ['web'])] });
+assert.match(web, /name="first">[\s\S]*?value="openvibe" selected/);
+assert.match(web, /name="second">[\s\S]*?value="deepseek" selected/);
 process.stdout.write('image search view passed\n');
