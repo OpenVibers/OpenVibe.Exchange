@@ -69,6 +69,8 @@ function createFakeAi({ chat = null, community = [] } = {}) {
         by_product: [{ product: 'live', requests: 30, tokens_in: 3000, tokens_out: 800, cost_usd: 0.005, models: [{ provider: 'deepseek', model: 'deepseek-chat', requests: 30 }] }],
     };
     const communityData = { generated_at: '2026-11-06T09:00:00.000Z', offers: community };
+    const deepDives = new Map();
+    const deepDiveCalls = [];
     return {
         calls,
         configured: true,
@@ -91,6 +93,24 @@ function createFakeAi({ chat = null, community = [] } = {}) {
                 { id: 'iconify', kinds: ['icons'], price_per_1000: 0, byok: false, available: true, healthy: true },
             ];
         },
+        // Deep dives (AI workflow design.deep_dive): a small in-memory run the page tests drive.
+        async deepDiveDepths() {
+            return { depths: [
+                { key: 'quick', label: 'Quick', sites: 6, price_usd: 0.2, minutes: 3, analysis: 'captures and reads each site' },
+                { key: 'thorough', label: 'Thorough', sites: 15, price_usd: 0.5, minutes: 8, analysis: 'more sites' },
+                { key: 'expert', label: 'Expert', sites: 30, price_usd: 1.2, minutes: 18, analysis: 'plus interactions, accessibility and speed' },
+            ], capture: { enabled: true } };
+        },
+        async deepDiveCreate({ question, depth, sites = [], subject }) {
+            deepDives.set('run_TEST', { id: 'run_TEST', run_id: 'run_TEST', question, depth, price_usd: 0.2, status: 'running', step: 'plan', progress: 0.03, steps: [], candidates: [], captures: [], report: null, error: null, owner: { type: 'user', id: subject || 'usr_TEST' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+            return { deep_dive: deepDives.get('run_TEST') };
+        },
+        async deepDiveGet(id) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); return { deep_dive: row }; },
+        async deepDiveState(id) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); return { deep_dive: { id: row.id, status: row.status, step: row.step, progress: row.progress, steps: row.steps, candidates: row.candidates, captures: row.captures, error: row.error } }; },
+        async deepDiveSites(id, body) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); deepDiveCalls.push({ id, body }); row.candidates = row.candidates.filter((c) => !(body.drop || []).includes(c.url)); for (const url of body.add || []) row.candidates.push({ id: 'site_x', url, title: url, reason: 'added' }); row.status = 'running'; return { deep_dive: row }; },
+        async deepDiveCancel(id) { const row = deepDives.get(id); if (row) { row.status = 'cancelled'; } deepDiveCalls.push({ id, cancel: true }); return { deep_dive: row }; },
+        async deepDiveShot() { return { buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'), contentType: 'image/png' }; },
+        deepDives, deepDiveCalls,
         async catalog() { return catalog; },
         async usage() { return usage; },
         async communityOffers() { return communityData; },
