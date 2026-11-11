@@ -178,7 +178,9 @@ function createPageRoutes(ctx) {
         return page(req, res, {
             index: true, cache: req.method === 'GET' ? PUBLIC_CACHE : null, agentLayer: true,
             title: model.name, description: `${model.name}: price, speed, uptime and data policy of every offer.`,
-            jsonLd: [jsonLd], head: '',
+            jsonLd: [jsonLd, { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: model.name,
+                url: `${config.baseUrl}${modelPath(model)}`, description: `${model.name}: context, model limits, price and available providers.`,
+                applicationCategory: 'DeveloperApplication' }], head: '',
             body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis })),
         }, status);
     }

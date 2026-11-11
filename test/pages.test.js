@@ -51,6 +51,18 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.strictEqual(twin.status, 200, twin.text);
             assert.ok(twin.text.includes('Gemini Old'));
         });
+        await check('public directory JSON and model structured data match the catalog', async () => {
+            const list = await t.get('/api/v1/models?q=deepseek');
+            assert.strictEqual(list.status, 200, list.text);
+            assert.ok(list.json().models.some(m => m.slug === 'deepseek/deepseek-chat'));
+            const one = await t.get('/api/v1/models/deepseek/deepseek-chat');
+            assert.strictEqual(one.status, 200, one.text);
+            assert.strictEqual(one.json().model.slug, 'deepseek/deepseek-chat');
+            assert.strictEqual((await t.get('/api/v1/models/deepseek%2Fdeepseek-chat')).json().model.slug, 'deepseek/deepseek-chat');
+            assert.strictEqual((await t.get('/api/v1/models/nope/nope')).status, 404);
+            const html = await t.get('/m/deepseek/deepseek-chat');
+            assert.ok(html.text.includes('schema.org') && html.text.includes('SoftwareApplication'));
+        });
 
         await check('public search returns filtered offers and the models page uses the same query', async () => {
             const api = await t.get('/api/v1/search?q=DeepInfra&max_price=0.5');

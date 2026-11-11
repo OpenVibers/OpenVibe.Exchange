@@ -277,21 +277,28 @@ async function createApp(opts = {}) {
         }
     });
 
+    // Registry rows stay discoverable when an offer is off; live offers enrich the same public row.
+    const directoryRows = async () => {
+        const [directory, catalog] = await Promise.all([ai.directory(), ai.catalog()]);
+        if (directory.unavailable) return null;
+        const live = new Map((catalog.models || []).map(m => [m.slug, m]));
+        return directory.models.map(m => ({ ...m, slug: m.id, offers: live.get(m.id)?.offers || [] }));
+    };
     app.get('/api/v1/models', async (req, res) => {
-        const directory = await ai.directory();
-        if (directory.unavailable) return res.status(503).json({ error: 'directory_unavailable' });
-        const models = require('./model-directory').select(directory.models, req.query);
+        const rows = await directoryRows();
+        if (!rows) return res.status(503).json({ error: 'directory_unavailable' });
+        const models = require('./model-directory').select(rows, req.query);
         return res.set('Cache-Control', 'public, max-age=30').json({ count: models.length, models });
     });
-    const directoryDetail = async (req, res) => {
-        const directory = await ai.directory();
-        if (directory.unavailable) return res.status(503).json({ error: 'directory_unavailable' });
+    const modelDirectoryDetail = async (req, res) => {
+        const rows = await directoryRows();
+        if (!rows) return res.status(503).json({ error: 'directory_unavailable' });
         const id = (req.params.id || `${req.params.org}/${req.params.model}`).toLowerCase();
-        const model = directory.models.find(m => m.id.toLowerCase() === id);
+        const model = rows.find(m => m.id.toLowerCase() === id);
         return model ? res.set('Cache-Control', 'public, max-age=30').json({ model }) : res.status(404).json({ error: 'model_not_found' });
     };
-    app.get('/api/v1/models/:id', directoryDetail);
-    app.get('/api/v1/models/:org/:model', directoryDetail);
+    app.get('/api/v1/models/:id', modelDirectoryDetail);
+    app.get('/api/v1/models/:org/:model', modelDirectoryDetail);
 
     // ── Compare's JSON API (openvibe.compare) ───────────────
     // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
