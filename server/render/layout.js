@@ -52,16 +52,25 @@ function renderPage(o) {
     const signedIn = viewer.kind === 'user';
     const pathNow = o.path || '/';
     const loginNext = encodeURIComponent(pathNow);
-    const canonical = `${o.config.baseUrl}${pathNow.split('?')[0]}`;
+    // A page may belong to a site served by this process behind another name (openvibe.compare): its own name,
+    // home, nav and canonical base, while the sign-in, the assets and the theme stay this service's.
+    const site = o.site || {};
+    const siteName = site.name || SITE_NAME;
+    const siteTagline = site.tagline || TAGLINE;
+    const siteHome = site.home || '/';
+    const siteNav = Array.isArray(site.nav) ? site.nav : NAV;
+    const siteBase = String(site.baseUrl || o.config.baseUrl).replace(/\/+$/, '');
+    const siteService = site.service || 'exchange';
+    const canonical = o.canonical || `${siteBase}${pathNow.split('?')[0]}`;
     const nav = {
-        service: 'exchange',
+        service: siteService,
         apiBase: NETWORK_URL,
         links: [
-            ...NAV.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
+            ...siteNav.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
             ...(signedIn ? [{ label: 'Dashboard', href: '/dashboard', icon: 'fa-key', active: active(pathNow, '/dashboard') }] : []),
             ...(viewer.role === 'owner' ? [{ label: 'AI console', href: '/console', icon: 'fa-sliders', active: active(pathNow, '/console') }] : []),
         ],
-        history: { type: 'page', title: o.title || SITE_NAME },
+        history: { type: 'page', title: o.title || siteName },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,
         sessionUrl: '/auth/me',
         tokenUrl: '/auth/navbar-token',
@@ -69,28 +78,28 @@ function renderPage(o) {
         logoutUrl: '/auth/logout?next={path}',
         notificationsRealtime: true,
     };
-    const footer = { service: 'exchange', variant: 'full', mount: '#ov-footer', brandName: SITE_NAME };
+    const footer = { service: siteService, variant: 'full', mount: '#ov-footer', brandName: siteName };
     const account = signedIn
         ? `Signed in as <strong>${esc(viewer.displayName || viewer.username || 'you')}</strong> · <a href="/auth/logout?next=${loginNext}">Sign out</a>`
         : `<a href="/auth/login?next=${loginNext}">Sign in with OpenVibe</a>`;
     return shell.page({
-        name: SITE_NAME,
+        name: siteName,
         lang: 'en',
-        title: o.title || `${SITE_NAME}: ${TAGLINE}`,
-        titleSuffix: o.title ? ` · ${SITE_NAME}` : '',
-        siteName: SITE_NAME,
-        description: o.description || `${SITE_NAME} — ${TAGLINE} Every model's price, speed and uptime, live; one OpenAI-compatible endpoint; chat with one model or three side by side.`,
+        title: o.title || `${siteName}: ${siteTagline}`,
+        titleSuffix: o.title ? ` · ${siteName}` : '',
+        siteName,
+        description: o.description || `${siteName} — ${siteTagline} Every model's price, speed and uptime, live; one OpenAI-compatible endpoint; chat with one model or three side by side.`,
         canonical,
         agentLayer: Boolean(o.agentLayer),
         robots: o.index === false ? 'noindex, nofollow' : 'index, follow',
         jsonLd: (o.jsonLd || []).filter(Boolean),
-        home: '/',
-        navLinks: NAV,
+        home: siteHome,
+        navLinks: siteNav,
         bodyClass: o.bodyClass || (o.app ? 'ex-app' : undefined),
         navbar: nav,
         footer,
         head: `<meta name="referrer" content="strict-origin-when-cross-origin">
-${appIcon.headTags({ site: 'exchange' })}
+${appIcon.headTags({ site: site.icon || 'exchange' })}
 <link rel="stylesheet" href="${ovServe.url('kit.css')}">
 <link rel="stylesheet" href="${ovServe.url('kit-data.css')}">
 <link rel="stylesheet" href="${ovServe.url('room.css')}">

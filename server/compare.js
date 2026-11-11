@@ -27,7 +27,7 @@ const QUALITY_KINDS = Object.freeze([
 const NOT_CHAT = new Set(['embedding', 'embeddings', 'stt', 'asr', 'tts', 'speech', 'image', 'images', 'rerank', 'moderation']);
 const KIND = 'ai.models';
 
-const finite = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+const finite = (v) => (v === null || v === undefined || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
 const iso = (v, fallback = null) => {
     if (!v) return fallback;
     const d = new Date(v);
