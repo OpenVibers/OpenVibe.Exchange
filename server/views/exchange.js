@@ -383,7 +383,7 @@ ${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` �
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
-<p class="ex-more"><a href="https://openvibe.compare/models/${String(model.slug).split('/').map(encodeURIComponent).join('/')}">Compare ${esc(model.name)} with another model →</a></p>
+<p class="ex-more"><a href="https://openvibe.compare/things/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model →</a></p>
 ${activityPanel(model.activity)}
 ${require('./analysis').modelFacts(analysis)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
