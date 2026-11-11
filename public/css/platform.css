@@ -327,16 +327,40 @@
 
 /* ── /search: engines by kind, the try form as a card, results side by side ── */
 .xs { padding-block: 32px 48px; display: grid; gap: 22px; }
-.xs-group h2, .xs-try h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 1.12rem; }
+.xs-list h2, .xs-try h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 1.12rem; }
+.xs-group h3 { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ovk-muted); }
+.xs-group:first-of-type h3 { margin-top: 0; }
 .xs-engines { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
-.xs-engine { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }
+.xs-engine { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px; padding: 10px 14px 10px 16px; border-top: 1px solid var(--ovk-line); }
 .xs-engine:first-child { border-top: 0; }
 .xs-engine.is-off { color: var(--ovk-muted); }
 .xs-engine-main { display: grid; gap: 2px; min-width: 0; }
 .xs-engine-main span { color: var(--ovk-muted); font-size: .86rem; }
 .xs-engine-price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .xs-try { padding: 18px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
-.xs-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; align-items: end; }
+/* The compare tool (Opus, 2026-11-11): the box and its button on one line, the kind as a segmented switch, the two
+   engines side by side with "vs" between, and the picture filters in one fold. */
+.xs-form { display: grid; gap: 14px; }
+.xs-q { display: flex; gap: 8px; min-width: 0; }
+.xs-q input { flex: 1; min-width: 0; min-height: 48px; box-sizing: border-box; padding: 10px 14px; border: 1px solid var(--ovk-line); border-radius: 12px; background: var(--ovk-bg, transparent); color: var(--ovk-text); font: inherit; }
+.xs-q input:focus-visible { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
+.xs-q .ovk-btn { min-height: 48px; flex: none; }
+.xs-kinds { display: inline-flex; justify-self: start; gap: 4px; margin: 0; padding: 4px; border: 1px solid var(--ovk-line); border-radius: 999px; background: var(--ovk-panel-2); min-width: 0; }
+.xs-kinds label { position: relative; display: inline-flex; }
+.xs-kinds input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.xs-kinds span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; font-size: .9rem; color: var(--ovk-muted); }
+.xs-kinds input:checked + span { background: color-mix(in srgb, var(--ovk-accent) 20%, transparent); color: var(--ovk-text); font-weight: 650; }
+.xs-kinds input:focus-visible + span { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
+.xs-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
+.xs-vs { padding-bottom: 12px; color: var(--ovk-muted); font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.xs-more { border: 1px solid var(--ovk-line); border-radius: 12px; }
+.xs-more > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 40px 0 14px; position: relative; cursor: pointer; list-style: none; font-weight: 600; font-size: .92rem; }
+.xs-more > summary::-webkit-details-marker { display: none; }
+.xs-more > summary small { margin-left: auto; color: var(--ovk-muted); font-weight: 400; font-size: .82rem; }
+.xs-more > summary::after { content: ""; position: absolute; right: 16px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-right: 2px solid var(--ovk-muted); border-bottom: 2px solid var(--ovk-muted); transform: rotate(45deg); transition: transform .18s ease; }
+.xs-more[open] > summary::after { transform: rotate(-135deg); margin-top: -1px; }
+.xs-more-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 4px 14px 14px; }
+.xs-list { display: grid; gap: 0; }
 .xs-field { display: grid; gap: 6px; min-width: 0; }
 .xs-field > span { font-weight: 600; font-size: .9rem; }
 .xs-field--wide { grid-column: 1 / -1; }
@@ -348,12 +372,25 @@
 .xs-result ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; }
 .xs-result li p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .86rem; overflow-wrap: anywhere; }
 .xs-receipt, .xs-note { margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+/* A result: its title as a link in the accent, the snippet under it, a picture's thumbnail rounded, and "Source and
+   usage" as a small fold. */
+.xs-result li > a { color: var(--ovk-text); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.xs-result li > a:hover { color: var(--ovk-accent); text-decoration: underline; }
+.xs-result li > img { display: block; max-width: 100%; height: auto; margin-top: 6px; border-radius: 8px; background: var(--ovk-panel); }
+.xs-result details { margin-top: 2px; }
+.xs-result details > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; list-style: none; color: var(--ovk-muted); font-size: .82rem; }
+.xs-result details > summary::-webkit-details-marker { display: none; }
+.xs-result details > summary::before { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s ease; }
+.xs-result details[open] > summary::before { transform: rotate(45deg); }
+.xs-result details p a { color: var(--ovk-accent); }
 @media (max-width: 760px) {
     .xs { padding-block: 20px 36px; }
     .xs-engine { grid-template-columns: minmax(0, 1fr) auto; }
     .xs-engine > .ovk-badge { grid-column: 2; }
-    .xs-form, .xs-results { grid-template-columns: minmax(0, 1fr); }
+    .xs-results { grid-template-columns: minmax(0, 1fr); }
     .xs-try { padding: 14px; }
+    .xs-more-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .xs-more-body > :last-child { grid-column: 1 / -1; }
 }
 /* Grid children never stretch the page for a long line (the head's subtitle widened /search to 514 px on a phone). */
 .xs > * { min-width: 0; }
@@ -365,3 +402,10 @@
 .xpr-list span { color: var(--ovk-muted); font-size: .92rem; }
 .xpr-note { margin: 12px 2px 0; color: var(--ovk-muted); font-size: .88rem; }
 @media (min-width: 760px) { .xpr-list li { grid-template-columns: minmax(200px, 1fr) 2fr; align-items: baseline; gap: 16px; } }
+@media (max-width: 520px) {
+    .xs-pair { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .xs-vs { display: none; }
+    .xs-q .ovk-btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .xs-q .ovk-btn { width: 48px; padding: 0; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .xs-more > summary::after { transition: none; } }
