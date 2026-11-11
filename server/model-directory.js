@@ -3,6 +3,30 @@ const { esc } = require('./render/html');
 
 const href = id => `/models/${encodeURIComponent(id)}`;
 const allowedStatus = new Set(['available', 'preview', 'spotted', 'retired']);
+function withLiveCatalog(directoryModels = [], catalogModels = []) {
+    const live = new Map(catalogModels.map(m => [m.slug, m]));
+    const rows = directoryModels.map(m => ({ ...m, slug: m.id, offers: live.get(m.id)?.offers || [] }));
+    const seen = new Set(rows.map(m => m.id));
+    for (const m of catalogModels) {
+        if (!m.slug || seen.has(m.slug)) continue;
+        const offers = Array.isArray(m.offers) ? m.offers : [];
+        const priced = offers.filter(o => o.price && Number.isFinite(Number(o.price.out)));
+        priced.sort((a, b) => Number(a.price.out) - Number(b.price.out));
+        const cheapest = priced[0];
+        const [provider, ...modelParts] = m.slug.split('/');
+        rows.push({
+            id: m.slug, slug: m.slug, provider, model: modelParts.join('/'), name: m.name || m.slug,
+            family: m.family || null, status: 'available', routing_enabled: offers.length > 0,
+            context_window: m.context ?? null, max_output: m.max_output ?? null, modalities: m.modalities || [],
+            price: { input_per_million: cheapest?.price?.in ?? null, output_per_million: cheapest?.price?.out ?? null,
+                cached_per_million: cheapest?.price?.cached ?? null, checked_at: cheapest?.updated_at || null,
+                source: null },
+            source: null, offers,
+        });
+        seen.add(m.slug);
+    }
+    return rows;
+}
 function select(models, query = {}) {
     const q = String(query.q || '').toLowerCase().slice(0, 120);
     const status = String(query.status || '').toLowerCase();
@@ -34,4 +58,4 @@ function directoryDetail(m) {
 ${m.retired_at ? `<dt>Retired</dt><dd>${esc(m.retired_at)}</dd>` : ''}</dl>
 ${m.sources?.length ? `<h2>Sources</h2><ul>${m.sources.map(s => `<li>${link(s.url)} · seen ${esc(s.observed_at || 'date not listed')}</li>`).join('')}</ul>` : ''}</div>`;
 }
-module.exports = { href, select, directoryList, directoryDetail };
+module.exports = { href, select, withLiveCatalog, directoryList, directoryDetail };
