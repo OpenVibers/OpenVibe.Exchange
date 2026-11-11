@@ -114,6 +114,14 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         }
     }
 
+    async function modelEvents() {
+        try {
+            const body = await get('/api/v1/exchange/model-events', 'model events');
+            if (!Array.isArray(body.events)) throw new Error('invalid model events');
+            return body;
+        } catch (err) { warned('model events', err); return { unavailable: true, count: 0, events: [] }; }
+    }
+
     /** AI's search engines (GET /api/v1/exchange/search/engines, public): ids, kinds, prices, availability. */
     let enginesHit = { at: 0, value: null };
     async function searchEngines() {
@@ -355,7 +363,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, directory, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
+    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
 }
 
 /**

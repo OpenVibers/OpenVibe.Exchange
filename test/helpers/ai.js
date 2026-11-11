@@ -79,6 +79,8 @@ function createFakeAi({ chat = null, community = [] } = {}) {
             { id: 'arena/anonymous-silver', provider: 'arena', model: 'anonymous-silver', name: 'anonymous-silver', status: 'spotted', routing_enabled: false,
                 first_seen_at: '2026-11-11T00:00:00Z', sources: [{ url: 'https://lmarena.ai/leaderboard/text', observed_at: '2026-11-11T00:00:00Z' }], price: {} },
         ] }; },
+        async modelEvents() { return { count: 1, events: [{ id: '42:added:gemini-new', type: 'model.added', provider: 'gemini',
+            model: 'gemini-new', occurred_at: '2026-11-11T00:00:00Z', sync_id: 42 }] }; },
         // AI's search engines as GET /api/v1/exchange/search/engines answers them.
         async searchEngines() {
             return [

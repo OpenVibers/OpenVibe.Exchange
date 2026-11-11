@@ -283,6 +283,11 @@ async function createApp(opts = {}) {
         if (directory.unavailable) return null;
         return require('./model-directory').withLiveCatalog(directory.models, catalog.models || []);
     };
+    app.get('/api/v1/model-events', async (_req, res) => {
+        const events = await ai.modelEvents();
+        return events.unavailable ? res.status(503).json({ error: 'model_events_unavailable' })
+            : res.set('Cache-Control', 'public, max-age=30').json(events);
+    });
     app.get('/api/v1/models', async (req, res) => {
         const rows = await directoryRows();
         if (!rows) return res.status(503).json({ error: 'directory_unavailable' });

@@ -178,7 +178,9 @@ ${Array.isArray(data.sync_log) ? syncSection(data) : ''}
 
 function syncSection(data = {}) {
     const rows = Array.isArray(data.sync_log) ? data.sync_log : [];
-    return `<table><caption>Model sync log</caption><thead><tr><th>Provider</th><th>Started</th><th>Status</th><th>Added</th><th>Updated</th><th>Gone</th><th>Error</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.provider_key)}</td><td>${esc(r.started_at)}</td><td>${esc(r.status)}</td><td>${esc(r.added)}</td><td>${esc(r.updated)}</td><td>${esc(r.missing)}</td><td>${esc(r.error_code || '')}</td></tr>`).join('')}</tbody></table>`;
+    const lines = (r, key, label) => Array.isArray(r[key]) && r[key].length
+        ? `<tr><td colspan="7"><details><summary>${esc(r.provider_key)} · ${r[key].length} ${label}</summary><ul>${r[key].map(model => `<li>${esc(label === 'new models' ? 'New model' : 'Retired model')}: <a href="/models/${encodeURIComponent(`${r.provider_key}/${model}`)}">${esc(model)}</a></li>`).join('')}</ul></details></td></tr>` : '';
+    return `<table><caption>Model sync log</caption><thead><tr><th>Provider</th><th>Started</th><th>Status</th><th>Added</th><th>Updated</th><th>Gone</th><th>Error</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.provider_key)}</td><td>${esc(r.started_at)}</td><td>${esc(r.status)}</td><td>${esc(r.added)}</td><td>${esc(r.updated)}</td><td>${esc(r.missing)}</td><td>${esc(r.error_code || '')}</td></tr>${lines(r, 'added_models', 'new models')}${lines(r, 'missing_models', 'retired models')}`).join('')}</tbody></table>`;
 }
 
 // ── Price book ──

@@ -72,6 +72,11 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             const html = await t.get('/m/deepseek/deepseek-chat');
             assert.ok(html.text.includes('schema.org') && html.text.includes('SoftwareApplication'));
         });
+        await check('public model event feed relays exact sync findings', async () => {
+            const r = await t.get('/api/v1/model-events');
+            assert.strictEqual(r.status, 200, r.text);
+            assert.strictEqual(r.json().events[0].model, 'gemini-new');
+        });
 
         await check('public search returns filtered offers and the models page uses the same query', async () => {
             const api = await t.get('/api/v1/search?q=DeepInfra&max_price=0.5');

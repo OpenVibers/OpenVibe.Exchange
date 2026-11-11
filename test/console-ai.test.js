@@ -1,7 +1,7 @@
 'use strict';
 // The owner console's designed AI sections (views/console-ai.js): providers, models and the price book.
 const assert = require('assert');
-const { providersSection, modelsSection, pricebookSection } = require('../server/views/console-ai');
+const { providersSection, modelsSection, pricebookSection, syncSection } = require('../server/views/console-ai');
 
 const secret = 'sk-live-never-on-a-page';
 const providers = [
@@ -67,4 +67,8 @@ assert.ok(many.includes('Accept all 4 prices') && many.includes('name="ids" valu
 assert.ok(many.includes('3 models from 2 providers: 2 new to OpenVibe'), 'the summary counts models and the new ones');
 assert.ok(many.includes('<s>$0.30</s><b>$0.22</b><i>-27%</i>'), 'a changed price shows old, new and the change');
 assert.ok(!/action="\/console\/pricebook\/changes\//.test(many), 'the waiting list decides through the grouped route');
-console.log('console-ai: providers, models and the price book passed');
+const sync = syncSection({ sync_log: [{ provider_key: 'gemini', started_at: '2026-11-11', status: 'succeeded',
+    added: 1, updated: 0, missing: 1, added_models: ['gemini-new'], missing_models: ['gemini-old'] }] });
+assert.ok(sync.includes('New model') && sync.includes('gemini-new') && sync.includes('Retired model') && sync.includes('gemini-old'));
+assert.ok(sync.includes('/models/gemini%2Fgemini-new'));
+console.log('console-ai: providers, models, sync events and the price book passed');
