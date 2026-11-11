@@ -93,8 +93,20 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         try {
             const body = await get('/api/v1/exchange/directory', 'model directory');
             if (!Array.isArray(body.models)) throw new Error('invalid model directory');
-            directoryHit = { at: now(), value: body };
-            return body;
+            let spots = [];
+            try {
+                const spotted = await get('/api/v1/exchange/spotted', 'spotted models');
+                spots = Array.isArray(spotted.models) ? spotted.models : [];
+            } catch { /* The listed directory works while the spotting service is unavailable. */ }
+            const listed = new Set(body.models.map(m => m.id));
+            const models = [...body.models, ...spots.filter(m => !listed.has(m.id)).map(m => ({
+                id: m.id, provider: m.provider, model: m.model, name: m.name, status: 'spotted',
+                routing_enabled: false, first_seen_at: m.first_seen_at, updated_at: m.last_seen_at,
+                source: m.sources?.[0]?.url || null, sources: m.sources || [], price: {},
+            }))];
+            const value = { ...body, models, count: models.length };
+            directoryHit = { at: now(), value };
+            return value;
         } catch (err) {
             warned('model directory', err);
             if (directoryHit.value && now() - directoryHit.at < 5 * 60_000) return { ...directoryHit.value, stale: true };

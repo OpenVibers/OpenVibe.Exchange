@@ -76,6 +76,8 @@ function createFakeAi({ chat = null, community = [] } = {}) {
             { id: 'deepseek/deepseek-chat', provider: 'deepseek', model: 'deepseek-chat', name: 'DeepSeek Chat', status: 'available', routing_enabled: true, context_window: 131072, price: { input_per_million: 0.2, output_per_million: 0.3 } },
             { id: 'google/gemini-preview', provider: 'google', model: 'gemini-preview', name: 'Gemini Preview', status: 'preview', routing_enabled: false, context_window: 1000000, price: { input_per_million: null, output_per_million: null, source: null } },
             { id: 'google/gemini-old', provider: 'google', model: 'gemini-old', name: 'Gemini Old', status: 'retired', routing_enabled: false, retired_at: '2026-11-10T00:00:00Z', price: {} },
+            { id: 'arena/anonymous-silver', provider: 'arena', model: 'anonymous-silver', name: 'anonymous-silver', status: 'spotted', routing_enabled: false,
+                first_seen_at: '2026-11-11T00:00:00Z', sources: [{ url: 'https://lmarena.ai/leaderboard/text', observed_at: '2026-11-11T00:00:00Z' }], price: {} },
         ] }; },
         // AI's search engines as GET /api/v1/exchange/search/engines answers them.
         async searchEngines() {

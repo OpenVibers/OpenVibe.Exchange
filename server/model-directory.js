@@ -31,6 +31,7 @@ function directoryDetail(m) {
 <dt>Input price</dt><dd>${esc(usd(price.input_per_million))}</dd><dt>Output price</dt><dd>${esc(usd(price.output_per_million))}</dd>
 <dt>Price checked</dt><dd>${esc(price.checked_at || 'Not listed')}</dd><dt>Price source</dt><dd>${link(price.source)}</dd>
 <dt>Model source</dt><dd>${link(m.source)}</dd><dt>First seen</dt><dd>${esc(m.first_seen_at || 'Not listed')}</dd>
-${m.retired_at ? `<dt>Retired</dt><dd>${esc(m.retired_at)}</dd>` : ''}</dl></div>`;
+${m.retired_at ? `<dt>Retired</dt><dd>${esc(m.retired_at)}</dd>` : ''}</dl>
+${m.sources?.length ? `<h2>Sources</h2><ul>${m.sources.map(s => `<li>${link(s.url)} · seen ${esc(s.observed_at || 'date not listed')}</li>`).join('')}</ul>` : ''}</div>`;
 }
 module.exports = { href, select, directoryList, directoryDetail };
