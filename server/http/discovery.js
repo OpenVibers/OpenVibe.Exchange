@@ -76,13 +76,18 @@ function createDiscoveryRoutes(ctx) {
     }
 
     async function modelPages() {
-        const catalog = await ai.catalog();
-        return (catalog.models || []).slice(0, 5000).map((m) => ({
+        const [catalog, directory] = await Promise.all([ai.catalog(), ai.directory?.() || { models: [] }]);
+        const active = new Set((catalog.models || []).map(m => m.slug));
+        return [...(catalog.models || []).slice(0, 5000).map((m) => ({
             path: `/m/${m.slug.split('/').map(encodeURIComponent).join('/')}`,
             title: m.name,
             text: `${m.family} · ${m.offers.length} offers${m.uncensored ? ' · 18+' : ''}`,
             changefreq: 'daily', priority: 0.7,
-        }));
+        })), ...(directory.models || []).filter(m => !active.has(m.id)).slice(0, 5000).map(m => ({
+            path: require('../model-directory').href(m.id), title: m.name,
+            text: `${m.provider_name || m.provider} · ${m.status} · ${m.context_window || 'unknown'} context`,
+            changefreq: m.status === 'retired' ? 'monthly' : 'daily', priority: 0.5,
+        }))];
     }
 
     r.get('/robots.txt', (_req, res) => {
@@ -95,7 +100,7 @@ function createDiscoveryRoutes(ctx) {
     r.get('/llms.txt', async (_req, res) => {
         let models = [];
         let characters = [];
-        try { models = (await ai.catalog()).models || []; } catch (e) { models = []; }
+        try { models = await modelPages(); } catch (e) { models = []; }
         try { characters = await characterPages(); } catch (e) { characters = []; }
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
@@ -117,10 +122,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'AI in OpenVibe', url: abs('/ai') },
                 ] },
                 { title: 'Characters', links: [{ title: 'The gallery', url: abs('/companions'), note: 'character cards' }, ...characters.slice(0, 40).map((c) => ({ title: c.title, url: abs(c.path), note: c.text }))] },
-                { title: 'Models', links: models.slice(0, 60).map((m) => ({
-                    title: m.name, url: abs(`/m/${m.slug.split('/').map(encodeURIComponent).join('/')}`),
-                    note: [m.family, m.uncensored ? '18+' : null, m.offers.length ? `${m.offers.length} offers` : null].filter(Boolean).join(' · '),
-                })) },
+                { title: 'Models', links: models.slice(0, 60).map((m) => ({ title: m.title, url: abs(m.path), note: m.text })) },
             ],
             optional: [
                 { title: 'Sitemap', url: abs('/sitemap.xml') },

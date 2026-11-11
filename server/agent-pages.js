@@ -30,8 +30,16 @@ function createAgentPages(ctx) {
         const q = query instanceof URLSearchParams ? query : new URLSearchParams();
         if (p === '/') return home('/');
         if (p === '/models') {
-            const catalog = await ai.catalog();
-            return page(p, { index: true, title: 'Models', description: 'Every model with its live offers: price, speed, uptime, context and data policy.', body: raw(views.modelsPage({ catalog, q: q.get('q') || '', family: q.get('family') || '', sort: q.get('sort') || '' })) });
+            const [catalog, directory] = await Promise.all([ai.catalog(), ai.directory?.() || { models: [] }]);
+            return page(p, { index: true, title: 'Models', description: 'Every model with its live offers: price, speed, uptime, context and data policy.', body: raw(views.modelsPage({ catalog, q: q.get('q') || '', family: q.get('family') || '', sort: q.get('sort') || '' })
+                + require('./model-directory').directoryList(directory.models || [], Object.fromEntries(q), (catalog.models || []).map(m => m.slug))) });
+        }
+        if (p.startsWith('/models/')) {
+            const id = decodeURIComponent(p.slice('/models/'.length)).toLowerCase();
+            const directory = await ai.directory?.();
+            const model = (directory?.models || []).find(m => m.id.toLowerCase() === id);
+            if (model) return page(p, { index: true, title: model.name, description: `${model.name}: status, limits and dated prices.`,
+                body: raw(require('./model-directory').directoryDetail(model)) });
         }
         const m = p.match(/^\/m\/([A-Za-z0-9._~-]{1,80})\/([A-Za-z0-9._~:-]{1,120})$/);
         if (m) {

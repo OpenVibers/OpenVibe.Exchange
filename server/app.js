@@ -277,21 +277,24 @@ async function createApp(opts = {}) {
         }
     });
 
-    // Public model directory reader. The site and SDK clients share the same live catalog.
+    // Registry rows stay discoverable when an offer is off; live offers enrich the same public row.
+    const directoryRows = async () => {
+        const [directory, catalog] = await Promise.all([ai.directory(), ai.catalog()]);
+        if (directory.unavailable) return null;
+        const live = new Map((catalog.models || []).map(m => [m.slug, m]));
+        return directory.models.map(m => ({ ...m, slug: m.id, offers: live.get(m.id)?.offers || [] }));
+    };
     app.get('/api/v1/models', async (req, res) => {
-        const catalog = await ai.catalog();
-        if (catalog.unavailable) return res.status(503).json({ error: 'catalog_unavailable' });
-        const q = String(req.query.q || '').toLowerCase().slice(0, 120);
-        const provider = String(req.query.provider || '').toLowerCase().slice(0, 80);
-        const models = (catalog.models || []).filter(m => (!q || `${m.name} ${m.slug} ${m.family}`.toLowerCase().includes(q))
-            && (!provider || (m.offers || []).some(o => String(o.provider || o.provider_key || '').toLowerCase() === provider)));
+        const rows = await directoryRows();
+        if (!rows) return res.status(503).json({ error: 'directory_unavailable' });
+        const models = require('./model-directory').select(rows, req.query);
         return res.set('Cache-Control', 'public, max-age=30').json({ count: models.length, models });
     });
     const modelDirectoryDetail = async (req, res) => {
-        const catalog = await ai.catalog();
-        if (catalog.unavailable) return res.status(503).json({ error: 'catalog_unavailable' });
+        const rows = await directoryRows();
+        if (!rows) return res.status(503).json({ error: 'directory_unavailable' });
         const id = (req.params.id || `${req.params.org}/${req.params.model}`).toLowerCase();
-        const model = (catalog.models || []).find(m => m.slug === id);
+        const model = rows.find(m => m.id.toLowerCase() === id);
         return model ? res.set('Cache-Control', 'public, max-age=30').json({ model }) : res.status(404).json({ error: 'model_not_found' });
     };
     app.get('/api/v1/models/:id', modelDirectoryDetail);

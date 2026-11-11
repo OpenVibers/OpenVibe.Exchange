@@ -34,6 +34,27 @@ const { createFakeAi, downAi } = require('./helpers/ai');
             assert.ok(!family.text.includes('Llama 3 8B'));
         });
 
+        await check('disabled and retired registry models have public pages, API rows and crawl links', async () => {
+            const list = await t.get('/api/v1/models?status=retired');
+            assert.strictEqual(list.status, 200, list.text);
+            assert.deepStrictEqual(list.json().models.map(m => m.id), ['google/gemini-old']);
+            const one = await t.get('/api/v1/models/google%2Fgemini-old');
+            assert.strictEqual(one.json().model.status, 'retired');
+            const page = await t.get('/models/google%2Fgemini-old');
+            assert.strictEqual(page.status, 200, page.text);
+            assert.ok(page.text.includes('Gemini Old') && page.text.includes('Retired') && page.text.includes('SoftwareApplication'));
+            const index = await t.get('/models?status=preview');
+            assert.ok(index.text.includes('Gemini Preview') && !index.text.includes('Gemini Old'));
+            const spotted = await t.get('/models?status=spotted');
+            assert.ok(spotted.text.includes('anonymous-silver') && !spotted.text.includes('Gemini Old'));
+            const spotPage = await t.get('/models/arena%2Fanonymous-silver');
+            assert.ok(spotPage.text.includes('lmarena.ai') && spotPage.text.includes('2026-11-11'));
+            const map = await t.get('/sitemap.xml');
+            assert.ok(map.text.includes('google%2Fgemini-old'));
+            const twin = await t.get('/models/google%2Fgemini-old.md');
+            assert.strictEqual(twin.status, 200, twin.text);
+            assert.ok(twin.text.includes('Gemini Old'));
+        });
         await check('public directory JSON and model structured data match the catalog', async () => {
             const list = await t.get('/api/v1/models?q=deepseek');
             assert.strictEqual(list.status, 200, list.text);

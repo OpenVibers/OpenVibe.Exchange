@@ -39,6 +39,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
 
     const empty = (what) => ({ generated_at: new Date(now()).toISOString(), unavailable: true, count: 0, models: [], families: [], by_day: [], by_model: [], by_product: [], today: null, totals: null, what });
     let catalogHit = { at: 0, value: null };
+    let directoryHit = { at: 0, value: null };
     let usageHit = new Map();
     let communityHit = { at: 0, value: null };
     let warnedAt = 0;
@@ -84,6 +85,32 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             // Keep the last good catalog for a while rather than turning every page empty on one failed poll.
             if (catalogHit.value && now() - catalogHit.at < 5 * 60_000) return { ...catalogHit.value, stale: true };
             return empty('catalog');
+        }
+    }
+
+    async function directory() {
+        if (directoryHit.value && now() - directoryHit.at < CATALOG_MS) return directoryHit.value;
+        try {
+            const body = await get('/api/v1/exchange/directory', 'model directory');
+            if (!Array.isArray(body.models)) throw new Error('invalid model directory');
+            let spots = [];
+            try {
+                const spotted = await get('/api/v1/exchange/spotted', 'spotted models');
+                spots = Array.isArray(spotted.models) ? spotted.models : [];
+            } catch { /* The listed directory works while the spotting service is unavailable. */ }
+            const listed = new Set(body.models.map(m => m.id));
+            const models = [...body.models, ...spots.filter(m => !listed.has(m.id)).map(m => ({
+                id: m.id, provider: m.provider, model: m.model, name: m.name, status: 'spotted',
+                routing_enabled: false, first_seen_at: m.first_seen_at, updated_at: m.last_seen_at,
+                source: m.sources?.[0]?.url || null, sources: m.sources || [], price: {},
+            }))];
+            const value = { ...body, models, count: models.length };
+            directoryHit = { at: now(), value };
+            return value;
+        } catch (err) {
+            warned('model directory', err);
+            if (directoryHit.value && now() - directoryHit.at < 5 * 60_000) return { ...directoryHit.value, stale: true };
+            return { unavailable: true, models: [] };
         }
     }
 
@@ -328,7 +355,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
+    return { catalog, directory, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
 }
 
 /**

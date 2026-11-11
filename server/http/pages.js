@@ -71,6 +71,7 @@ function createPageRoutes(ctx) {
         await history.capture(catalog).catch((err) => log.warn('[OpenVibe.Exchange] catalogue snapshot failed:', err.message));
         return catalog;
     };
+    const directoryOf = async () => typeof ai.directory === 'function' ? ai.directory() : { models: [] };
 
     r.get('/compute', (req, res) => {
         const { prices, checked_at } = require('../compute-prices');
@@ -118,7 +119,7 @@ function createPageRoutes(ctx) {
 
     // ── Models ───────────────────────────────────────────────
     r.get('/models', async (req, res) => {
-        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
+        const [catalog, community, directory] = await Promise.all([catalogOf(), communityOffers(), directoryOf()]);
         const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 120) : '';
         const family = typeof req.query.family === 'string' ? req.query.family.slice(0, 60) : '';
         const sort = ['cheap', 'fast'].includes(req.query.sort) ? req.query.sort : '';
@@ -138,7 +139,8 @@ function createPageRoutes(ctx) {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: q ? `Models: ${q}` : 'Models',
             description: 'Every model on OpenVibe.Exchange with its live offers: price in and out per million tokens, measured speed and uptime, context length and data policy.',
-            body: raw(platform.modelsPage({ catalog, query: req.query, searchResults })),
+            body: raw(platform.modelsPage({ catalog: req.query.status && req.query.status !== 'available' ? { ...catalog, models: [] } : catalog, query: req.query, searchResults })
+                + require('../model-directory').directoryList(directory.models || [], req.query, (catalog.models || []).map(m => m.slug))),
         });
     });
 
@@ -152,6 +154,14 @@ function createPageRoutes(ctx) {
         const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
         const model = await modelFrom(catalog, req.params.org, req.params.model);
         if (!model) {
+            const directory = await directoryOf();
+            const id = `${req.params.org}/${req.params.model}`.toLowerCase();
+            const listed = (directory.models || []).find(m => m.id.toLowerCase() === id);
+            if (listed) return page(req, res, { index: true, cache: PUBLIC_CACHE, title: listed.name,
+                description: `${listed.name}: status, limits, dated prices and sources.`,
+                jsonLd: [{ '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: listed.name,
+                    url: `${config.baseUrl}${require('../model-directory').href(listed.id)}` }],
+                body: raw(require('../model-directory').directoryDetail(listed)) });
             if (catalog.unavailable) {
                 return page(req, res, { title: 'Models are not available', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.notice({ kind: 'warn', text: 'The live catalog is not reachable right now. Reload in a moment.' })}<p><a href="/models">All models</a></p></div>`) }, 503);
             }
