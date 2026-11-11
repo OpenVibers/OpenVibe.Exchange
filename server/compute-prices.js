@@ -10,7 +10,7 @@ const prices = [
     cpu('baseten', 'eu-lon-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing'),
     cpu('daytona', 'us', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5, promotion: '$200 one-time credit; expiry must be confirmed in the account' }),
     cpu('daytona', 'eu', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5 }),
-    cpu('e2b', 'us', 3600 * (2 * .000014 + 4 * .0000045), 'https://e2b.dev/pricing', { promotion: '$100 one-time Hobby credit; 10 concurrent; 1-hour sessions' }),
+    cpu('e2b', 'provider-default', 3600 * (2 * .000014 + 4 * .0000045), 'https://e2b.dev/pricing', { promotion: '$100 one-time Hobby credit; 10 concurrent; 1-hour sessions' }),
     // Fly publishes 2 shared vCPU / 2 GiB at $13.39 for 720 hours in iad/ewr.
     ...['iad','ewr'].map(region => cpu('fly', region, 13.39 / 720, 'https://docs.fly.io/about/pricing', { id: `fly-${region}-2x2`, ram_mb: 2048 })),
     { id: 'daytona-4090-preemptible', provider: 'daytona', kind: 'gpu', gpu: 'RTX 4090', gpu_mb: 24576, currency: 'USD', hourly: .57, per_second: .57/3600, interruptible: true, checked_at, expires_at, source: 'https://www.daytona.io/pricing' },
