@@ -39,7 +39,8 @@ function searchCatalog(catalog, rows, params) {
     const results = [];
     for (const model of catalog.models || []) {
         const caps = model.capabilities || {};
-        const hasCap = (key) => key === 'coder' ? Boolean(caps.code || caps.coding || /cod(e|er|ing)/i.test(`${model.name} ${model.slug}`)) : Boolean(caps[key]);
+        const explicitCoder = Boolean(caps.code || caps.coding || /cod(e|er|ing)/i.test(`${model.name} ${model.slug}`));
+        const hasCap = (key) => key === 'coder' ? (model.type === 'chat' && (explicitCoder || caps.tools || caps.json)) : Boolean(caps[key]);
         if (capability && !hasCap(capability)) continue;
         if (intent.capabilities.some((key) => !hasCap(key))) continue;
         const hay = clean([model.name, model.slug, model.family, model.description, ...(model.offers || []).flatMap((o) => [o.provider, o.provider_name])].join(' '));
@@ -61,7 +62,8 @@ function searchCatalog(catalog, rows, params) {
         results.push({ model: model.slug, name: model.name, family: model.family, capabilities: caps,
             provider: best.provider_name || best.provider, price: best.price || null, speed: best.speed || null,
             quality: rating ? { elo: rating.elo, games: rating.games, kind: params.ratingKind } : null,
-            offers: offers.length, score: nameScore + (model.requests_7d || 0) / 10000 });
+            offers: offers.length, task_match: intent.capabilities.includes('coder') && !explicitCoder ? 'General chat model; coding quality is not measured here' : null,
+            score: nameScore + (model.requests_7d || 0) / 10000 });
     }
     const sort = params.sort !== 'relevance' ? params.sort : intent.fast ? 'speed' : intent.cheap ? 'price' : 'relevance';
     const metric = (r) => sort === 'speed' ? number(r.speed?.p50_ms) ?? Infinity : sort === 'quality' ? -(number(r.quality?.elo) ?? -Infinity) : number(r.price?.out) ?? Infinity;
