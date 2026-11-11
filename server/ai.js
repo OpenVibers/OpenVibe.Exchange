@@ -372,6 +372,62 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     async function ownCreate(token, body) { return ownCall('POST', '/api/v1/own-endpoints', { token, body }); }
     async function ownStop(token, id) { return ownCall('POST', `/api/v1/own-endpoints/${encodeURIComponent(id)}/stop`, { token }); }
 
+    /**
+     * Deep dives (AI workflow design.deep_dive, server/deep-dive/): Exchange calls AI as the service, for the
+     * signed-in person (on_behalf_of), and shows the run, its live steps and its report. The price is AI's own
+     * answer (GET /api/v1/deep-dives/depths), never a number copied into this site; the shot bytes come back
+     * through AI because the screenshots are private to the run's owner.
+     */
+    let depthsHit = { at: 0, value: null };
+    async function deepDiveDepths() {
+        if (depthsHit.value && now() - depthsHit.at < CATALOG_MS) return depthsHit.value;
+        try {
+            const body = await get('/api/v1/deep-dives/depths');
+            const value = { depths: Array.isArray(body.depths) ? body.depths : [], capture: body.capture || null };
+            depthsHit = { at: now(), value };
+            return value;
+        } catch (err) { warned('deep dive depths', err); return depthsHit.value || { depths: [], unavailable: true }; }
+    }
+    async function deepDiveCall(method, path, { body = undefined } = {}) {
+        if (!tokens) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
+        const token = await tokens.getToken();
+        let res;
+        try {
+            res = await fetchImpl(`${config.ai.url}${path}`, {
+                method,
+                headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+                signal: AbortSignal.timeout(Math.max(config.ai.timeoutMs, 30000)),
+            });
+        } catch (err) {
+            throw Object.assign(new Error('OpenVibe.AI is unreachable right now'), { code: 'ai.unavailable', status: 503 });
+        }
+        const out = await jsonOf(res);
+        if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
+        return out || {};
+    }
+    async function deepDiveCreate({ question, depth, sites = [], subject }) {
+        return deepDiveCall('POST', '/api/v1/deep-dives', { body: {
+            question, depth, ...(sites.length ? { sites } : {}),
+            ...(subject ? { on_behalf_of: { type: 'user', id: subject } } : {}),
+        } });
+    }
+    async function deepDiveGet(id) { return deepDiveCall('GET', `/api/v1/deep-dives/${encodeURIComponent(id)}`); }
+    async function deepDiveState(id) { return deepDiveCall('GET', `/api/v1/deep-dives/${encodeURIComponent(id)}/state`); }
+    async function deepDiveSites(id, { add = [], drop = [], start = false } = {}) {
+        return deepDiveCall('POST', `/api/v1/deep-dives/${encodeURIComponent(id)}/sites`, { body: { ...(add.length ? { add } : {}), ...(drop.length ? { drop } : {}), ...(start ? { start: true } : {}) } });
+    }
+    async function deepDiveCancel(id) { return deepDiveCall('POST', `/api/v1/deep-dives/${encodeURIComponent(id)}/cancel`, { body: {} }); }
+    async function deepDiveShot(id, shot) {
+        if (!tokens) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
+        const token = await tokens.getToken();
+        const res = await fetchImpl(`${config.ai.url}/api/v1/deep-dives/${encodeURIComponent(id)}/shots/${encodeURIComponent(shot)}`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'image/png' }, signal: AbortSignal.timeout(config.ai.timeoutMs),
+        });
+        if (!res.ok) throw Object.assign(new Error(`AI answered ${res.status}`), { status: res.status, code: 'deep_dive.shot_not_found' });
+        return { buffer: Buffer.from(await res.arrayBuffer()), contentType: res.headers.get('content-type') || 'image/png' };
+    }
+
     /** The person's own AI credentials: pass only their signed Network session, never the Exchange service token. */
     async function meRequest(token, path, { method = 'GET', body = undefined } = {}) {
         if (!token && path !== '/api/v1/tasks' && !path.startsWith('/api/v1/choices?')) throw Object.assign(new Error('Sign in is required'), { status: 401 });
@@ -390,7 +446,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, configured: Boolean(tokens) };
+    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
 }
 
 /**

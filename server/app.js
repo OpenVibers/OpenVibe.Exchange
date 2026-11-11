@@ -354,6 +354,7 @@ async function createApp(opts = {}) {
     app.use(createArenaRoutes(ctx));
     app.use(require('./http/dashboard').createDashboardRoutes(ctx));
     app.use(require('./http/search').createSearchRoutes(ctx));
+    app.use(require('./http/deep-dive').createDeepDiveRoutes(ctx));
     app.use(createPageRoutes(ctx));
     app.use(createConsoleRoutes(ctx));
 

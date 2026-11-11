@@ -23,6 +23,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const NAV = [
     { label: 'Models', href: '/models', icon: 'fa-microchip' },
     { label: 'Search', href: '/search', icon: 'fa-magnifying-glass' },
+    { label: 'Deep dive', href: '/deep-dive', icon: 'fa-binoculars' },
     { label: 'Pricing', href: '/pricing', icon: 'fa-tag' },
     { label: 'Docs', href: '/docs', icon: 'fa-code' },
     { label: 'Status', href: '/status', icon: 'fa-gauge' },
