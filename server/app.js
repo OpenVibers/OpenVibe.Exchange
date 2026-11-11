@@ -263,6 +263,20 @@ async function createApp(opts = {}) {
 
     app.use('/api/v1/analysis', rateLimit({ windowMs: 60000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 120, standardHeaders: true, legacyHeaders: false }), require('./http/analysis').createAnalysisRoutes(ctx));
 
+    app.get('/api/v1/search', rateLimit({ windowMs: 60000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 120, standardHeaders: true, legacyHeaders: false }), async (req, res, next) => {
+        try {
+            const { parseSearch, searchCatalog } = require('./model-search');
+            const params = parseSearch(req.query);
+            const [catalog, board] = await Promise.all([ai.catalog(), bench.board({ kind: params.ratingKind }).catch(() => ({ rows: [], unavailable: true }))]);
+            if (catalog.unavailable) return res.status(503).set('Cache-Control', 'no-store').json({ error: 'catalog_unavailable' });
+            const results = searchCatalog(catalog, board.rows || [], params);
+            return res.set('Cache-Control', 'public, max-age=30').json({ q: params.q, count: results.length, results: results.slice(0, 100), quality_unavailable: Boolean(board.unavailable) });
+        } catch (err) {
+            if (err instanceof RangeError) return res.status(400).json({ error: 'bad_filter', detail: err.message });
+            return next(err);
+        }
+    });
+
     // ── Compare's JSON API (openvibe.compare) ───────────────
     // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
     app.use('/api/v1/compare', createCompareApi(ctx));

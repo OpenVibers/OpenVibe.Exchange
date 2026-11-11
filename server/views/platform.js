@@ -44,10 +44,11 @@ const dash = (v, unit = '') => (v == null ? '–' : `${Number(v).toLocaleString(
  * The models as rows (home's popular models and /models): the name and its maker with badges, in / out per million,
  * uptime and speed with their labels, and Try in Chat / How it ranks as small quiet buttons. Opus, 11-09.
  */
-function table(models) {
+function table(models, searchMeta = null) {
     if (!models.length) return '<p class="xm-empty">No models match these filters.</p>';
     return `<ul class="xm-list">${models.map((m) => {
-        const o = best(m);
+        const found = searchMeta && searchMeta.get(id(m));
+        const o = found ? { price: found.price, speed: found.speed, provider_name: found.provider } : best(m);
         const badges = [
             (m.offers || []).some(free) ? kit.badge('Free to try') : (m.offers || []).some(paused) ? kit.badge('Free paused') : '',
             m.uncensored ? kit.badge('18+', 'bad') : '',
@@ -55,7 +56,7 @@ function table(models) {
         ].filter(Boolean).join(' ');
         const fact = (label, value) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
         return `<li class="xm-row"><div class="xm-name"><a href="/models/${encodeURIComponent(id(m))}">${esc(m.name)}</a><span class="xm-maker">${esc(legacy.familyLabel(m))}</span>${badges ? `<span class="xm-badges">${badges}</span>` : ''}</div>`
-            + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second == null ? '–' : `${dash(o.speed.tokens_per_second)} tok/s`)}</dl>`
+            + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second != null ? `${dash(o.speed.tokens_per_second)} tok/s` : o.speed?.p50_ms == null ? '–' : `${dash(o.speed.p50_ms)} ms`)}${found ? fact('Quality', found.quality ? `${dash(found.quality.elo)} Elo · ${found.quality.games} games` : 'Not measured') : ''}${found ? fact('Provider', found.provider) : ''}</dl>`
             + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', kind: 'quiet', small: true })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet', small: true })}</p></li>`;
     }).join('')}</ul>`;
 }
@@ -97,7 +98,7 @@ function home({ catalog, usage, viewer }) {
         ],
     )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}<div class="xp-reasons">${section('0% fee on your own key', '<p>Bring your provider key and pay the provider\'s price, nothing more. No cap, no end date.</p>')}${section('The cheapest route', '<p>Every call goes to the cheapest provider that is up. Open models on OpenVibe\'s own GPUs, at a fixed price per million tokens, are coming next.</p>')}${section('Uncensored, 18+', '<p>Uncensored models for adults who opt in. The content floor applies on every request.</p><a href="/uncensored">What the floor covers</a>')}</div>${pricing()}${section('Questions', '<details><summary>Can I use my existing client?</summary><p>Yes. Use the OpenAI-compatible endpoint with your Exchange key.</p></details><details><summary>Where can I talk to a model?</summary><p><a href="https://openvibe.chat/vibe">Open Chat</a> to talk or compare models.</p></details><details><summary>Where do the numbers come from?</summary><p>Prices come from the live catalogue. Speed and reliability come from measured requests. Missing measurements stay unknown.</p></details>')}</div>`;
 }
-function modelsPage({ catalog, query = {} }) {
+function modelsPage({ catalog, query = {}, searchResults = null }) {
     const all = listed(catalog);
     let rows = all;
     if (query.family && !query.maker) query = { ...query, maker: query.family };
@@ -129,6 +130,10 @@ function modelsPage({ catalog, query = {} }) {
                 .toLowerCase()
                 .includes(String(query.q).toLowerCase()),
         );
+    if (searchResults) {
+        const byId = new Map(all.map((m) => [id(m), m]));
+        rows = searchResults.map((r) => byId.get(r.model)).filter(Boolean);
+    }
     const chips = [...new Set(all.map((m) => m.family).filter(Boolean))].map(
         (v) => chip(v, 'maker', v, all.filter((m) => tests.maker(m, v)).length),
     );
@@ -148,6 +153,14 @@ function modelsPage({ catalog, query = {} }) {
                 all.filter((m) => tests[key](m, value)).length,
             ),
         );
-    return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${kit.find({ action: '/models', name: 'q', value: query.q || '', placeholder: 'Find a model', icon: 'search' })}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
+    for (const [key, label, value] of [['capability', 'Vision', 'vision'], ['capability', 'Tools', 'tools'], ['max_price', 'Under $1/M out', '1'], ['max_speed_ms', 'Under 500 ms', '500']]) {
+        const params = new URLSearchParams(Object.entries(query).filter(([, v]) => typeof v === 'string'));
+        if (params.get(key) === value) params.delete(key); else params.set(key, value);
+        chips.push(`<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(params.toString())}">${label}</a>`);
+    }
+    const searchMeta = searchResults && new Map(searchResults.map((r) => [r.model, r]));
+    const field = (name, label, value = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(value)}"></label>`;
+    const filters = `<form action="/models" method="get">${field('q', 'Search', 'cheap vision model')} ${field('provider', 'Provider')} ${field('capability', 'Capability', 'vision')} ${field('min_price', 'Min $/M out')} ${field('max_price', 'Max $/M out')} ${field('max_speed_ms', 'Max median ms')} ${field('rating_kind', 'Benchmark', 'chat.arena')} ${kit.button({ label: 'Find', type: 'submit' })}</form>`;
+    return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${filters}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
 module.exports = { home, modelsPage, pricing, pricingPage, table };

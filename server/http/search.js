@@ -34,7 +34,8 @@ function createSearchRoutes({ config, ai }) {
                             '/v1/search' + (kind === 'web' ? '' : '/' + kind),
                             {
                                 method: 'POST',
-                                body: { q: req.body.q, engine, limit: 6 },
+                                body: { q: req.body.q, engine, limit: 6, safe_search: 'strict',
+                                    ...Object.fromEntries(['size', 'color', 'type', 'license', 'after'].filter((key) => req.body[key]).map((key) => [key, String(req.body[key]).slice(0, 80)])) },
                             },
                         )),
                     };
@@ -46,7 +47,8 @@ function createSearchRoutes({ config, ai }) {
                 }
             }),
         );
-        await render(req, res, results, { q: String(req.body.q || '').slice(0, 500), kind });
+        await render(req, res, results, { q: String(req.body.q || '').slice(0, 500), kind,
+            ...Object.fromEntries(['size', 'color', 'type', 'license', 'after'].map((key) => [key, String(req.body[key] || '').slice(0, 80)])) });
     });
     return r;
 }
