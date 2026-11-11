@@ -30,7 +30,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function createActor({ config, fetchImpl = globalThis.fetch, log = console, now = () => Date.now() } = {}) {
     const a = (config && config.actor) || {};
-    const base = trim(a.url || 'https://actor.openvibe.services');
+    const base = trim(a.url || 'https://openvibe.actor');
     const timeoutMs = Math.max(2000, Number(a.timeoutMs) || 15_000);
     const waitMs = Math.max(5000, Number(a.waitMs) || 90_000);
     const pollMs = Math.max(500, Number(a.pollMs) || 2000);
