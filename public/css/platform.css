@@ -227,24 +227,102 @@
 
 .ex-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 
-/* ── The model rows (home's popular models, /models): Opus, 11-09 ── */
-.xm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.xm-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
-.xm-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
-.xm-name > a { font-weight: 700; font-size: 1.05rem; color: var(--ovk-text); text-decoration: none; min-height: 0; }
+/* ── The model rows (home's popular models, /models): Opus, 11-09; compact on a phone 11-11 ──
+   A row is the name with its maker and badges, the three numbers, and two actions. On a phone the actions are round
+   icon buttons beside the name (their names stay in aria-label and title), so a model is one short card, not a screen. */
+.xm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.xm-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name acts" "facts facts"; align-items: center; gap: 6px 10px; padding: 10px 12px 12px 14px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xm-name { grid-area: name; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.xm-name > a { font-weight: 700; font-size: 1.02rem; color: var(--ovk-text); text-decoration: none; min-height: 0; overflow-wrap: anywhere; }
 .xm-name > a:hover { text-decoration: underline; }
-.xm-maker { color: var(--ovk-muted); font-size: .86rem; }
+.xm-maker { color: var(--ovk-muted); font-size: .84rem; }
 .xm-badges { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.xm-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
-.xm-facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.xm-facts dt { color: var(--ovk-muted); font-size: .76rem; }
-.xm-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.xm-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.xm-facts { grid-area: facts; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.xm-facts > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.xm-facts dt { color: var(--ovk-muted); font-size: .74rem; }
+.xm-facts dd { margin: 0; font-weight: 600; font-size: .95rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.xm-acts { grid-area: acts; display: flex; gap: 6px; margin: 0; }
 .xm-acts .ovk-btn { min-height: 40px; }
 .xm-empty { color: var(--ovk-muted); }
-.ex-chip.is-empty { opacity: .45; cursor: default; }
+@media (max-width: 899px) {
+    .xp .xm-acts .ovk-btn { width: 44px; min-height: 44px; padding: 0; justify-content: center; border-radius: 999px; }
+    .xm-acts .ovk-btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .xm-name > a { display: inline-flex; align-items: center; min-height: 44px; }
+}
 @media (min-width: 900px) {
-    .xm-row { grid-template-columns: minmax(220px, 1.3fr) minmax(0, 2fr) auto; align-items: center; gap: 16px; }
+    .xm-row { grid-template-columns: minmax(220px, 1.3fr) minmax(0, 2fr) auto; grid-template-areas: "name facts acts"; gap: 16px; padding: 12px 16px; }
+    .xm-facts dd { font-size: 1rem; }
+}
+
+/* ── /models: the search and the filters as one block; on a phone the filters are one row that scrolls sideways ── */
+.xm-page { gap: 18px; }
+.xm-find { display: grid; gap: 10px; min-width: 0; }
+.xm-find .ovt-composer { width: 100%; max-width: 760px; margin: 0; justify-self: stretch; }
+.xm-find .ex-chips { margin: 0; }
+.xp .ex-chip { min-height: 36px; gap: 6px; }
+.ex-chip > span { color: var(--ovk-muted); font-variant-numeric: tabular-nums; font-size: .82em; }
+.ex-chip.is-on > span { color: inherit; }
+.ex-chip.is-empty { opacity: .45; cursor: default; }
+@media (max-width: 760px) {
+    .xm-find .ex-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding: 2px 16px; scroll-padding-inline: 16px;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%); }
+    .xm-find .ex-chips::-webkit-scrollbar { display: none; }
+    .xm-find .ex-chip { flex: 0 0 auto; white-space: nowrap; }
+}
+@media (pointer: coarse) { .xp .ex-chip, .xr .xr-tab { min-height: 44px; } }
+
+/* ── The registry under /models (Opus, 2026-11-11): providers as folds, a model as one line ──
+   A fold's summary is the provider, its note, how many and from what price; open, its models are rows with the name
+   first and context and price at the end (under the name on a phone). The status switch is a segmented row. */
+.xr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding-block: 8px 40px; }
+.xr > * { min-width: 0; }
+.xr-head h2 { margin: 0; font-size: 1.2rem; letter-spacing: -.01em; }
+.xr-head p { margin: 4px 0 0; color: var(--ovk-muted); font-size: .9rem; max-width: 70ch; }
+.xr .xr-tabs { display: flex; flex-wrap: nowrap; gap: 4px; padding: 4px; border: 1px solid var(--ovk-line); border-radius: 999px; background: var(--ovk-panel); width: max-content; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.xr-tabs::-webkit-scrollbar { display: none; }
+.xr .xr-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; color: var(--ovk-text); text-decoration: none; font-size: .88rem; white-space: nowrap; }
+.xr-tab > span { color: var(--ovk-muted); font-size: .82em; font-variant-numeric: tabular-nums; }
+.xr-tab:hover { background: var(--ovk-panel-2); }
+.xr-tab.is-on { background: color-mix(in srgb, var(--ovk-accent) 18%, transparent); font-weight: 600; }
+.xr-tab.is-on > span { color: inherit; }
+.xr-tab.is-empty { opacity: .45; }
+.xr-groups { border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xr-group { border-top: 1px solid var(--ovk-line); }
+.xr-group:first-child { border-top: 0; }
+.xr-group > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; min-height: 52px; padding: 8px 44px 8px 16px; position: relative; cursor: pointer; list-style: none; }
+.xr-group > summary::-webkit-details-marker { display: none; }
+.xr-group > summary::after { content: ""; position: absolute; right: 18px; top: 50%; width: 8px; height: 8px; margin-top: -6px; border-right: 2px solid var(--ovk-muted); border-bottom: 2px solid var(--ovk-muted); transform: rotate(45deg); transition: transform .18s ease; }
+.xr-group[open] > summary::after { transform: rotate(-135deg); margin-top: -2px; }
+.xr-group > summary:hover { background: var(--ovk-panel-2); }
+.xr-group[open] > summary { background: var(--ovk-panel-2); }
+.xr-prov { font-weight: 650; }
+.xr-prov-note { color: var(--ovk-muted); font-size: .84rem; }
+.xr-sum { display: inline-flex; gap: 10px; margin-left: auto; color: var(--ovk-muted); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.xr-n { color: var(--ovk-text); }
+.xr-free { color: var(--ovk-ok-text, #22c55e); }
+.xr-list { list-style: none; margin: 0; padding: 0; }
+.xr-row { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; padding: 9px 16px; border-top: 1px solid color-mix(in srgb, var(--ovk-line) 60%, transparent); }
+.xr-row > a { flex: 1 1 260px; min-width: 0; min-height: 0; display: inline; color: var(--ovk-text); text-decoration: none; overflow-wrap: anywhere; }
+.xr-row > a::after { content: ""; position: absolute; inset: 0; }
+.xr-row:hover { background: var(--ovk-panel-2); }
+.xr-row:hover > a { color: var(--ovk-accent); }
+.xr-row > a:focus-visible { outline: none; }
+.xr-row:has(> a:focus-visible) { outline: 2px solid var(--ovk-accent); outline-offset: -2px; }
+.xr-row.is-retired > a { color: var(--ovk-muted); }
+.xr-meta { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; color: var(--ovk-muted); font-size: .84rem; font-variant-numeric: tabular-nums; }
+.xr-meta i { font-style: normal; opacity: .75; }
+.xr-price { min-width: 8.5em; text-align: right; color: var(--ovk-text); }
+.xr-ctx { min-width: 7em; text-align: right; }
+.xr-status { padding: 1px 8px; border-radius: 999px; font-size: .76rem; background: var(--ovk-panel-2); color: var(--ovk-muted); }
+.xr-status.is-preview { color: var(--ovk-accent); background: color-mix(in srgb, var(--ovk-accent) 14%, transparent); }
+.xr-status.is-retired { text-decoration: line-through; }
+@media (max-width: 760px) {
+    .xr-group > summary { padding-left: 14px; }
+    .xr-sum { margin-left: 0; flex-basis: 100%; }
+    .xr-row { padding: 10px 14px; display: grid; gap: 2px; }
+    .xr-row > a { display: block; }
+    .xr-meta { gap: 2px 12px; }
+    .xr-price, .xr-ctx { min-width: 0; text-align: left; }
 }
 
 /* ── /search: engines by kind, the try form as a card, results side by side ── */
@@ -279,11 +357,6 @@
 }
 /* Grid children never stretch the page for a long line (the head's subtitle widened /search to 514 px on a phone). */
 .xs > * { min-width: 0; }
-@media (max-width: 760px) {
-    /* 44 px targets on a phone: a model's name and its two buttons. */
-    .xm-name > a { display: inline-flex; align-items: center; min-height: 44px; }
-    .xm-acts .ovk-btn { min-height: 44px; }
-}
 
 /* ── Pricing: one row per way of calling, the name above what it costs ── */
 .xpr-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }

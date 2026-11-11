@@ -64,7 +64,9 @@ const dash = (v, unit = '') => (v == null ? '–' : `${Number(v).toLocaleString(
  * uptime and speed with their labels, and Try in Chat / How it ranks as small quiet buttons. Opus, 11-09.
  */
 function table(models, searchMeta = null) {
-    if (!models.length) return '<p class="xm-empty">No models match these filters.</p>';
+    if (!models.length) return kit.empty({ icon: 'search', title: 'Nothing you can call now matches',
+        text: 'The registry below lists every model a provider names, routed or not.',
+        action: { href: '/models#directory-more', label: 'See the registry', kind: 'quiet' } });
     return `<ul class="xm-list">${models.map((m) => {
         const found = searchMeta && searchMeta.get(id(m));
         const o = found ? { price: found.price, speed: found.speed, provider_name: found.provider } : best(m);
@@ -76,7 +78,7 @@ function table(models, searchMeta = null) {
         const fact = (label, value) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
         return `<li class="xm-row"><div class="xm-name"><a href="/models/${encodeURIComponent(id(m))}">${esc(m.name)}</a><span class="xm-maker">${esc(legacy.familyLabel(m))}</span>${badges ? `<span class="xm-badges">${badges}</span>` : ''}</div>`
             + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second != null ? `${dash(o.speed.tokens_per_second)} tok/s` : o.speed?.p50_ms == null ? '–' : `${dash(o.speed.p50_ms)} ms`)}${found ? fact('Quality', found.quality ? `${dash(found.quality.elo)} Elo · ${found.quality.games} games` : 'Not measured') : ''}${found ? fact('Provider', found.provider) : ''}${found?.task_match ? fact('Task match', found.task_match) : ''}</dl>`
-            + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', kind: 'quiet', small: true })} ${kit.button({ href: rank(m), label: 'How it ranks', kind: 'quiet', small: true })}</p></li>`;
+            + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', icon: 'chat', kind: 'quiet', small: true, attrs: { 'aria-label': `Try ${m.name} in Chat`, title: 'Try in Chat' } })} ${kit.button({ href: rank(m), label: 'How it ranks', icon: 'trophy', kind: 'quiet', small: true, attrs: { 'aria-label': `How ${m.name} ranks`, title: 'How it ranks' } })}</p></li>`;
     }).join('')}</ul>`;
 }
 // What each way of calling costs, in the reader's words (home's Pricing section and /pricing). Opus, 11-09.
@@ -138,8 +140,8 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
         );
         if (q.get(key) === value) q.delete(key);
         else q.set(key, value);
-        if (!count && query[key] !== value) return `<span class="ex-chip is-empty" aria-disabled="true">${esc(label)} (0)</span>`;
-        return `<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(q.toString())}">${esc(label)} (${count})</a>`;
+        if (!count && query[key] !== value) return `<span class="ex-chip is-empty" aria-disabled="true">${esc(label)} <span>0</span></span>`;
+        return `<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(q.toString())}"${query[key] === value ? ' aria-current="true"' : ''}>${esc(label)} <span>${count}</span></a>`;
     };
     for (const [key, test] of Object.entries(tests))
         if (query[key]) rows = rows.filter((m) => test(m, query[key]));
@@ -175,10 +177,13 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
     for (const [key, label, value] of [['capability', 'Vision', 'vision'], ['capability', 'Tools', 'tools'], ['max_price', 'Under $1/M out', '1'], ['max_speed_ms', 'Under 500 ms', '500']]) {
         const params = new URLSearchParams(Object.entries(query).filter(([, v]) => typeof v === 'string'));
         if (params.get(key) === value) params.delete(key); else params.set(key, value);
-        chips.push(`<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(params.toString())}">${label}</a>`);
+        chips.push(`<a class="ex-chip ${query[key] === value ? 'is-on' : ''}" href="/models?${esc(params.toString())}"${query[key] === value ? ' aria-current="true"' : ''}>${label}</a>`);
     }
     const searchMeta = searchResults && new Map(searchResults.map((r) => [r.model, r]));
     const filters = modelSearch(query, true);
-    return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${filters}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
+    // Filters that match nothing go last (still there, still saying 0), so the row starts with what narrows.
+    const ordered = [...chips.filter((c) => !c.includes('is-empty')), ...chips.filter((c) => c.includes('is-empty'))];
+    const sub = rows.length ? `${rows.length} to call now · live prices, measured speed` : 'None to call now match · the registry is below';
+    return `<div class="ex-wrap xp xm-page">${kit.head({ title: 'Models', sub })}${unavailable(catalog)}<div class="xm-find">${filters}<nav class="ex-chips" aria-label="Model filters">${ordered.join('')}</nav></div>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
 module.exports = { home, modelsPage, pricing, pricingPage, table };

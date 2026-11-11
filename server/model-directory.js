@@ -35,13 +35,81 @@ function select(models, query = {}) {
         && (!allowedStatus.has(status) || m.status === status) && (!provider || m.provider.toLowerCase() === provider));
 }
 const usd = value => value == null || !Number.isFinite(Number(value)) ? 'Price not listed' : `$${Number(value)} per million tokens`;
+/** "128K" / "1M": a context window the way people say it (binary sizes in K of 1,024, as providers name them). */
+const tokens = (n) => {
+    const v = Number(n);
+    if (n == null || !Number.isFinite(v) || v <= 0) return null;
+    if (v >= 1e6) return `${Number((v % 1048576 === 0 ? v / 1048576 : v / 1e6).toFixed(1))}M`;
+    if (v >= 1000) return `${Math.round(v % 1024 === 0 ? v / 1024 : v / 1000)}K`;
+    return String(v);
+};
+/** "$3/M out": the output price per million tokens, short. */
+const perMOut = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Number(v) === 0 ? 'Free' : `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 4 })}/M out`);
+// Raw provider ids some registry rows carry instead of a name.
+const PROVIDER_NAMES = { gemini: 'Google Gemini', google: 'Google', huggingface: 'Hugging Face', openai: 'OpenAI', anthropic: 'Anthropic',
+    openrouter: 'OpenRouter', deepseek: 'DeepSeek', mistral: 'Mistral', xai: 'xAI', meta: 'Meta', arena: 'LMArena' };
+/** A provider's name and its note: "OpenRouter (the last fallback)" → OpenRouter + "the last fallback". */
+function providerOf(m) {
+    const raw = String(m.provider_name || PROVIDER_NAMES[String(m.provider || '').toLowerCase()] || m.provider || 'Other');
+    const hit = raw.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    return hit ? { name: hit[1], note: hit[2] } : { name: raw, note: '' };
+}
+const STATUSES = ['available', 'preview', 'spotted', 'retired'];
+const STATUS_LABEL = { all: 'All', available: 'Available', preview: 'Preview', spotted: 'Spotted', retired: 'Retired' };
+/**
+ * The registry under /models (Opus, 2026-11-11): every provider-listed model, grouped by provider in folds that say
+ * how many and from what price, so 900+ rows read as one screen of providers. Every row stays in the HTML (crawlers
+ * and find-in-page see them all); a search, a status or a provider opens the folds. The status switch keeps the
+ * search and says how many each status holds.
+ */
 function directoryList(models, query, activeSlugs = []) {
     const active = new Set(activeSlugs);
-    const rows = select(models, query).filter(m => !active.has(m.id));
-    return `<section class="ex-wrap" aria-labelledby="directory-more"><h2 id="directory-more">More models in the registry</h2>
-<p>Provider-listed models stay here when routing is off or a provider retires them. Prices and availability are dated at their sources.</p>
-<nav aria-label="Model status">${['all', 'available', 'preview', 'spotted', 'retired'].map(s => `<a class="ovk-btn ovk-btn--quiet" href="/models${s === 'all' ? '' : `?status=${s}`}">${esc(s)}</a>`).join(' ')}</nav>
-${rows.length ? `<ul>${rows.map(m => `<li><a href="${href(m.id)}">${esc(m.name)}</a> · ${esc(m.provider_name || m.provider)} · ${esc(m.status)} · ${esc(m.context_window == null ? 'Context not listed' : `${m.context_window} tokens`)} · ${esc(usd(m.price?.output_per_million))}</li>`).join('')}</ul>` : '<p>No additional models match this filter.</p>'}</section>`;
+    const pool = select(models, { ...query, status: '' }).filter(m => !active.has(m.id));
+    const status = STATUSES.includes(String(query.status || '').toLowerCase()) ? String(query.status).toLowerCase() : 'all';
+    const rows = status === 'all' ? pool : pool.filter(m => m.status === status);
+    const counts = { all: pool.length };
+    for (const s of STATUSES) counts[s] = pool.filter(m => m.status === s).length;
+    const keep = new URLSearchParams(Object.entries(query).filter(([k, v]) => k !== 'status' && typeof v === 'string' && v));
+    const statusHref = (s) => { const p = new URLSearchParams(keep); if (s !== 'all') p.set('status', s); const qs = p.toString(); return `/models${qs ? `?${qs}` : ''}#directory-more`; };
+    const tabs = ['all', ...STATUSES].map(s => counts[s] || s === status
+        ? `<a class="xr-tab${s === status ? ' is-on' : ''}" href="${esc(statusHref(s))}"${s === status ? ' aria-current="true"' : ''}>${esc(STATUS_LABEL[s])}<span>${counts[s]}</span></a>`
+        : `<span class="xr-tab is-empty" aria-disabled="true">${esc(STATUS_LABEL[s])}<span>0</span></span>`).join('');
+    const groups = new Map();
+    for (const m of rows) {
+        const p = providerOf(m);
+        const g = groups.get(p.name) || { name: p.name, note: p.note, rows: [] };
+        if (!g.note && p.note) g.note = p.note;
+        g.rows.push(m);
+        groups.set(p.name, g);
+    }
+    const order = (m) => STATUSES.indexOf(m.status);
+    const list = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+    const narrowed = Boolean(query.q || query.provider || status !== 'all') || rows.length <= 40;
+    const row = (m) => {
+        const ctx = tokens(m.context_window);
+        const out = perMOut(m.price?.output_per_million);
+        return `<li class="xr-row${m.status === 'retired' ? ' is-retired' : ''}"><a href="${href(m.id)}">${esc(m.name)}</a><span class="xr-meta">`
+            + `${m.status !== 'available' ? `<span class="xr-status is-${esc(m.status)}">${esc(STATUS_LABEL[m.status] || m.status)}</span>` : ''}`
+            + `${ctx ? `<span class="xr-ctx" title="${esc(`${Number(m.context_window).toLocaleString('en-US')} tokens of context`)}">${esc(ctx)} context</span>` : ''}`
+            + `<span class="xr-price">${out ? esc(out) : '<i>Not priced</i>'}</span></span></li>`;
+    };
+    const fold = (g) => {
+        const prices = g.rows.map(m => m.price?.output_per_million).filter(v => v != null && Number.isFinite(Number(v))).map(Number);
+        const free = prices.filter(v => v === 0).length;
+        const paid = prices.filter(v => v > 0);
+        const from = paid.length ? Math.min(...paid) : null;
+        const sorted = [...g.rows].sort((a, b) => order(a) - order(b) || String(a.name).localeCompare(String(b.name), 'en', { numeric: true, sensitivity: 'base' }));
+        return `<details class="xr-group"${narrowed ? ' open' : ''}><summary><span class="xr-prov">${esc(g.name)}</span>`
+            + `${g.note ? `<span class="xr-prov-note">${esc(g.note)}</span>` : ''}<span class="xr-sum">`
+            + `<span class="xr-n">${g.rows.length} ${g.rows.length === 1 ? 'model' : 'models'}</span>`
+            + `${free ? `<span class="xr-free">${free === g.rows.length ? 'free' : `${free} free`}</span>` : ''}`
+            + `${from != null ? `<span class="xr-from">from ${esc(perMOut(from))}</span>` : ''}</span></summary>`
+            + `<ul class="xr-list">${sorted.map(row).join('')}</ul></details>`;
+    };
+    return `<section class="ex-wrap xr" aria-labelledby="directory-more"><div class="xr-head"><h2 id="directory-more">More models in the registry</h2>
+<p>Every model a provider lists, routed or not: ${counts.all.toLocaleString('en-US')} from ${new Set(pool.map(m => providerOf(m).name)).size} providers. Prices and availability are dated at their sources.</p></div>
+<nav class="xr-tabs" aria-label="Model status">${tabs}</nav>
+${list.length ? `<div class="xr-groups">${list.map(fold).join('')}</div>` : '<p class="xm-empty">No more models match this search.</p>'}</section>`;
 }
 function directoryDetail(m) {
     const price = m.price || {};
