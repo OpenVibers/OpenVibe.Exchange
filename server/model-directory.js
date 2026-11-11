@@ -3,7 +3,7 @@ const { esc } = require('./render/html');
 
 const href = id => `/models/${encodeURIComponent(id)}`;
 const allowedStatus = new Set(['available', 'preview', 'spotted', 'retired']);
-function withLiveCatalog(directoryModels = [], catalogModels = [], generatedAt = null) {
+function withLiveCatalog(directoryModels = [], catalogModels = []) {
     const live = new Map(catalogModels.map(m => [m.slug, m]));
     const rows = directoryModels.map(m => ({ ...m, slug: m.id, offers: live.get(m.id)?.offers || [] }));
     const seen = new Set(rows.map(m => m.id));
@@ -19,7 +19,7 @@ function withLiveCatalog(directoryModels = [], catalogModels = [], generatedAt =
             family: m.family || null, status: 'available', routing_enabled: offers.length > 0,
             context_window: m.context ?? null, max_output: m.max_output ?? null, modalities: m.modalities || [],
             price: { input_per_million: cheapest?.price?.in ?? null, output_per_million: cheapest?.price?.out ?? null,
-                cached_per_million: cheapest?.price?.cached ?? null, checked_at: cheapest?.updated_at || generatedAt || null,
+                cached_per_million: cheapest?.price?.cached ?? null, checked_at: cheapest?.updated_at || null,
                 source: null },
             source: null, offers,
         });
