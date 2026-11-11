@@ -25,7 +25,7 @@ function createConsoleRoutes({ config, ai }) {
     const DESIGNED_HEAD = raw(`<link rel="stylesheet" href="/css/console-ai.css"><style>${require('../views/console-ai').CSS}</style>`);
     const page = (req, res, section, data, error = null, status = 200) => send(res, status, {
         viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI operator console',
-        head: ['providers', 'models', 'pricebook'].includes(section) ? DESIGNED_HEAD : undefined,
+        head: ['providers', 'models', 'pricebook', 'supply'].includes(section) ? DESIGNED_HEAD : undefined,
         body: raw(consolePage({ section, data, error })),
     });
     r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(req.viewer?.kind === 'user' ? 403 : 404));
@@ -139,10 +139,14 @@ function createConsoleRoutes({ config, ai }) {
     });
     r.post('/console/supply', async (req,res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
-        const body = { model: req.body.model, runtime: req.body.runtime };
+        const enabled = req.body.enabled === '1';
+        if (enabled && String(req.body.confirm || '').trim().toLowerCase() !== 'open') {
+            return page(req, res, 'supply', {}, 'Type open in the confirmation field to turn on live supply. Nothing was changed.', 422);
+        }
+        const body = { model: req.body.model, runtime: req.body.runtime, enabled };
         for (const k of ['input_per_million','output_per_million','hourly_ceiling_usd','monthly_ceiling_usd','required_vram_mb','idle_minutes']) body[k] = Number(req.body[k]);
         try { await ai.adminRequest('/api/v1/admin/console/supply', { method:'POST', subject:req.viewer.subject, body }); return res.redirect(303,'/console/supply'); }
-        catch { return page(req,res,'supply',{},'Supply settings could not be saved.',502); }
+        catch (err) { return page(req,res,'supply',{},err.message || 'Supply settings could not be saved.',err.status === 409 || err.status === 422 ? err.status : 502); }
     });
     r.post('/console/providers', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
@@ -230,6 +234,17 @@ function createConsoleRoutes({ config, ai }) {
             await ai.adminRequest(`/api/v1/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}`, { method: 'PATCH', subject: req.viewer.subject, body: { status } });
             return res.redirect(303, '/console/models');
         } catch (err) { return page(req, res, 'models', {}, err.message || 'The change could not be saved.', 502); }
+    });
+    // The owner's one action that opens an offer: approve its waiting prices and switch the provider and model on
+    // (AI's server/exchange/offers.js). A missing key or price comes back as the plain sentence AI answered.
+    r.post('/console/models/:provider/:model/open', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            await ai.adminRequest(`/api/v1/admin/console/models/${encodeURIComponent(req.params.provider)}/${encodeURIComponent(req.params.model)}/open`, {
+                method: 'POST', subject: req.viewer.subject, body: {},
+            });
+            return res.redirect(303, '/console/models');
+        } catch (err) { return page(req, res, 'models', {}, err.message || 'The offer could not be opened.', err.status === 409 ? 409 : 502); }
     });
     r.post('/console/models/:provider/:model/settings', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);

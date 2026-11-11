@@ -125,6 +125,35 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(providerSettings.status, 303);
         assert.ok(writes.some((write) => write.path === '/api/v1/providers/groq' && write.body.markup_percent === 12.5 && write.body.uncensored === true));
+        const modelOpen = await fetch(`${base}/console/models/groq/openai%2Fgpt-oss-120b/open`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
+        });
+        assert.strictEqual(modelOpen.status, 303);
+        assert.strictEqual(writes.at(-1).path, '/api/v1/admin/console/models/groq/openai%2Fgpt-oss-120b/open');
+        assert.strictEqual(writes.at(-1).method, 'POST');
+        const supplyConfirm = await fetch(`${base}/console/supply`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ model: 'm', runtime: 'vllm', input_per_million: '1', output_per_million: '2', hourly_ceiling_usd: '1',
+                monthly_ceiling_usd: '100', required_vram_mb: '24000', idle_minutes: '10', enabled: '1' }),
+        });
+        assert.strictEqual(supplyConfirm.status, 422, 'live supply needs the typed confirmation');
+        const beforeSupply = writes.length;
+        const supplyOn = await fetch(`${base}/console/supply`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ model: 'm', runtime: 'vllm', input_per_million: '1', output_per_million: '2', hourly_ceiling_usd: '1',
+                monthly_ceiling_usd: '100', required_vram_mb: '24000', idle_minutes: '10', enabled: '1', confirm: 'open' }), redirect: 'manual',
+        });
+        assert.strictEqual(supplyOn.status, 303);
+        assert.strictEqual(writes.length, beforeSupply + 1);
+        assert.strictEqual(writes.at(-1).path, '/api/v1/admin/console/supply');
+        assert.strictEqual(writes.at(-1).body.enabled, true);
+        const supplyOff = await fetch(`${base}/console/supply`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ model: 'm', runtime: 'vllm', input_per_million: '1', output_per_million: '2', hourly_ceiling_usd: '1',
+                monthly_ceiling_usd: '100', required_vram_mb: '24000', idle_minutes: '10', enabled: '0' }), redirect: 'manual',
+        });
+        assert.strictEqual(supplyOff.status, 303);
+        assert.strictEqual(writes.at(-1).body.enabled, false);
         const modelOverride = await fetch(`${base}/console/models/groq/openai%2Fgpt-oss-120b/override`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ input_per_million: '0.2', cached_per_million: '', output_per_million: '0.7', reason: 'Owner approved adjustment' }), redirect: 'manual',

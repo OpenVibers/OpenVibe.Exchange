@@ -101,3 +101,7 @@
   .exc-pb-prov>.exc-prov-head .exc-decide{flex-basis:100%;margin-left:0}
   .exc-pb-all .exc-decide,.exc-pb-all .exc-decide .ovk-btn{flex:1}
 }
+
+/* An offer's route: whether the catalogue and router list it, and the gate that stops it. */
+.exc-route{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0}
+.exc-route small{color:var(--ovk-muted);font-size:.82rem}

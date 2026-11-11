@@ -39,6 +39,13 @@ const healthWord = (h) => {
     if (/down|open|fail/i.test(s)) return ['Failing', 'bad'];
     return [String(s), ''];
 };
+// The route reasons the AI registry answers (server/exchange/offers.js), in the owner's words.
+const ROUTE_WORDS = Object.freeze({
+    no_provider: 'no provider', provider_off: 'provider off', no_key: 'no key', access_restricted: 'resale not allowed',
+    model_off: 'model off', model_gone: 'gone from the provider list', kind_not_offered: 'kind not sold',
+    price_unknown: 'no approved price',
+});
+const routeWords = (route) => (route && Array.isArray(route.reasons) ? route.reasons.map((r) => ROUTE_WORDS[r] || r).join(' · ') : '');
 
 // ── Providers ──
 function providerCard(p, models) {
@@ -150,10 +157,28 @@ function modelsSection(data = {}) {
         const path = `/console/models/${encodeURIComponent(m.provider)}/${encodeURIComponent(id)}`;
         const o = m.owner_override;
         const accepted = m.accepted_price || m.cost;
+        const route = m.route || null;
+        const live = Boolean(route && route.live);
+        const reasons = route && Array.isArray(route.reasons) ? route.reasons : [];
+        const keyFirst = Boolean(route && !route.key_present);
+        const priceFirst = reasons.includes('price_unknown') && !(route && route.pending_prices);
+        const missing = Boolean(route && route.missing_since);
+        const restricted = reasons.includes('access_restricted');
+        const canOpen = Boolean(route && !keyFirst && !priceFirst && !missing && !restricted);
+        const showOpen = Boolean(route && (!live || (route.pending_prices || 0) > 0));
+        const submit = live ? 'Approve waiting prices' : 'Approve prices and open route';
+        const open = showOpen ? `<form method="post" action="${path}/open" class="exc-inline">${canOpen
+            ? `<button class="ovk-btn ${live ? 'ovk-btn--quiet' : 'ovk-btn--primary'}" type="submit">${esc(submit)}</button>`
+            : `<button class="ovk-btn ovk-btn--quiet" type="submit" disabled>${keyFirst ? 'Add the provider key first' : priceFirst ? 'Approve a price first' : 'Resolve the gate first'}</button>`}</form>` : '';
+        const routeLine = route ? `<p class="exc-route">${live ? tag('Live route', 'ok') : tag('Not routed', 'warn')}<small>${live
+            ? 'The catalogue and the router list this offer.'
+            : esc(routeWords(route) || 'not listed')}${route.pending_prices ? ` · ${esc(route.pending_prices)} waiting price${route.pending_prices === 1 ? '' : 's'}` : ''}</small></p>` : '';
         return `<li class="exc-model">
   <div class="exc-model-head"><b>${esc(m.display_name || id)}</b><small>${esc(id)}</small>
     <form method="post" action="${path}/status" class="exc-quick"><select name="status" aria-label="Status of ${esc(id)}">${['active', 'disabled'].map((s) => `<option value="${s}"${(m.status || 'active') === s ? ' selected' : ''}>${s === 'active' ? 'On' : 'Off'}</option>`).join('')}</select>${btn('Set')}</form></div>
   <div class="exc-model-prices"><span><em>Accepted</em>${priceTriple(accepted)}</span>${o ? `<span class="is-override"><em>Your price</em>${priceTriple(o.cost)}<small>${esc(o.reason || '')}</small></span>` : ''}</div>
+  ${routeLine}
+  ${open}
   ${m.metadata?.missing_since ? `<p>Gone from the provider list since ${esc(m.metadata.missing_since)}.</p>` : ''}
   ${accepted?.source ? `<p>Price source: <a href="${esc(accepted.source)}" rel="noopener noreferrer">${esc(accepted.source)}</a></p>` : ''}
   <form method="post" action="${path}/settings">
@@ -253,5 +278,53 @@ ${recent.length ? `<section class="exc-sec"><h3>Applied lately <span class="exc-
 </div>`;
 }
 
-const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, sync: syncSection };
-module.exports = { providersSection, modelsSection, pricebookSection, syncSection, SECTIONS, CSS: marks.CSS };
+// ── GPU supply ──
+function supplySection(data = {}) {
+    const reports = Array.isArray(data.reports) ? data.reports : [];
+    const settings = Array.isArray(data.settings) ? data.settings : [];
+    const gate = data.gate || { ok: false, reason: 'GPU supply is not available on this host.' };
+    const ACTION = {
+        would_rent: 'Would rent the selected host', use_reseller: 'Buying these tokens is cheaper',
+        would_stop: 'No demand right now', needs_measurement: 'Needs a measured throughput first',
+        ceiling_required: 'The host hour is over the ceilings',
+    };
+    const form = (plan = {}) => `<form method="post" action="/console/supply" class="exc-form">
+  <label><span>Model</span><input name="model" required maxlength="200" value="${esc(plan.model || '')}" placeholder="e.g. deepseek-r1-32b-abliterated"></label>
+  <label><span>Runtime</span><select name="runtime">${['vllm', 'sglang'].map((r) => `<option value="${r}"${(plan.runtime || 'vllm') === r ? ' selected' : ''}>${esc(r)}</option>`).join('')}</select></label>
+  <label><span>Input USD / million</span><input name="input_per_million" type="number" min="0" step="any" required value="${esc(plan.input_per_million ?? '')}"></label>
+  <label><span>Output USD / million</span><input name="output_per_million" type="number" min="0" step="any" required value="${esc(plan.output_per_million ?? '')}"></label>
+  <label><span>Hourly spend ceiling USD</span><input name="hourly_ceiling_usd" type="number" min="0" step="any" required value="${esc(plan.hourly_ceiling_usd ?? '')}"></label>
+  <label><span>Monthly spend ceiling USD</span><input name="monthly_ceiling_usd" type="number" min="0" step="any" required value="${esc(plan.monthly_ceiling_usd ?? '')}"></label>
+  <label><span>Required VRAM MB</span><input name="required_vram_mb" type="number" min="1" step="1" required value="${esc(plan.required_vram_mb ?? '24000')}"></label>
+  <label><span>Stop after idle minutes</span><input name="idle_minutes" type="number" min="1" step="1" required value="${esc(plan.idle_minutes ?? '10')}"></label>
+  <label><span>Live supply</span><select name="enabled"><option value="0"${plan.enabled ? '' : ' selected'}>Off, quote only</option><option value="1"${plan.enabled ? ' selected' : ''}>On, rent when it is cheaper</option></select></label>
+  <label class="exc-wide"><span>Type open to confirm a live plan</span><input name="confirm" maxlength="8" placeholder="open"></label>
+  <p class="exc-actions">${btn('Save plan', 'primary')}</p>
+</form>`;
+    const planCard = (report, plan) => {
+        const route = report.route || { registered: false };
+        const selected = report.selected;
+        const routeLine = route.registered
+            ? `${route.live ? tag('Fixed route live', 'ok') : tag('Route registered, not live', 'warn')}<small>${esc(route.provider_key || '')} · ${route.fixed ? 'your fixed price' : 'the computed price'} · ${route.price && route.price.in != null ? `$${esc(route.price.in)} in / $${esc(route.price.out)} out per 1M` : 'no price'}${route.live ? '' : ` · ${esc(route.provider_status || '')}/${esc(route.model_status || '')}`}</small>`
+            : `<span class="exc-quiet">${esc(route.reason || 'No host has registered this model yet.')}</span>`;
+        const openRoute = route.registered && !route.live ? `<form method="post" action="/console/models/${encodeURIComponent(route.provider_key || '')}/${encodeURIComponent(plan.model || '')}/open" class="exc-inline">${btn('Open the fixed route', 'quiet')}</form>` : '';
+        return `<li class="exc-pb-prov">
+  <div class="exc-prov-head">${mark(plan.model || 'gpu', 32)}<span class="exc-prov-name"><b>${esc(plan.model || 'GPU plan')}</b><small>${esc(plan.runtime || '')} · ${esc(money(plan.input_per_million) || '–')} in / ${esc(money(plan.output_per_million) || '–')} out per 1M · ceiling ${esc(money(plan.hourly_ceiling_usd) || '–')}/h and ${esc(money(plan.monthly_ceiling_usd) || '–')}/month</small></span>${report.active ? tag('Live supply', 'ok') : report.enabled ? tag('Enabled, blocked', 'warn') : tag('Quote only')}</div>
+  <p class="exc-tags">${report.enabled ? tag('Enabled') : ''}${selected ? tag(String(selected.gpu || '')) : ''}</p>
+  <p class="exc-note">${esc(ACTION[report.action] || report.action || '')}${selected ? ` · ${esc(selected.provider || '')} ${esc(selected.gpu || '')} ${esc(selected.region || '')} at ${esc(money(selected.hourly_usd))}/h${report.rental_cost_usd != null ? ` · rent ${esc(money(report.rental_cost_usd))}/day` : ''}${report.reseller_cost_usd != null ? ` · buying ${esc(money(report.reseller_cost_usd))}/day` : ' · no resale price'}` : ''}</p>
+  <p class="exc-route">${routeLine}</p>
+  ${openRoute}
+  ${form({ ...plan, enabled: Boolean(plan.enabled) })}
+</li>`;
+    };
+    const plans = reports.map((report, i) => ({ report, plan: settings[i] || { ...report, ...(report.price ? { input_per_million: report.price.in, output_per_million: report.price.out } : {}) } }));
+    return `<div class="exc">
+<header class="exc-head"><h2>GPU supply</h2><p>What a rented GPU must earn per million tokens, and the host hour you will pay for it. The fixed prices are the route's price; a live plan asks for the cheapest host under your ceilings only when that is cheaper than buying the same tokens.</p>
+<p class="exc-note">${gate.ok ? 'Owner gate open: a marketplace key, a monthly cap and a bounded cost allowance are set.' : `Gate closed: ${esc(gate.reason || 'the GPU provisioner is not set up')}`}</p></header>
+<section class="exc-sec"><h3>Plans <span class="exc-n">${plans.length}</span></h3>${plans.length ? `<ul class="exc-list">${plans.map(({ report, plan }) => planCard(report, plan)).join('')}</ul>` : '<p class="exc-note">No plan yet. Save fixed prices and ceilings below to price a host; the route opens when a host registers it.</p>'}
+<details class="exc-fold"><summary>Save another plan</summary><div class="exc-fold-body">${form({})}</div></details></section>
+</div>`;
+}
+
+const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection };
+module.exports = { providersSection, modelsSection, pricebookSection, supplySection, syncSection, SECTIONS, CSS: marks.CSS };
