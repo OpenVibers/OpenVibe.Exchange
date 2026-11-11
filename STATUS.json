@@ -9,11 +9,11 @@
   "port": "5150",
   "domain": "openvibe.exchange",
   "contracts": "openvibe-contracts v0.399.0",
-  "sdk": "openvibe-sdk v0.146.0",
+  "sdk": "openvibe-sdk v0.147.0",
   "shared": "openvibe-shared v4.200.0",
   "packages": [
     "openvibe-contracts v0.399.0",
-    "openvibe-sdk v0.146.0",
+    "openvibe-sdk v0.147.0",
     "openvibe-shared v4.200.0"
   ],
   "summary": "OpenVibe.Exchange is the network's AI front. It reads OpenVibe.AI's public catalog and aggregate usage and renders: the home (popular now, cheapest per million, uncensored, community machines, live numbers), /models and /m/<org>/<model> (every offer with price in/out, measured p50/p95, uptime and data policy, a Try it box, curl and the SDK), /chat (one to three models side by side, system prompt, temperature, history in the account, on openvibe-shared/thread), /api, /sell (Link's offer to the network; what is not sold, said plainly), /uncensored (an 18+ confirmation on the account and the hard floor) and /ai (which products run which models, and the daily cost). Chat and Try it are ai.complete runs on the person's behalf (on_behalf_of) with the service's ai.run.create token. Exchange v1 (free/swap listings, passports, sandboxes, installs, offers) is retired: every v1 page answers 410 with a pointer, its JSON API answers 410 exchange.retired, and its tables stay read-only; its tests live in test/retired/.",
@@ -59,5 +59,5 @@
     "first-proof seed"
   ],
   "deployment": "not deployed: the unit and nginx vhost are deploy/systemd/openvibe-exchange.service and deploy/nginx/openvibe.exchange.conf",
-  "updated": "2026-11-10"
+  "updated": "2026-11-11"
 }
