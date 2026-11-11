@@ -48,6 +48,7 @@ const { createPageRoutes } = require('./http/pages');
 const { createConsoleRoutes } = require('./http/console');
 const { createArenaRoutes } = require('./http/arena');
 const { createCompareApi } = require('./http/compare');
+const { createCompareSite } = require('./http/compare-site');
 const { createCompanionRoutes } = require('./http/companions');
 const { createServiceReadiness } = require('./observability');
 const { assetVersion, send } = require('./render/layout');
@@ -262,6 +263,11 @@ async function createApp(opts = {}) {
     // ── Compare's JSON API (openvibe.compare) ───────────────
     // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
     app.use('/api/v1/compare', createCompareApi(ctx));
+
+    // ── openvibe.compare, behind its own name ───────────────
+    // The vhost for openvibe.compare proxies here with Host: openvibe.compare; every other Host passes through to
+    // Exchange's own pages, so one process serves both names without either site's routes leaking into the other.
+    app.use(createCompareSite(ctx));
 
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use('/api/v1', (req, res) => {
