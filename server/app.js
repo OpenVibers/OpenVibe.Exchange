@@ -277,6 +277,22 @@ async function createApp(opts = {}) {
         }
     });
 
+    app.get('/api/v1/models', async (req, res) => {
+        const directory = await ai.directory();
+        if (directory.unavailable) return res.status(503).json({ error: 'directory_unavailable' });
+        const models = require('./model-directory').select(directory.models, req.query);
+        return res.set('Cache-Control', 'public, max-age=30').json({ count: models.length, models });
+    });
+    const directoryDetail = async (req, res) => {
+        const directory = await ai.directory();
+        if (directory.unavailable) return res.status(503).json({ error: 'directory_unavailable' });
+        const id = (req.params.id || `${req.params.org}/${req.params.model}`).toLowerCase();
+        const model = directory.models.find(m => m.id.toLowerCase() === id);
+        return model ? res.set('Cache-Control', 'public, max-age=30').json({ model }) : res.status(404).json({ error: 'model_not_found' });
+    };
+    app.get('/api/v1/models/:id', directoryDetail);
+    app.get('/api/v1/models/:org/:model', directoryDetail);
+
     // ── Compare's JSON API (openvibe.compare) ───────────────
     // Mounted before Exchange v1's catch-all, which answers 410 to everything else under /api/v1.
     app.use('/api/v1/compare', createCompareApi(ctx));
