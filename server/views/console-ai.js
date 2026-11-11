@@ -67,10 +67,10 @@ function providerCard(p, models) {
     const keyStatus = keyState.source === 'not_required' ? '<p>No key required.</p>'
         : keyState.hint ? `<p>Key ends in ${esc(keyState.hint)}${keyState.set_at ? ` · set on ${esc(keyState.set_at)}` : ''}.</p>` : '';
     const keyActions = `${keyStatus}
-  ${check ? `<p>Check: ${check.ok ? 'OK' : esc(check.error || 'Failed')} · ${esc(check.latency_ms)} ms · ${esc(check.checked_at)}</p>` : ''}
+  ${check ? `<p>Check: ${check.ok ? 'OK' : esc(check.error || 'Failed')} · ${esc(check.latency_ms)} ms · ${esc(check.checked_at)}${check.ok && Number.isFinite(Number(check.models_count)) ? ` · ${esc(check.models_count)} models` : ''}</p>${Array.isArray(check.models) && check.models.length ? `<details><summary>Models this key can use</summary><ul>${check.models.map(id => `<li>${esc(id)}</li>`).join('')}</ul></details>` : ''}` : ''}
   <form method="post" action="/console/providers/${key}/check"><button class="ovk-btn ovk-btn--quiet" type="submit">Check provider</button></form>
   ${p.key_present || keyState.source === 'stored' ? `<form method="post" action="/console/providers/${key}/remove-key"><button class="ovk-btn ovk-btn--quiet" type="submit">Remove key and disable</button></form>` : ''}`;
-    const keyForm = `<form class="exc-form exc-form--key" method="post" action="/console/providers/${key}/key">
+    const keyForm = `${p.keys_url ? `<p><a href="${esc(p.keys_url)}" rel="noopener noreferrer" target="_blank">Create or find your API key</a>. Paste it below, save it, then Check provider to list the models it can use.</p>` : ''}<form class="exc-form exc-form--key" method="post" action="/console/providers/${key}/key">
   <label><span>${p.key_present ? 'Replace the key' : 'Add the key'}</span><input name="api_key" type="password" autocomplete="off" minlength="8" maxlength="400" required placeholder="Paste the provider's API key"><small>Stored sealed and bound to ${esc(host(p.base_url) || 'this provider')}; never shown again.</small></label>
   <p class="exc-actions">${btn(p.key_present ? 'Replace key' : 'Save key')}</p>
 </form>`;
