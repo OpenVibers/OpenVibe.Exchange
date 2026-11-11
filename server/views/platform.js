@@ -148,6 +148,6 @@ function modelsPage({ catalog, query = {} }) {
                 all.filter((m) => tests[key](m, value)).length,
             ),
         );
-    return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${kit.find({ action: '/models', name: 'q', value: query.q || '', placeholder: 'Find a model', icon: 'search' })}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows)}</div>`;
+    return `<div class="ex-wrap xp">${kit.head({ title: 'Models', sub: `${rows.length} models · live prices and measured performance` })}${unavailable(catalog)}${kit.find({ action: '/models', name: 'q', value: query.q || '', placeholder: 'Find a model', icon: 'search' })}<nav class="ex-chips" aria-label="Model filters">${chips.join('')}</nav>${table(rows)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
 module.exports = { home, modelsPage, pricing, pricingPage, table };
