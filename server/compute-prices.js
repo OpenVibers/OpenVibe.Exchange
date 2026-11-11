@@ -7,7 +7,7 @@ const cpu = (provider, region, hourly, source, extra = {}) => ({ id: `${provider
     billing_seconds: 1, checked_at, expires_at, source, ...extra });
 const prices = [
     cpu('baseten', 'us-pdx-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing', { promotion: 'Free until November 16; owner must set expiry', promotion_expires: '2026-11-16T00:00:00Z' }),
-    cpu('baseten', 'eu-lon-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing'),
+    cpu('baseten', 'eu-lon-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing', { promotion_expires: '2026-11-16T00:00:00Z' }),
     cpu('daytona', 'us', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5, promotion: '$200 one-time credit; expiry must be confirmed in the account' }),
     cpu('daytona', 'eu', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5 }),
     cpu('e2b', 'provider-default', 3600 * (2 * .000014 + 4 * .0000045), 'https://e2b.dev/pricing', { promotion: '$100 one-time Hobby credit; 10 concurrent; 1-hour sessions' }),
