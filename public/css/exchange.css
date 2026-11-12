@@ -705,3 +705,30 @@ body.ex-companion-shell > main.ex { flex: 1; min-height: 0; display: flex; }
 .ex-mrow-main { min-height: 44px; }
 .ex-more a { display: inline-flex; align-items: center; min-height: 44px; }
 .ovk-snip .ovk-icon-btn { min-width: 44px; min-height: 44px; }
+
+/* Deep dive (/deep-dive, 11-12 design pass): the depths as cards with the price large, and what a dive does as a
+   numbered timeline with an icon per step; what a capture measures as chips. */
+.dd-depth-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+/* A kit section pads only its heading and note: the cards and the steps keep their own inset. */
+.ovk-section > .dd-depth-list { margin: 6px 14px 14px; }
+.ovk-section .dd-what { margin: 8px 14px 6px; }
+.dd-depths { border: 0; margin: 0; padding: 0; }
+.dd-depths legend { margin-bottom: 8px; font-weight: 700; }
+.dd-depth { position: relative; display: grid; gap: 2px; align-content: start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-secondary); }
+label.dd-depth { cursor: pointer; }
+label.dd-depth input { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; accent-color: var(--accent); }
+label.dd-depth:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, var(--bg-secondary)); }
+.dd-depth-name { font-weight: 700; font-size: 1rem; }
+.dd-depth-price { font-size: 1.6rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+.dd-depth-size { color: var(--text-secondary); font-size: .9rem; }
+.dd-depth small { color: var(--text-muted); font-size: .82rem; line-height: 1.4; margin-top: 4px; }
+.dd-what { list-style: none; counter-reset: dd; display: grid; gap: 14px; margin: 0; padding: 0; }
+.dd-what > li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: start; }
+.dd-what-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--accent-light, var(--accent)); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.dd-what-ic .ovk-i { width: 20px; height: 20px; }
+.dd-what strong { display: block; font-size: 1rem; }
+.dd-what p { margin: 2px 0 0; color: var(--text-secondary); font-size: .92rem; line-height: 1.5; }
+.dd-what p.dd-what-sub { margin-top: 8px; font-size: .78rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.dd-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
+.dd-chips li { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-secondary); font-size: .8rem; color: var(--text-secondary); }
+@media (max-width: 640px) { .dd-depth-row { grid-template-columns: minmax(0, 1fr); } .dd-depth-price { font-size: 1.35rem; } }
