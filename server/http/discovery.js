@@ -108,7 +108,7 @@ function createDiscoveryRoutes(ctx) {
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: DESCRIPTION,
-            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account. GitHub repositories are read through OpenVibe.Sources and served at /api/v1/code/repos and /api/v1/code/search; nothing is invented when the source is behind.',
+            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account. GitHub repositories are read through OpenVibe.Sources and served at /api/v1/code/repos and /api/v1/code/search; nothing is invented when the source is behind. Decisions answers closed-set questions about one input at https://ai.openvibe.services/api/v1/decisions.',
             markdown: true,
             base: site,
             sections: [
@@ -117,6 +117,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Models', url: abs('/models'), note: 'prices and measured latency' },
                     { title: 'Rankings', url: abs('/rankings'), note: 'blind Arena votes by task, beside price and speed' },
                     { title: 'Code', url: abs('/code'), note: 'GitHub trending, hot and new repositories, and a deep search' },
+                    { title: 'Decisions', url: abs('/decisions'), note: 'yes/no, choice and rubric answers about one input' },
                     { title: 'The API', url: abs('/api') },
                     { title: 'Compute prices', url: abs('/compute'), note: 'GPUs and computers per hour; JSON at /api/compute/prices' },
                     { title: 'Code repositories API', url: abs('/api/v1/code/repos?list=week'), note: 'cached GitHub rankings from Sources; search at /api/v1/code/search?q=stars:>500' },
