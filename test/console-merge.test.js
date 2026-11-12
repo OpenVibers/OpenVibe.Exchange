@@ -16,7 +16,19 @@ app.use((req, _res, next) => {
 });
 app.use(createConsoleRoutes({
     config: { baseUrl: 'https://openvibe.exchange' },
-    ai: { async adminRequest(path, options = {}) { calls.push(path); if (options.method) writes.push({ path, ...options }); if (path === '/api/v1/admin/console/pricebook') return { confirmed: [{ provider_key: 'sable', model_key: 'deepseek-v4.1-flash-1017-uncensored', in_per_mtok: 0.15, out_per_mtok: 0.6, source: 'https://sableapi.com/models', checked_at: '2026-11-10' }] }; return { providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }] }; } },
+    ai: { async adminRequest(path, options = {}) {
+        calls.push(path); if (options.method) writes.push({ path, ...options });
+        if (path === '/api/v1/admin/console/pricebook') return { confirmed: [{ provider_key: 'sable', model_key: 'deepseek-v4.1-flash-1017-uncensored', in_per_mtok: 0.15, out_per_mtok: 0.6, source: 'https://sableapi.com/models', checked_at: '2026-11-10' }] };
+        if (path === '/api/v1/admin/console/gpu-policy') return {
+            global: { quote_only: true, monthly_cap_nano: '50000000000', interactive_cap_nano: '20000000000', batch_cap_nano: '30000000000' },
+            providers: [
+                { key: 'vast', enabled: true, configured: true, order: 3, classes: ['interactive', 'batch'], interruptible_allowed: true, max_hourly_nano: '500000000', max_replicas: 2, regions: ['US'], monthly_cap_share_percent: 40, key_state: { present: true, last_four: '4321' } },
+                { key: 'salad', enabled: false, configured: false, order: 50, classes: ['batch'], interruptible_allowed: false, max_replicas: 3, regions: [], monthly_cap_share_percent: 100, key_state: { present: false } },
+            ],
+        };
+        if (path === '/api/v1/admin/console/gpus') return { state: { enabled: true, reason: '', dry_run: true, cap_nano: '50000000000', spent_nano: '1000000000', committed_nano: '2000000000', by_class: { interactive: '1000000000' }, instances: [] } };
+        return { providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }] };
+    } },
 }));
 
 (async () => {
@@ -185,6 +197,26 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(modelOverride.status, 303);
         assert.ok(writes.some((write) => write.path === '/api/v1/models/groq/openai%2Fgpt-oss-120b' && write.body.owner_override.reason === 'Owner approved adjustment'));
+        // The GPU supply page carries the provider policy and the class caps as data with forms.
+        const supplyPage = await fetch(`${base}/console/supply`, { headers: { 'x-test-role': 'owner' } });
+        const supplyHtml = await supplyPage.text();
+        assert.strictEqual(supplyPage.status, 200, supplyHtml);
+        assert.ok(supplyHtml.includes('GPU providers and job classes'), 'the policy section is on the GPU supply page');
+        assert.ok(supplyHtml.includes('/console/gpu-policy/vast'), 'each provider has its form');
+        assert.ok(supplyHtml.includes('Key ends 4321'), 'the key shows its last four only');
+        assert.ok(supplyHtml.includes('Batch cap (USD)'), 'the owner sets the class caps');
+        assert.ok(supplyHtml.includes('Class routing and caps'), 'the class routing is data on the page');
+        assert.ok(!supplyHtml.includes(fakeSecret), 'no provider key reaches the page');
+        // The USD forms become the exact nano values AI stores; options are JSON.
+        const policyUsd = await fetch(`${base}/console/gpu-policy/vast`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ enabled: '1', classes: ['batch', 'interactive'], max_hourly_usd: '0.50', max_replicas: '2',
+                monthly_cap_share_percent: '40', regions: 'US, EU', options: '{"organization":"org","project":"proj"}' }), redirect: 'manual',
+        });
+        assert.strictEqual(policyUsd.status, 303);
+        assert.deepStrictEqual(writes.at(-1).body, { enabled: true, max_replicas: 2, monthly_cap_share_percent: 40,
+            max_hourly_nano: '500000000', classes: ['batch', 'interactive'], regions: ['US', 'EU'],
+            options: { organization: 'org', project: 'proj' } });
 
     } finally { await new Promise((resolve) => server.close(resolve)); }
     process.stdout.write('console-merge: owner gate and secret redaction passed\n');

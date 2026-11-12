@@ -182,6 +182,12 @@ function createConsoleRoutes({ config, ai }) {
         if (!endpoint) return res.sendStatus(404);
         try {
             const data = await ai.adminRequest(endpoint + (req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''));
+            if (section === 'supply') {
+                // The GPU supply section also shows the owner's provider policy and what the provisioner
+                // is doing. A read that fails leaves the rest of the page usable.
+                try { data.policy = await ai.adminRequest('/api/v1/admin/console/gpu-policy'); } catch { data.policy = null; }
+                try { data.gpus = await ai.adminRequest('/api/v1/admin/console/gpus'); } catch { data.gpus = null; }
+            }
             return page(req, res, section, data);
         } catch (err) {
             return page(req, res, section, {}, err.message || 'AI admin API did not answer.', err.status === 404 ? 404 : 502);
@@ -216,6 +222,11 @@ function createConsoleRoutes({ config, ai }) {
         try { await ai.adminRequest('/api/v1/admin/console/supply', { method:'POST', subject:req.viewer.subject, body }); return res.redirect(303,'/console/supply'); }
         catch (err) { return page(req,res,'supply',{},err.message || 'Supply settings could not be saved.',err.status === 409 || err.status === 422 ? err.status : 502); }
     });
+    const nanoOfUsd = (value) => {
+        if (value == null || value === '') return null;
+        const n = Number(value);
+        return Number.isFinite(n) && n >= 0 ? String(BigInt(Math.round(n * 1e9))) : null;
+    };
     r.post('/console/gpu-policy/:scope', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         const scope = String(req.params.scope || '');
@@ -223,9 +234,16 @@ function createConsoleRoutes({ config, ai }) {
         const body = {};
         for (const key of ['enabled', 'interruptible_allowed', 'quote_only']) if (Object.hasOwn(input, key)) body[key] = input[key] === '1';
         for (const key of ['order', 'max_replicas', 'monthly_cap_share_percent']) if (Object.hasOwn(input, key)) body[key] = Number(input[key]);
+        for (const [usd, nano] of [['monthly_cap_usd', 'monthly_cap_nano'], ['interactive_cap_usd', 'interactive_cap_nano'], ['batch_cap_usd', 'batch_cap_nano'], ['max_hourly_usd', 'max_hourly_nano']]) {
+            if (Object.hasOwn(input, usd)) body[nano] = nanoOfUsd(input[usd]);
+        }
         for (const key of ['monthly_cap_nano', 'interactive_cap_nano', 'batch_cap_nano', 'max_hourly_nano']) if (Object.hasOwn(input, key)) body[key] = input[key] || null;
         if (Object.hasOwn(input, 'classes')) body.classes = String(input.classes).split(',').map(x => x.trim()).filter(Boolean);
         if (Object.hasOwn(input, 'regions')) body.regions = String(input.regions).split(',').map(x => x.trim()).filter(Boolean);
+        if (Object.hasOwn(input, 'options')) {
+            try { body.options = input.options ? JSON.parse(String(input.options)) : {}; }
+            catch { return page(req, res, 'supply', {}, 'Provider options are not valid JSON.', 422); }
+        }
         try {
             await ai.adminRequest(`/api/v1/admin/console/gpu-policy/${encodeURIComponent(scope)}`, {
                 method: 'POST', subject: req.viewer.subject, role: req.viewer.role, body,
