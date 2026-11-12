@@ -28,6 +28,7 @@ const PUBLIC_PAGES = [
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
     { path: '/rankings', changefreq: 'daily', priority: 0.8, title: 'Rankings', text: 'Model rankings by task category from blind Arena votes, beside each model’s price per million, measured speed and uptime.' },
     { path: '/code', changefreq: 'daily', priority: 0.8, title: 'Code', text: 'GitHub repositories trending today, new and hot by stars gained, plus a deep repository search: read through OpenVibe.Sources.' },
+    { path: '/decisions', changefreq: 'weekly', priority: 0.7, title: 'Decisions', text: 'Yes/no, one-of-a-list and rubric questions about one input — text, pictures, audio, video or a PDF by link — answered in one call with calibrated probabilities, or the router’s cheapest structured model with calibrated: false.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
     { path: '/status', changefreq: 'hourly', priority: 0.5, title: 'Status', text: 'Uptime per offer, the model changelog, and incidents.' },
 ];

@@ -31,6 +31,7 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
 | `/status` | Uptime per offer, the model changelog and incidents. |
 | `/code` | GitHub repositories through OpenVibe.Sources: a deep repository search, Trending today / This week / Hot / New / Top, twelve language chips and one card per repository (stars, the week's gain, forks, language, topics, updated). `/api/v1/code/repos` and `/api/v1/code/search` are its public JSON. |
+| `/decisions` | OpenVibe.AI's Decisions API: yes/no (`noul`), one-of-a-list (`choice`) and rubric (`score`) questions about one input, a full request and answer, and who answers — Google's `gemini-decision-1` when a Gemini key is set, otherwise the router's cheapest structured model with `calibrated: false`. |
 
 The old chat rows remain for a person's one-time import into Chat. `GET /internal/exchange/chat/export` requires Chat's service token with `exchange.chat.export` and the authenticated person's `x-ov-subject`; it returns only that person's unsealed chats.
 

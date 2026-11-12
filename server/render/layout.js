@@ -29,6 +29,7 @@ const NAV = [
     { label: 'Status', href: '/status', icon: 'fa-gauge' },
     { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line', more: true },
     { label: 'Code', href: '/code', icon: 'fa-code', more: true },
+    { label: 'Decisions', href: '/decisions', icon: 'fa-list-check', more: true },
 ];
 
 const hashes = new Map();
