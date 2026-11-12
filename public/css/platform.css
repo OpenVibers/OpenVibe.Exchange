@@ -480,3 +480,16 @@
 /* The chevron points down, and up when open. */
 .xp-q-chev { transform: rotate(90deg); }
 .xp-q[open] .xp-q-chev { transform: rotate(-90deg); }
+
+/* /decisions: three question types, then one request beside one answer; one column on a phone. */
+.xd-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 14px 14px; }
+.xd-type { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 14px; border: 1px solid var(--ovk-line); border-radius: 14px; background: var(--ovk-panel); }
+.xd-type h3 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin: 0; font-size: 1rem; }
+.xd-type h3 code { color: var(--ovk-accent); font-size: .82em; font-weight: 700; }
+.xd-type p { margin: 0; color: var(--ovk-muted); font-size: .9rem; line-height: 1.5; }
+.xd-type .ovk-snip, .xd-pair .ovk-snip { margin: 0; }
+.xd-type .ovk-snip > pre, .xd-pair .ovk-snip > pre { margin-bottom: 0; font-size: .78rem; }
+.xd-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 12px 14px 14px; }
+.xd-pair > div { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.xd-pair h3 { margin: 0; font-size: .95rem; }
+@media (max-width: 900px) { .xd-types, .xd-pair { grid-template-columns: minmax(0, 1fr); } }

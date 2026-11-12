@@ -28,6 +28,7 @@ const marks = require('../views/marks');
 const { send } = require('../render/layout');
 const views = require('../views/exchange');
 const platform = require('../views/platform');
+const decisionsView = require('../views/decisions');
 const credentialViews = require('../views/credentials');
 
 const PUBLIC_CACHE = cache.htmlHeaders({ maxAge: 60 });
@@ -101,6 +102,12 @@ function createPageRoutes(ctx) {
     });
 
     r.get('/pricing', (req, res) => page(req, res, { title: 'Pricing', description: 'What a call to OpenVibe.Exchange costs: your own key at 0%, managed models at their listed price, your own endpoint by the hour, search per 1,000.', body: raw(platform.pricingPage()) }));
+    r.get('/decisions', (req, res) => page(req, res, {
+        title: 'Decisions',
+        description: "Yes/no, one-of-a-list and rubric questions about one input in one call, with calibrated probabilities from Google's Decisions API or the router's cheapest structured model.",
+        cache: PUBLIC_CACHE,
+        body: raw(decisionsView.decisionsPage()),
+    }));
     r.get('/docs', (req,res) => res.redirect(301,'/api'));
     r.get('/docs/migrate', (req,res) => page(req,res,{title:'Migrate to Exchange', description:'Move an OpenAI or Anthropic client to Exchange, validate routing and inspect API receipts.', jsonLd:[{'@context':'https://schema.org','@type':'TechArticle',headline:'Move your application to Exchange',url:'https://openvibe.exchange/docs/migrate'}], body:raw(require('../views/migration').migrationPage())}));
 

@@ -147,6 +147,18 @@ const contracts = require('openvibe-contracts');
             assert.ok(r.text.includes('2026-11-05') && r.text.includes('Requests'), 'usage by day');
         });
 
+        await check('decisions: the page, the three question types, the endpoint and its link from the nav', async () => {
+            const r = await t.get('/decisions');
+            assert.strictEqual(r.status, 200);
+            assert.ok(r.text.includes('<h1>Decisions</h1>'), 'the title');
+            assert.ok(r.text.includes('https://ai.openvibe.services/api/v1/decisions'), 'the endpoint');
+            for (const type of ['noul', 'choice', 'score']) assert.ok(r.text.includes(`&quot;type&quot;: &quot;${type}&quot;`), `${type} has its JSON example`);
+            assert.ok(r.text.includes('gemini-decision-1') && r.text.includes('$0.10 per 1M input tokens'), 'who answers and its price');
+            assert.ok(r.text.includes('calibrated: false'), 'the fallback is marked');
+            const home = await t.get('/');
+            assert.ok(home.text.includes('"href":"/decisions"'), 'the nav links the page beside Search and Code');
+        });
+
         await check('seller entry moves permanently to Link', async () => {
             const r = await t.get('/sell'); assert.strictEqual(r.status,301);
             assert.strictEqual(r.headers.get('location'),'https://openvibe.link');

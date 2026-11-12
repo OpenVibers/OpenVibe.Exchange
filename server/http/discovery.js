@@ -28,6 +28,7 @@ const PUBLIC_PAGES = [
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
     { path: '/rankings', changefreq: 'daily', priority: 0.8, title: 'Rankings', text: 'Model rankings by task category from blind Arena votes, beside each model’s price per million, measured speed and uptime.' },
     { path: '/code', changefreq: 'daily', priority: 0.8, title: 'Code', text: 'GitHub repositories trending today, new and hot by stars gained, plus a deep repository search: read through OpenVibe.Sources.' },
+    { path: '/decisions', changefreq: 'weekly', priority: 0.7, title: 'Decisions', text: 'Yes/no, one-of-a-list and rubric questions about one input — text, pictures, audio, video or a PDF by link — answered in one call with calibrated probabilities, or the router’s cheapest structured model with calibrated: false.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
     { path: '/status', changefreq: 'hourly', priority: 0.5, title: 'Status', text: 'Uptime per offer, the model changelog, and incidents.' },
 ];
@@ -107,7 +108,7 @@ function createDiscoveryRoutes(ctx) {
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: DESCRIPTION,
-            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account. GitHub repositories are read through OpenVibe.Sources and served at /api/v1/code/repos and /api/v1/code/search; nothing is invented when the source is behind.',
+            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account. GitHub repositories are read through OpenVibe.Sources and served at /api/v1/code/repos and /api/v1/code/search; nothing is invented when the source is behind. Decisions answers closed-set questions about one input at https://ai.openvibe.services/api/v1/decisions.',
             markdown: true,
             base: site,
             sections: [
@@ -116,6 +117,7 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'Models', url: abs('/models'), note: 'prices and measured latency' },
                     { title: 'Rankings', url: abs('/rankings'), note: 'blind Arena votes by task, beside price and speed' },
                     { title: 'Code', url: abs('/code'), note: 'GitHub trending, hot and new repositories, and a deep search' },
+                    { title: 'Decisions', url: abs('/decisions'), note: 'yes/no, choice and rubric answers about one input' },
                     { title: 'The API', url: abs('/api') },
                     { title: 'Compute prices', url: abs('/compute'), note: 'GPUs and computers per hour; JSON at /api/compute/prices' },
                     { title: 'Code repositories API', url: abs('/api/v1/code/repos?list=week'), note: 'cached GitHub rankings from Sources; search at /api/v1/code/search?q=stars:>500' },
