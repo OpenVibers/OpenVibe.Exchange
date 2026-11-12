@@ -333,5 +333,44 @@ function supplySection(data = {}) {
 </div>`;
 }
 
-const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection };
-module.exports = { providersSection, modelsSection, pricebookSection, supplySection, syncSection, SECTIONS, CSS: marks.CSS };
+// ── The picture-orientation detector (pictures, 2026-11-11) ──
+// The owner's method, model, confidence and daily bounds, the detector's spend today, its last tries, and a check
+// that sends one picture to the detector. Plain kit markup; the look is the main session's.
+function orientationSection(data = {}) {
+    const setting = data.setting || {};
+    const today = data.today || {};
+    const recent = Array.isArray(data.recent) ? data.recent : [];
+    const models = Array.isArray(data.models) ? data.models : [];
+    const method = setting.method === 'vision' ? 'vision' : 'off';
+    const chosen = setting.model ? JSON.stringify(setting.model) : '';
+    const option = (m) => `<option value="${esc(JSON.stringify({ model: m.model, source: m.source }))}"${JSON.stringify({ model: m.model, source: m.source }) === chosen ? ' selected' : ''}>${esc(m.name || m.model)}${m.price_estimate_usd == null ? '' : ` · $${Number(m.price_estimate_usd).toFixed(4)} a run`}</option>`;
+    const rotationWord = (r) => (r === 0 ? 'already upright' : r == null ? '—' : `turn ${r}° clockwise`);
+    const money = (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `$${Number(v).toFixed(4)}`);
+    return `<div class="exc">
+<header class="exc-head"><h2>Picture orientation</h2><p>OpenVibe.Media asks this detector which way is up in a picture whose EXIF did not say. It sends a 256 px copy to the cheapest vision model OpenVibe routes to, gets 0, 90, 180 or 270 degrees with a confidence, and turns the picture only above the confidence you set. Off, nothing is sent.</p></header>
+${data.saved ? `<p class="exc-note" role="status">Saved. The detector reads this within a minute.</p>` : ''}
+<form class="ovk-form" method="post" action="/console/orientation">
+  <fieldset><legend>Method</legend>
+    <label><input type="radio" name="method" value="off"${method === 'off' ? ' checked' : ''}> Off — nothing is sent and no picture changes</label>
+    <label><input type="radio" name="method" value="vision"${method === 'vision' ? ' checked' : ''}> A vision model through OpenVibe's routes (the cheapest that can see)</label>
+  </fieldset>
+  <label>Model <select name="model" required>${models.length ? models.map(option).join('') : `<option value="${esc(chosen || '{"model":"openvibe/auto","source":"openvibe"}')}">OpenVibe's cheapest vision model</option>`}</select></label>
+  <p class="exc-note">OpenVibe's router picks the cheapest eligible model; a named model is used instead and still appears on every receipt.</p>
+  <label>Turn above this confidence <input name="confidence" type="number" min="0" max="1" step="0.01" value="${esc(setting.confidence == null ? 0.8 : setting.confidence)}"></label>
+  <label>Most pictures a day <input name="daily_cap" type="number" min="0" max="1000" step="1" value="${esc(setting.daily_cap == null ? '' : setting.daily_cap)}" placeholder="No cap"></label>
+  <label>Most spent a day (USD) <input name="budget_usd_per_day" type="number" min="0" max="1000" step="0.0001" value="${esc(setting.budget_usd_per_day == null ? '' : setting.budget_usd_per_day)}" placeholder="No budget"></label>
+  <p class="exc-actions"><button class="ovk-btn ovk-btn--primary" type="submit">Save the detector</button></p>
+</form>
+<section class="exc-sec"><h3>Today</h3>
+<p>${esc(String(today.runs || 0))} picture${Number(today.runs) === 1 ? '' : 's'} looked at · ${esc(money(today.cost_usd))} spent${setting.daily_cap != null ? ` · cap ${esc(String(setting.daily_cap))}` : ''}${setting.budget_usd_per_day != null ? ` · budget ${esc(money(setting.budget_usd_per_day))}` : ''}</p>
+${recent.length ? `<table class="ovk-table"><thead><tr><th scope="col">When</th><th scope="col">Answer</th><th scope="col">Confidence</th><th scope="col">Model</th><th scope="col">Cost</th><th scope="col">Receipt</th></tr></thead><tbody>${recent.map((r) => `<tr><td>${esc(String(r.created_at || '').replace('T', ' ').slice(0, 19))}</td><td>${esc(rotationWord(r.rotation))}${r.status && r.status !== 'succeeded' ? ` (${esc(r.status)})` : ''}</td><td>${r.confidence == null ? '—' : esc(String(Math.round(Number(r.confidence) * 100)) + '%')}</td><td>${esc(r.model || '—')}</td><td>${esc(money(r.cost_usd))}</td><td>${r.receipt_id ? `<code>${esc(r.receipt_id)}</code>` : '—'}</td></tr>`).join('')}</tbody></table>` : '<p class="exc-quiet">No picture has been looked at yet.</p>'}</section>
+<section class="exc-sec"><h3>Try a picture</h3>
+<p>Send one picture through the detector as it is set now. It is a real run on the same budget, and it never turns or stores anything: the answer and its receipt come back here.</p>
+<p><input type="file" accept="image/jpeg,image/png,image/webp" data-orientation-file> <button class="ovk-btn ovk-btn--quiet" type="button" data-orientation-try>Try it</button></p>
+<p class="exc-note" data-orientation-result role="status"></p>
+</section>
+</div>`;
+}
+
+const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection, orientation: orientationSection };
+module.exports = { providersSection, modelsSection, pricebookSection, supplySection, syncSection, orientationSection, SECTIONS, CSS: marks.CSS };
