@@ -26,7 +26,37 @@ function analysisPaths(config) {
         '/api/v1/analysis/compare': make('exchange.analysis.compare', ['models', 'measures', 'kind', 'day', 'rating_kind'].map(query)),
         '/api/v1/analysis/models/{model}': make('exchange.analysis.model', [param('model'), query('days'), query('rating_kind')]),
         '/api/v1/analysis/ratings/{kind}': make('exchange.analysis.ratings', [param('kind')]),
+        '/api/v1/code/repos': codeReposPath(query),
+        '/api/v1/code/search': codeSearchPath(query),
     };
+}
+
+
+function codeReposPath(query) {
+    return { get: {
+        operationId: 'exchange.code.repos', summary: 'GitHub repositories trending, new, hot by stars gained, or most starred',
+        security: [], servers: [{ url: 'https://openvibe.exchange' }],
+        parameters: ['list', 'lang', 'topic', 'limit'].map(query),
+        responses: {
+            '200': { description: 'Cached repository rankings with stars, 1-day and 7-day gains, forks, language, topics and dates' },
+            '422': { description: 'Invalid list or limit' },
+            '503': { description: 'OpenVibe.Sources is unavailable' },
+        },
+    } };
+}
+
+function codeSearchPath(query) {
+    return { get: {
+        operationId: 'exchange.code.search', summary: 'Search GitHub repositories with GitHub query syntax',
+        security: [], servers: [{ url: 'https://openvibe.exchange' }],
+        parameters: ['q', 'lang', 'sort', 'page'].map(query),
+        responses: {
+            '200': { description: 'Repository results in the same shape as /api/v1/code/repos, with total matches' },
+            '422': { description: 'q, sort or page is invalid' },
+            '429': { description: 'Too many searches this minute; Retry-After says when' },
+            '503': { description: 'GitHub search through OpenVibe.Sources is unavailable' },
+        },
+    } };
 }
 
 function createOpenApi({ config, fetchImpl = globalThis.fetch, log = console, now = () => Date.now() }) {

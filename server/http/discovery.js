@@ -27,6 +27,7 @@ const PUBLIC_PAGES = [
     { path: '/own', changefreq: 'weekly', priority: 0.6, title: 'Your own endpoint', text: 'A private GPU for one model or your own Hugging Face weights; only you reach it, it scales to zero when idle, and your Balance pays for the seconds it runs.' },
     { path: '/uncensored', changefreq: 'weekly', priority: 0.6, title: 'Uncensored', text: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.' },
     { path: '/rankings', changefreq: 'daily', priority: 0.8, title: 'Rankings', text: 'Model rankings by task category from blind Arena votes, beside each model’s price per million, measured speed and uptime.' },
+    { path: '/code', changefreq: 'daily', priority: 0.8, title: 'Code', text: 'GitHub repositories trending today, new and hot by stars gained, plus a deep repository search: read through OpenVibe.Sources.' },
     { path: '/ai', changefreq: 'daily', priority: 0.6, title: 'AI in OpenVibe', text: 'Which OpenVibe products run which models through the same router, and what each costs a day.' },
     { path: '/status', changefreq: 'hourly', priority: 0.5, title: 'Status', text: 'Uptime per offer, the model changelog, and incidents.' },
 ];
@@ -106,7 +107,7 @@ function createDiscoveryRoutes(ctx) {
         res.type('text/plain').set('Cache-Control', TEXT).send(seo.llmsTxt({
             name: SITE_NAME,
             summary: DESCRIPTION,
-            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account.',
+            details: 'Prices are read live from OpenVibe.AI and are the offer\'s own, per million tokens. The API is OpenAI-compatible at https://api.openvibe.exchange/v1/chat/completions and Anthropic-compatible at /v1/messages; model ids are deepseek/deepseek-chat and their families, or openvibe/auto to let the router pick by floor, ceiling and policy. A small free daily allowance comes with an account. GitHub repositories are read through OpenVibe.Sources and served at /api/v1/code/repos and /api/v1/code/search; nothing is invented when the source is behind.',
             markdown: true,
             base: site,
             sections: [
@@ -114,8 +115,10 @@ function createDiscoveryRoutes(ctx) {
                     { title: 'OpenVibe.Exchange', url: abs('/'), note: 'every model, one account' },
                     { title: 'Models', url: abs('/models'), note: 'prices and measured latency' },
                     { title: 'Rankings', url: abs('/rankings'), note: 'blind Arena votes by task, beside price and speed' },
+                    { title: 'Code', url: abs('/code'), note: 'GitHub trending, hot and new repositories, and a deep search' },
                     { title: 'The API', url: abs('/api') },
                     { title: 'Compute prices', url: abs('/compute'), note: 'GPUs and computers per hour; JSON at /api/compute/prices' },
+                    { title: 'Code repositories API', url: abs('/api/v1/code/repos?list=week'), note: 'cached GitHub rankings from Sources; search at /api/v1/code/search?q=stars:>500' },
                     { title: 'Start building', url: abs('/start') },
                     { title: 'Why this model', url: abs('/why') },
                     { title: 'Questions', url: abs('/faq') },

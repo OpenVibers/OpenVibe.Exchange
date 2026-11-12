@@ -76,6 +76,19 @@ function load(env = process.env) {
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
+        // OpenVibe.Sources (server/code.js): the GitHub repositories it keeps (source `github`, category
+        // `code`) for /code and the public code API. The token is Exchange's own client-credentials grant
+        // (sources.item.read); the read is over loopback and the public API caches it.
+        sources: {
+            url: trim(env.OV_SOURCES_URL || 'http://127.0.0.1:4720'),
+            audience: env.OV_SOURCES_AUDIENCE || 'openvibe.sources',
+            scope: env.OV_SOURCES_SCOPE || 'sources.item.read',
+            timeoutMs: Math.max(2000, int(env.EXCHANGE_SOURCES_TIMEOUT_MS, 10_000)),
+            reposCacheMs: Math.max(10_000, int(env.EXCHANGE_CODE_REPOS_CACHE_MS, 60_000)),
+            searchCacheMs: Math.max(60_000, int(env.EXCHANGE_CODE_SEARCH_CACHE_MS, 600_000)),
+            searchPerMinute: Math.max(1, int(env.EXCHANGE_CODE_SEARCH_PER_MIN, 20)),
+        },
+
         // OpenVibe.Actor (server/actor.js): a companion or group turn is an Actor task of the signed-in
         // person — their own Bearer on the wire, their allowance. The wait bounds one page POST; a turn still
         // running then is reconciled on the next view.

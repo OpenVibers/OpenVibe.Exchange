@@ -45,7 +45,7 @@ async function boot(opts = {}) {
     // no test ever waits on the network (the notes tests inject their own, in test/helpers or the file itself).
     const emptyMemory = async () => ({ ok: true, status: 200, text: async () => '{"items":[]}', json: async () => ({ items: [] }) });
     const emptyRatings = async () => new Response(JSON.stringify({ board: { minimum_samples: 20, rows: [] } }), { headers: { 'content-type': 'application/json' } });
-    const built = await createApp({ config, store, log, telemetrySink: opts.telemetrySink, accountSend: opts.accountSend, ai: opts.ai, aiFetchImpl: opts.aiFetchImpl || emptyMemory, actor: opts.actor, actorFetchImpl: opts.actorFetchImpl, bench: opts.bench, benchFetchImpl: opts.benchFetchImpl || emptyRatings, analysis: opts.analysis, openapiFetch: opts.openapiFetch, indexnow: opts.indexnow, fetchImpl: opts.fetchImpl });
+    const built = await createApp({ config, store, log, telemetrySink: opts.telemetrySink, accountSend: opts.accountSend, ai: opts.ai, aiFetchImpl: opts.aiFetchImpl || emptyMemory, actor: opts.actor, actorFetchImpl: opts.actorFetchImpl, bench: opts.bench, benchFetchImpl: opts.benchFetchImpl || emptyRatings, analysis: opts.analysis, openapiFetch: opts.openapiFetch, indexnow: opts.indexnow, fetchImpl: opts.fetchImpl, code: opts.code, sourcesFetchImpl: opts.sourcesFetchImpl });
     await built.ctx.keys.ensure();
     const server = await new Promise((resolve) => { const s = http.createServer(built.app); s.listen(0, '127.0.0.1', () => resolve(s)); });
     const base = `http://127.0.0.1:${server.address().port}`;
