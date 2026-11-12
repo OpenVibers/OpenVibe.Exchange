@@ -294,60 +294,95 @@ const providerState = (gpuState, key) => {
     const live = instances.find((i) => ['starting', 'running', 'stopping'].includes(i.status));
     return live ? `${live.status} · ${live.gpu_class || live.job_class || 'interactive'} · ${live.gpu_name || ''} · ${nanoUsd(live.hourly_nano)}/h` : (gpuState && gpuState.marketplaces && gpuState.marketplaces[key] ? 'key set, idle' : 'no key');
 };
+// What the owner reads first: the provisioner's switch, the mode, the month against its cap; then each class with the
+// providers it may use and its own cap; then every provider as one row (its state, key, classes and ceilings in words)
+// whose settings open under it. 11-12 design pass: nine providers were nine ten-field forms in a column.
+const GPU_NAMES = { vast: 'Vast.ai', salad: 'SaladCloud', 'salad-queue': 'Salad queue', tensordock: 'TensorDock', shadeform: 'Shadeform', verda: 'Verda',
+    thunder: 'Thunder Compute', runpod: 'RunPod', 'runpod-serverless': 'RunPod Serverless', reserved: 'Reserved server', together: 'Together', lambda: 'Lambda' };
+const gpuName = (key) => GPU_NAMES[key] || String(key || 'provider').replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase());
+const CLASS_LINE = { interactive: 'Someone is waiting on it: never an interruptible host.', batch: 'It can wait for a cheaper host, and may use an interruptible one when the job keeps a checkpoint.' };
+function meter(used, committed, cap) {
+    if (!(cap > 0)) return '';
+    const u = Math.min(100, (used / cap) * 100), c = Math.min(100 - u, (committed / cap) * 100);
+    return `<div class="exc-meter" role="img" aria-label="${esc(nanoUsd(used) || '$0.00')} spent and ${esc(nanoUsd(committed) || '$0.00')} committed of ${esc(nanoUsd(cap))}"><span class="is-used" style="width:${u.toFixed(1)}%"></span><span class="is-held" style="width:${c.toFixed(1)}%"></span></div>`;
+}
 function gpuPolicySection(data = {}) {
     const policy = data.policy && typeof data.policy === 'object' ? data.policy : null;
     const gpuState = data.gpus && data.gpus.state ? data.gpus.state : (data.gpus || null);
     const global = (policy && policy.global) || {};
     const providers = policy && Array.isArray(policy.providers) ? policy.providers : [];
     if (!policy && !gpuState) return '';
-    const cap = gpuState ? { spent: nanoUsd(gpuState.spent_nano), committed: nanoUsd(gpuState.committed_nano), cap: nanoUsd(gpuState.cap_nano) } : null;
-    const globalForm = `<form method="post" action="/console/gpu-policy/global" class="ovk-form">
-  <label><span>Monthly cap (USD)</span><input name="monthly_cap_usd" type="number" min="0" step="0.01" value="${esc(global.monthly_cap_nano == null ? '' : Number(global.monthly_cap_nano) / 1e9)}"><small>${cap ? `${esc(cap.spent)} spent · ${esc(cap.committed)} committed of ${esc(cap.cap || 'no cap')}` : ''}</small></label>
+    const spent = Number(gpuState && gpuState.spent_nano) || 0, held = Number(gpuState && gpuState.committed_nano) || 0;
+    const capN = Number((gpuState && gpuState.cap_nano) || global.monthly_cap_nano) || 0;
+    const quoteOnly = Boolean(global.quote_only || (gpuState && gpuState.dry_run));
+    const status = `<dl class="exc-stats">
+  <div><dt>Provisioner</dt><dd>${gpuState ? (gpuState.enabled ? 'On' : 'Off') : '—'}</dd></div>
+  <div><dt>Mode</dt><dd>${quoteOnly ? 'Quotes only' : 'Renting'}</dd></div>
+  <div><dt>This month${capN ? ` of ${esc(nanoUsd(capN))}` : ', no cap'}</dt><dd>${esc(nanoUsd(spent + held) || '$0.00')}</dd></div>
+</dl>
+${meter(spent, held, capN)}
+${gpuState && !gpuState.enabled ? `<p class="exc-note">${tag('Off', 'warn')} ${esc(gpuState.reason || 'No key or no cap yet')}.</p>` : ''}
+${quoteOnly ? '<p class="exc-note">Quotes only: prices are read and plans are priced, but nothing is rented. Turn it off below when a key and a cap are set.</p>' : ''}`;
+    const globalForm = `<details class="exc-fold"><summary>Caps and mode</summary><div class="exc-fold-body"><form method="post" action="/console/gpu-policy/global" class="exc-form">
+  <label><span>Monthly cap (USD)</span><input name="monthly_cap_usd" type="number" min="0" step="0.01" value="${esc(global.monthly_cap_nano == null ? '' : Number(global.monthly_cap_nano) / 1e9)}"></label>
   <label><span>Interactive cap (USD)</span><input name="interactive_cap_usd" type="number" min="0" step="0.01" value="${esc(global.interactive_cap_nano == null ? '' : Number(global.interactive_cap_nano) / 1e9)}"></label>
   <label><span>Batch cap (USD)</span><input name="batch_cap_usd" type="number" min="0" step="0.01" value="${esc(global.batch_cap_nano == null ? '' : Number(global.batch_cap_nano) / 1e9)}"></label>
   <label><span>Quote only</span><select name="quote_only"><option value="1"${global.quote_only ? ' selected' : ''}>Quotes only, rent nothing</option><option value="0"${global.quote_only ? '' : ' selected'}>Rent when the plan allows it</option></select></label>
-  <p><button class="ovk-btn ovk-btn--primary" type="submit">Save caps</button></p>
-</form>`;
-    const providerCard = (p) => {
+  <p class="exc-actions">${btn('Save caps', 'primary')}</p>
+</form></div></details>`;
+    // Class routing and caps: each class, the providers it may use, its cap and what it has committed.
+    const classes = `<h3 class="exc-sub">Class routing and caps</h3><ul class="exc-grid">${['interactive', 'batch'].map((c) => {
+        const allowed = providers.filter((p) => Array.isArray(p.classes) && p.classes.includes(c));
+        const capC = Number(global[c + '_cap_nano']) || 0, usedC = Number(gpuState && gpuState.by_class && gpuState.by_class[c]) || 0;
+        return `<li class="exc-pb-prov"><div class="exc-prov-head"><span class="exc-prov-name"><b>${c === 'interactive' ? 'Interactive' : 'Batch'}</b><small>${esc(CLASS_LINE[c])}</small></span>${tag(capC ? `cap ${nanoUsd(capC)}` : 'the monthly cap')}</div>
+  <p class="exc-tags">${allowed.length ? allowed.map((p) => tag(gpuName(p.key), p.enabled ? 'ok' : '')).join('') : tag('No provider takes it', 'warn')}</p>
+  ${meter(usedC, 0, capC || capN)}<p class="exc-note">${esc(nanoUsd(usedC) || '$0.00')} committed${capC ? ` of ${esc(nanoUsd(capC))}` : ''}</p></li>`;
+    }).join('')}</ul>`;
+    const providerRow = (p) => {
         const key = encodeURIComponent(p.key || '');
         const keyState = p.key_state || {};
         const live = providerState(gpuState, p.key);
-        const classes = Array.isArray(p.classes) ? p.classes : [];
+        const cls = Array.isArray(p.classes) ? p.classes : [];
         const options = p.options && typeof p.options === 'object' ? p.options : {};
-        return `<article class="ovk-card">
-  <header><h3>${esc(p.key || 'provider')}</h3><p>${p.enabled ? '<span class="ovk-badge">Enabled</span>' : '<span class="ovk-badge">Off</span>'} ${p.configured ? '' : '<span class="ovk-badge">Not saved yet</span>'} ${keyState.present ? `<span class="ovk-badge">Key ends ${esc(keyState.last_four || '????')}</span>` : '<span class="ovk-badge">No key</span>'}</p><p>${esc(live)}</p></header>
-  <form method="post" action="/console/gpu-policy/${key}" class="ovk-form">
+        const summary = [cls.length ? cls.join(' and ') : 'no class', p.max_hourly_nano != null ? `up to ${nanoUsd(p.max_hourly_nano)}/GPU-hour` : 'no hourly ceiling',
+            `${p.max_replicas == null ? 1 : p.max_replicas} replica${Number(p.max_replicas) === 1 || p.max_replicas == null ? '' : 's'}`,
+            Array.isArray(p.regions) && p.regions.length ? p.regions.join(', ') : 'any region', `${p.monthly_cap_share_percent == null ? 100 : p.monthly_cap_share_percent}% of the month`].join(' · ');
+        return `<li class="exc-pb-prov${p.enabled ? '' : ' is-off'}">
+  <div class="exc-prov-head">${mark(p.key || 'gpu', 32)}<span class="exc-prov-name"><b>${esc(gpuName(p.key))}</b><small>${esc(summary)}</small></span>${p.enabled ? tag('On', 'ok') : tag('Off')}</div>
+  <p class="exc-tags">${keyState.present ? tag(`Key ends ${keyState.last_four || '????'}`, 'ok') : tag('No key', 'warn')}${p.configured ? '' : tag('Not saved yet')}${p.interruptible_allowed ? tag('Interruptible for batch') : ''}</p>
+  ${p.enabled && !keyState.present ? '<p class="exc-note">On, but without a key it is skipped: save its key under Settings.</p>' : live === 'no key' ? '' : `<p class="exc-note">${esc(live)}</p>`}
+  <details class="exc-fold"><summary>Settings for ${esc(gpuName(p.key))}</summary><div class="exc-fold-body">
+  <form method="post" action="/console/gpu-policy/${key}" class="exc-form">
     <label><span>Enabled</span><select name="enabled"><option value="1"${p.enabled ? ' selected' : ''}>On</option><option value="0"${p.enabled ? '' : ' selected'}>Off</option></select></label>
     <label><span>Order</span><input name="order" type="number" min="0" max="1000" step="1" value="${esc(p.order == null ? 50 : p.order)}"><small>Lower is tried first when two offers cost the same.</small></label>
-    <fieldset><legend>Job classes</legend><label><input type="checkbox" name="classes" value="interactive"${classes.includes('interactive') ? ' checked' : ''}> Interactive</label><label><input type="checkbox" name="classes" value="batch"${classes.includes('batch') ? ' checked' : ''}> Batch</label></fieldset>
+    <fieldset class="exc-wide"><legend>Job classes</legend><label class="exc-check"><input type="checkbox" name="classes" value="interactive"${cls.includes('interactive') ? ' checked' : ''}> Interactive</label><label class="exc-check"><input type="checkbox" name="classes" value="batch"${cls.includes('batch') ? ' checked' : ''}> Batch</label></fieldset>
     <label><span>Interruptible allowed</span><select name="interruptible_allowed"><option value="1"${p.interruptible_allowed ? ' selected' : ''}>Yes, batch jobs with a checkpoint only</option><option value="0"${p.interruptible_allowed ? '' : ' selected'}>No</option></select></label>
     <label><span>Max $/GPU-hour</span><input name="max_hourly_usd" type="number" min="0" step="0.01" value="${esc(p.max_hourly_nano == null ? '' : Number(p.max_hourly_nano) / 1e9)}"></label>
     <label><span>Max replicas</span><input name="max_replicas" type="number" min="1" max="100" step="1" value="${esc(p.max_replicas == null ? 1 : p.max_replicas)}"></label>
-    <label><span>Regions</span><input name="regions" maxlength="500" value="${esc(Array.isArray(p.regions) ? p.regions.join(', ') : '')}" placeholder="US, EU"><small>A comma-separated list; empty means any.</small></label>
+    <label><span>Regions</span><input name="regions" maxlength="500" value="${esc(Array.isArray(p.regions) ? p.regions.join(', ') : '')}" placeholder="US, EU"><small>Comma-separated; empty means any.</small></label>
     <label><span>Share of the monthly cap (%)</span><input name="monthly_cap_share_percent" type="number" min="0" max="100" step="1" value="${esc(p.monthly_cap_share_percent == null ? 100 : p.monthly_cap_share_percent)}"></label>
-    <label><span>Provider options (JSON)</span><textarea name="options" rows="3">${esc(Object.keys(options).length ? JSON.stringify(options) : '')}</textarea><small>Organization, project, template, endpoint, monthly_nano: only what the provider needs.</small></label>
-    <p><button class="ovk-btn ovk-btn--primary" type="submit">Save ${esc(p.key || 'provider')}</button></p>
+    <label class="exc-wide"><span>Provider options (JSON)</span><textarea name="options" rows="3">${esc(Object.keys(options).length ? JSON.stringify(options) : '')}</textarea><small>Organization, project, template, endpoint, monthly_nano: only what the provider needs.</small></label>
+    <p class="exc-actions">${btn(`Save ${gpuName(p.key)}`, 'primary')}</p>
   </form>
-  <form method="post" action="/console/gpu-policy/${key}/key" class="ovk-form">
-    <label><span>API key (write-only)</span><input name="api_key" type="password" autocomplete="new-password" minlength="8" maxlength="400"></label>
-    <p><button class="ovk-btn ovk-btn--quiet" type="submit">Save key</button></p>
-  </form>
-</article>`;
+  <form method="post" action="/console/gpu-policy/${key}/key" class="exc-form exc-form--key">
+    <label><span>API key (write-only)</span><input name="api_key" type="password" autocomplete="new-password" minlength="8" maxlength="400"><small>Only its last four are ever shown.</small></label>
+    <p class="exc-actions">${btn('Save key')}</p>
+  </form></div></details>
+</li>`;
     };
-    const routing = `<table class="ovk-table"><caption>Class routing and caps</caption><thead><tr><th>Class</th><th>Providers allowed</th><th>Cap</th><th>Committed</th></tr></thead><tbody>
-      ${['interactive', 'batch'].map((c) => `<tr><td>${c}</td><td>${esc(providers.filter((p) => Array.isArray(p.classes) && p.classes.includes(c)).map((p) => p.key).join(', ') || 'none')}</td><td>${esc(nanoUsd(global[c + '_cap_nano']) || 'the monthly cap')}</td><td>${esc(nanoUsd(gpuState && gpuState.by_class && gpuState.by_class[c]) || '$0.00')}</td></tr>`).join('')}
-    </tbody></table>`;
     const instances = (gpuState && Array.isArray(gpuState.instances) ? gpuState.instances : []).filter((i) => ['starting', 'running', 'stopping'].includes(i.status));
-    const instanceTable = instances.length ? `<table class="ovk-table"><caption>Live rentals</caption><thead><tr><th>Model</th><th>Provider</th><th>Class</th><th>GPU</th><th>Hourly</th><th>Status</th></tr></thead><tbody>${instances.map((i) => `<tr><td>${esc(i.model_key)}</td><td>${esc(i.marketplace)}</td><td>${esc(i.job_class || 'interactive')}${i.interruptible ? ' · interruptible' : ''}</td><td>${esc(i.gpu_name || '')}</td><td>${esc(nanoUsd(i.hourly_nano))}</td><td>${esc(i.status)}</td></tr>`).join('')}</tbody></table>` : '';
-    return `<section class="ovk-section"><header><h2>GPU providers and job classes</h2><p>The owner's policy for every GPU provider: switch, key, order, classes, ceilings and share, and the monthly and per-class caps. Keys are write-only and only their last four are shown. Quote-only is the safe default.</p></header>
-  ${gpuState ? `<p>${gpuState.enabled ? 'The provisioner is on.' : `The provisioner is off: ${esc(gpuState.reason || 'no key or no cap')}.`} ${gpuState.dry_run ? 'Quote-only is on.' : ''}</p>` : ''}
-  ${globalForm}
-  ${routing}
-  ${providers.length ? `<div class="ovk-grid">${providers.map(providerCard).join('')}</div>` : '<p>No provider policy is available on this host.</p>'}
-  ${instanceTable}
+    // A table is wider than a phone: it scrolls inside its own box and never widens the page.
+    const instanceTable = instances.length ? `<div class="exc-scroll"><table class="ovk-table"><caption>Live rentals</caption><thead><tr><th>Model</th><th>Provider</th><th>Class</th><th>GPU</th><th>Hourly</th><th>Status</th></tr></thead><tbody>${instances.map((i) => `<tr><td>${esc(i.model_key)}</td><td>${esc(gpuName(i.marketplace))}</td><td>${esc(i.job_class || 'interactive')}${i.interruptible ? ' · interruptible' : ''}</td><td>${esc(i.gpu_name || '')}</td><td>${esc(nanoUsd(i.hourly_nano))}</td><td>${esc(i.status)}</td></tr>`).join('')}</tbody></table></div>` : '';
+    const on = providers.filter((p) => p.enabled).length;
+    return `<section class="exc-sec exc-gpu"><header class="exc-head"><h2>GPU providers and job classes</h2><p>Where a GPU may be rented, for which jobs, and how much a month may cost. Keys are write-only; only their last four show. Quotes only is the safe default.</p></header>
+${status}
+${globalForm}
+${classes}
+<h3 class="exc-sub">Providers <span class="exc-n">${on} on of ${providers.length}</span></h3>
+${providers.length ? `<ul class="exc-list">${providers.map(providerRow).join('')}</ul>` : '<p class="exc-note">No provider policy is available on this host.</p>'}
+${instanceTable}
 </section>`;
 }
-
 
 // ── GPU supply ──
 function supplySection(data = {}) {
