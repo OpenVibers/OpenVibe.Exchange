@@ -124,7 +124,11 @@ function createConsoleRoutes({ config, ai }) {
             models = ((view.options && view.options.openvibe) || []).filter((m) => !m.adult)
                 .map(({ model, source, name, price_estimate_usd }) => ({ model, source, name, price_estimate_usd }));
         } catch { /* the saved value still renders */ }
-        if (!models.length) models = [{ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose' }];
+        // A model task's two dynamic picks come first, as on the defaults page: "let OpenVibe choose" and "the
+        // cheapest good model" are not catalogue rows, and the seeded value is openvibe/auto.
+        for (const pick of [{ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose', price_estimate_usd: null }, { model: 'openvibe/cheapest', source: 'openvibe', name: 'The cheapest good model', price_estimate_usd: null }]) {
+            if (!models.some((m) => m.model === pick.model && m.source === pick.source)) models.unshift(pick);
+        }
         return { ...admin, models, current: (defaults.defaults || {})[ORIENTATION] || null };
     }
     r.get('/console/orientation', async (req, res) => {
