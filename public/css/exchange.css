@@ -732,3 +732,21 @@ label.dd-depth:has(input:checked) { border-color: var(--accent); background: col
 .dd-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
 .dd-chips li { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-secondary); font-size: .8rem; color: var(--text-secondary); }
 @media (max-width: 640px) { .dd-depth-row { grid-template-columns: minmax(0, 1fr); } .dd-depth-price { font-size: 1.35rem; } }
+
+/* ── Deep dive, 11-12 (the owner: unstyled boxes, "update the little dots", spacing, the label by the price) ── */
+.dd-form { display: grid; gap: 18px; }
+.ov-base .dd-field { margin: 0; }
+.dd-field > span { display: block; margin-bottom: 8px; font-weight: 700; }
+.dd-field textarea { line-height: 1.45; }
+/* The depth's dot: drawn, the site's accent when chosen. */
+label.dd-depth input { appearance: none; -webkit-appearance: none; display: grid; place-items: center; width: 22px; height: 22px; margin: 0; border: 2px solid color-mix(in srgb, var(--text-primary, #fff) 30%, transparent); border-radius: 50%; background: transparent; cursor: pointer; transition: border-color var(--ov-dur-2, .2s) ease; }
+label.dd-depth input::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transform: scale(0); transition: transform var(--ov-dur-2, .2s) var(--ov-ease-out, ease); }
+label.dd-depth input:checked { border-color: var(--accent); }
+label.dd-depth input:checked::before { transform: scale(1); }
+label.dd-depth input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dd-go { display: grid; justify-items: start; gap: 8px; }
+.dd-go-note { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--text-muted); font-size: .88rem; }
+.dd-go-note svg { flex: none; width: 15px; height: 15px; }
+.dd-go-note { align-items: flex-start; }
+.dd-go-note svg { margin-top: 3px; }
+.dd > .dd-form + *, .dd > .dd-error + * { margin-top: 26px; }

@@ -76,8 +76,7 @@ function createPageRoutes(ctx) {
 
     r.get('/compute', (req, res) => {
         const { prices, checked_at } = require('../compute-prices');
-        const rows = prices.map(p => `<tr><td>${esc(p.provider)}</td><td>${esc(p.id)}</td><td>${esc(p.gpu || `${p.cpu} vCPU / ${p.ram_mb} MiB`)}</td><td>$${p.hourly.toFixed(6)}/hour</td><td>$${p.per_second.toFixed(9)}/second</td><td><a href="${esc(p.source)}">Provider price</a></td></tr>`).join('');
-        return page(req,res,{title:'Compute prices',body:raw(`<main><h1>Compute prices</h1><p>Checked ${esc(checked_at)}. Base compute only; storage, network and plan fees may apply. Promotional balances are account-specific.</p><p><a href="/">Model prices</a> · <a href="https://openvibe.network/admin#ai">Owner provider settings</a></p><div style="overflow-x:auto"><table><thead><tr><th>Provider</th><th>Price ID</th><th>Resources</th><th>Hourly</th><th>Per second</th><th>Source</th></tr></thead><tbody>${rows}</tbody></table></div></main>`)});
+        return page(req, res, { title: 'Compute prices', description: 'What an hour of a computer or a GPU costs at Baseten, Daytona, E2B, Fly.io and RunPod: base compute, checked weekly.', body: raw(platform.computePage({ prices, checked_at })) });
     });
 
     // ── Exchange v1, retired ──────────────────────────────────
