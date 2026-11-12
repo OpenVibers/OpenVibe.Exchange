@@ -15,7 +15,7 @@ const kit = require('openvibe-shared/kit');
 const { esc, raw } = require('../render/html');
 
 const STEP_LABELS = { plan: 'Planning', search: 'Searching', choose: 'Choosing sites', capture: 'Capturing', analyse: 'Analysing', synthesise: 'Writing it up', report: 'Writing it up' };
-const STEP_NOTES = { plan: 'The questions an expert would ask, and the searches that answer them.', search: 'MegaSource, the search engines, GitHub and our own rules and components.', choose: 'The sites worth capturing, with a reason each. Add or drop any before Capture.', capture: 'Each site at 390 and 1280 px, light and dark where it supports dark, full page after a slow scroll.', analyse: 'A vision model reads each screenshot; a text model reads the DOM facts and the words.', synthesise: 'Patterns across sites, the gap, reference tokens, and recommendations checked against our rules.', report: 'The report, its evidence and the receipt.' };
+const STEP_NOTES = { plan: 'The questions an expert would ask, and the searches that answer them.', search: 'MegaSource, the search engines, GitHub repositories through Exchange\'s Code search, and our own rules and components.', choose: 'The sites worth capturing, with a reason each. Add or drop any before Capture.', capture: 'Each site at 390 and 1280 px, light and dark where it supports dark, full page after a slow scroll.', analyse: 'A vision model reads each screenshot; a text model reads the DOM facts and the words.', synthesise: 'Patterns across sites, the gap, reference tokens, and recommendations checked against our rules.', report: 'The report, its evidence and the receipt.' };
 const price = (n) => `$${Number(n || 0).toFixed(2)}`;
 const when = (iso) => { if (!iso) return '—'; try { return new Date(iso).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; } catch { return String(iso); } };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return String(u || ''); } };
@@ -59,7 +59,7 @@ const chips = (words) => `<ul class="dd-chips">${words.map((w) => `<li>${esc(w)}
 function whatItDoes() {
     const step = (icon, title, text, extra = '') => `<li><span class="dd-what-ic" aria-hidden="true">${kit.icon(icon)}</span><div><strong>${title}</strong><p>${text}</p>${extra}</div></li>`;
     return kit.section({ title: 'What a deep dive does', body: `<ol class="dd-what">
-${step('search', 'Search every way we have.', 'Our research sources, Exchange\'s web, picture and icon engines, open-source projects on GitHub, design write-ups, and our own rules register and component registry.')}
+${step('search', 'Search every way we have.', 'Our research sources, Exchange\'s web, picture and icon engines, open-source projects on GitHub through <a href="/code">Code</a>, design write-ups, and our own rules register and component registry.')}
 ${step('check', 'Choose the sites worth a look.', 'A model ranks them with a reason each; you can add or drop any before Capture (Quick goes straight on).')}
 ${step('image', 'Capture them properly.', '390 and 1280 px, dark and light where the site supports it, the whole page after a slow scroll so lazy sections load, and the DOM facts:',
         `${chips(MEASURED)}<p class="dd-what-sub">Expert adds</p>${chips(EXPERT_ADDS)}`)}
@@ -68,6 +68,18 @@ ${step('spark', 'Synthesise.', 'The patterns and how many sites use each, a comp
 ${step('book', 'Show the evidence.', 'Every claim names its site, capture and the date it was read. Screenshots stay private to you and are shown as attributed commentary, never republished.')}
 </ol>
 <p class="ovk-note">The price is shown before it starts and held; cancelling stops the spend. No paid screenshot service: our own Chrome, one page budget at a time.</p>` });
+}
+
+/**
+ * Code and tools are evidence too: a deep dive about a library, a protocol or a tool should be able to cite
+ * the repositories it found. The repositories are Sources' (Exchange never reads GitHub itself), and this
+ * panel is the way from a deep dive into the same rankings and search the Code page uses.
+ */
+function codeSources() {
+    return kit.section({ title: 'Code and tools', note: 'Repositories are cited like any other source: by their GitHub URL, with the date they were read.', body:
+        `<p class="ovk-prose">A repository is evidence for how a tool is built and how active it is. The rankings and the search are read through <a href="/code">Code</a>: trending today, hot by stars gained, new and most starred, or GitHub's own query syntax.</p>`
+        + kit.find({ action: '/code', name: 'q', placeholder: 'Find a repository: stars:>500 topic:ai', icon: 'search', maxlength: 200 })
+        + `<p class="ovk-note">No repository code or README is copied; a card keeps what the repository states about itself and links to it.</p>` });
 }
 
 function homePage({ viewer, depths = [], capture = null, error = null }) {
@@ -87,7 +99,7 @@ ${depthCards(cards)}
         : signIn();
     return `<div class="ex-wrap dd">${kit.head({ title: 'Deep dive', sub: 'Expert design research: we search everywhere, capture the best sites at phone and computer sizes, and tell you what works and why.' })}${form}${signedIn ? '' : `<section class="ovk-section"><h2>The depths and their prices</h2>${depthList(cards)}</section>`}`
         + (capture && capture.enabled === false ? `<p class="dd-error">Capture is off on this host right now (drill mode or Chrome missing), so a deep dive cannot start.</p>` : '')
-        + whatItDoes() + `</div>`;
+        + whatItDoes() + codeSources() + `</div>`;
 }
 
 function choosing(row, id) {

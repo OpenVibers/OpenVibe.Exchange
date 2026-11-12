@@ -33,6 +33,8 @@ const { createNetwork } = require('./network');
 const { createBench } = require('./bench');
 const { createCompare } = require('./compare');
 const { createOpenApi } = require('./openapi');
+const { createCode } = require('./code');
+const { createCodeRoutes } = require('./http/code');
 const { createArenaStore } = require('./arena/store');
 const { createCatalogHistory } = require('./catalog-history');
 const { createChatStore, createAdultStore } = require('./chat/store');
@@ -123,7 +125,12 @@ async function createApp(opts = {}) {
         : async () => { throw new Error('OV_OAUTH_CLIENT_SECRET is not set: Exchange cannot answer account events'); });
 
     const openapi = createOpenApi({ config, fetchImpl: opts.openapiFetch || globalThis.fetch, log });
-    const ctx = { config, s, keys, sso, principal, ai, actor, network, bench, compare, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, log };
+    // GitHub repositories through Sources. A test or a preview may hand its own client; nothing else reads
+    // GitHub directly.
+    const code = opts.code || createCode({
+        config, fetchImpl: opts.sourcesFetchImpl || globalThis.fetch, tokenFetch: fetchImpl, now: opts.now || (() => Date.now()), log,
+    });
+    const ctx = { config, s, keys, sso, principal, ai, actor, network, bench, compare, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, code, log };
 
     const app = express();
     app.disable('x-powered-by');
@@ -147,7 +154,7 @@ async function createApp(opts = {}) {
                 scriptSrc: ["'self'", "'unsafe-inline'", 'https://openvibe.network', 'https://static.cloudflareinsights.com'],
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://openvibe.network', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
                 fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
-                imgSrc: ["'self'", 'data:', 'https://openvibe.network', 'https://openvibe.media'],
+                imgSrc: ["'self'", 'data:', 'https://openvibe.network', 'https://openvibe.media', 'https://avatars.githubusercontent.com'],
                 connectSrc: ["'self'", 'https://openvibe.network', 'https://openvibe.chat', 'https://cloudflareinsights.com', 'https://openvibe.events', 'https://ai.openvibe.services'],
                 frameSrc: ["'self'", 'https://openvibe.network'],
                 frameAncestors: ["'none'"],
@@ -331,6 +338,7 @@ async function createApp(opts = {}) {
     app.use(createCompareSite(ctx));
 
     // ── Exchange v1's JSON API: gone ────────────────────────
+    app.use(createCodeRoutes(ctx));
     app.use('/api/v1', (req, res) => {
         res.set('Cache-Control', 'public, max-age=86400');
         return contracts.http.sendProblem(res, 410, 'exchange.retired', {

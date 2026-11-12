@@ -30,6 +30,7 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/uncensored` | The 18+ gate on the account, the abliterated models and the hard floor. |
 | `/ai` | Which OpenVibe products run which models through the same router, and what each costs a day, with the product's own mark. |
 | `/status` | Uptime per offer, the model changelog and incidents. |
+| `/code` | GitHub repositories through OpenVibe.Sources: a deep repository search, Trending today / This week / Hot / New / Top, twelve language chips and one card per repository (stars, the week's gain, forks, language, topics, updated). `/api/v1/code/repos` and `/api/v1/code/search` are its public JSON. |
 
 The old chat rows remain for a person's one-time import into Chat. `GET /internal/exchange/chat/export` requires Chat's service token with `exchange.chat.export` and the authenticated person's `x-ov-subject`; it returns only that person's unsealed chats.
 
@@ -48,6 +49,9 @@ signed-in person is `private, no-store`; a public page is `public, max-age=60`.
   turn or Try it, on the person's allowance, with this service's token (`ai.run.create`, namespace `ai.complete`).
 - `GET .../api/v1/community/offers` — the live community offers; a pool says how many machines serve it (never
   which ones), so the offer card can say "Community pool (N machines)" without naming a machine.
+- `GET http://127.0.0.1:4720/api/v1/code/repos` and `/api/v1/code/search` — the GitHub repositories
+  OpenVibe.Sources keeps (the `github` source, category `code`) and its live GitHub search, with this
+  service's `sources.item.read` grant. Exchange never calls GitHub itself.
 - `GET https://openvibe.network/api/v1/machines` and `/api/v1/machine-pools` — the person's own machines, their
   pools and the machines they can pool, with the person's Network token: names, free VRAM and RAM, the local
   network key, and each member's approval and readiness. `POST /api/v1/machine-pools` proposes a pool and
