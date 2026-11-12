@@ -35,6 +35,7 @@ const { createCompare } = require('./compare');
 const { createOpenApi } = require('./openapi');
 const { createCode } = require('./code');
 const { createCodeRoutes } = require('./http/code');
+const { createEstimateRoutes } = require('./http/estimate');
 const { createArenaStore } = require('./arena/store');
 const { createCatalogHistory } = require('./catalog-history');
 const { createChatStore, createAdultStore } = require('./chat/store');
@@ -336,6 +337,11 @@ async function createApp(opts = {}) {
     // The vhost for openvibe.compare proxies here with Host: openvibe.compare; every other Host passes through to
     // Exchange's own pages, so one process serves both names without either site's routes leaking into the other.
     app.use(createCompareSite(ctx));
+
+    // ── What one run of a blueprint costs (agents.blueprint@1) ──
+    // Mounted before Exchange v1's catch-all. The body is a blueprint (at most 200 KB); the answer is the price
+    // through openvibe-sdk/agents/blueprint, from the person's choices or OpenVibe's public offers.
+    app.use('/api/v1/estimate', rateLimit({ windowMs: 60000, limit: Number(process.env.EXCHANGE_API_RATE_LIMIT_PER_MIN) || 120, standardHeaders: true, legacyHeaders: false }), createEstimateRoutes(ctx));
 
     // ── Exchange v1's JSON API: gone ────────────────────────
     app.use(createCodeRoutes(ctx));
