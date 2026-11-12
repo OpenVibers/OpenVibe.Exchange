@@ -38,6 +38,19 @@ assert.ok(html.includes('No price confirmed on their own page yet.'), 'a missing
 assert.ok(!/\$0(?!\.)/.test(html), 'a missing price is never $0');
 assert.ok(html.includes('From <b>$0.08</b>') && html.includes('href="https://cheap.example/pricing"'), 'the cheapest price with its own page');
 assert.ok(!html.includes('ovk-button'), 'kit buttons only');
+assert.ok(html.includes('Monthly credits from a plan') && html.includes('action="/console/provider-credit-plans"'), 'the plan form sits in the providers section');
+assert.ok(html.includes('<option value="anthropic">') && html.includes('<option value="openai">'), 'the plan picker always offers Anthropic and OpenAI');
+assert.ok(html.includes('name="prorate_first" type="checkbox" value="1" checked'), 'the first month is prorated by default');
+const planned = providersSection({ providers, models: [], presets: [], credit_estimates: [
+    { provider: 'openai', plans: [{ id: 7, label: 'ChatGPT Pro API credits', monthly_usd: 100, renews_day: 1, starts_on: '2026-11-12', ends_on: null, active: true, notes: null }],
+        estimate: { plans: [{ applies_to: 'plan:7:2026-11-01', amount_usd: 100, used_usd: 25, remaining_usd: 75, expires_at: '2026-12-01T00:00:00.000Z' }] } },
+    { provider: 'altare', plans: [{ id: 8, label: 'Altare free monthly credits', monthly_usd: 100, renews_day: 1, starts_on: '2026-12-01', ends_on: null, active: false, notes: null }],
+        estimate: { plans: [] } },
+] });
+assert.ok(planned.includes('ChatGPT Pro API credits') && planned.includes('$100.00 a month') && planned.includes('renews on day 1'), 'a plan lists its label, amount and renewal day');
+assert.ok(planned.includes('$75.00 left this cycle') && planned.includes('ends 2026-12-01'), 'the cycle remaining comes from the estimate');
+assert.ok(planned.includes('action="/console/provider-credit-plans/7"') && planned.includes('role="switch"'), 'a plan has its own on/off switch');
+assert.ok(planned.includes('No credit for this cycle yet.'), 'a plan with no cycle yet says so');
 
 const models = modelsSection({ models: [
     { provider: 'openai', model: 'gpt-5-mini', accepted_price: { in_per_mtok: 0.25, out_per_mtok: 2 }, owner_override: { cost: { in_per_mtok: 0.2, out_per_mtok: 1.6 }, reason: 'promo' } },

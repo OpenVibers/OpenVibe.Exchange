@@ -27,6 +27,16 @@ app.use(createConsoleRoutes({
             ],
         };
         if (path === '/api/v1/admin/console/gpus') return { state: { enabled: true, reason: '', dry_run: true, cap_nano: '50000000000', spent_nano: '1000000000', committed_nano: '2000000000', by_class: { interactive: '1000000000' }, instances: [] } };
+        if (path === '/api/v1/admin/console/provider-credit-plans' && options.body && options.body.label === 'fail') throw Object.assign(new Error('provider credit plans are not configured'), { status: 503 });
+        if (path === '/api/v1/admin/console/providers') return {
+            providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }],
+            credit_estimates: [
+                { provider: 'openai', plans: [{ id: 7, label: 'ChatGPT Pro API credits', monthly_usd: 100, renews_day: 1, starts_on: '2026-11-12', ends_on: null, active: true, notes: 'API credits' }],
+                    estimate: { plans: [{ applies_to: 'plan:7:2026-11-01', amount_usd: 100, used_usd: 25, remaining_usd: 75, expires_at: '2026-12-01T00:00:00.000Z' }] } },
+                { provider: 'altare', plans: [{ id: 8, label: 'Altare free monthly credits', monthly_usd: 100, renews_day: 1, starts_on: '2026-12-01', ends_on: null, active: false, notes: null }],
+                    estimate: { plans: [] } },
+            ],
+        };
         return { providers: [{ key: 'openai', status: 'active', api_key: fakeSecret }] };
     } },
 }));
@@ -46,6 +56,13 @@ app.use(createConsoleRoutes({
         assert.strictEqual(response.status, 200, html);
         assert.ok(html.includes('AI operator console'));
         assert.ok(!html.includes(fakeSecret), 'admin JSON values that resemble secrets never reach page HTML');
+        assert.ok(html.includes('Monthly credits from a plan') && html.includes('action="/console/provider-credit-plans"'), 'the plan form is in the providers section');
+        assert.ok(html.includes('name="monthly_usd"') && html.includes('name="renews_day"') && html.includes('name="starts_on"') && html.includes('name="ends_on"'), 'a plan records its amount and its cycle');
+        assert.ok(html.includes('name="prorate_first" type="checkbox" value="1" checked'), 'the first month is prorated by default');
+        assert.ok(html.includes('ChatGPT Pro API credits') && html.includes('$100.00 a month') && html.includes('renews on day 1'), 'a recorded plan shows its label, amount and renewal day');
+        assert.ok(html.includes('$75.00 left this cycle') && html.includes('ends 2026-12-01'), 'the cycle remaining comes from the estimate');
+        assert.ok(html.includes('action="/console/provider-credit-plans/7"') && html.includes('role="switch"'), 'a plan has its own on/off switch');
+        assert.ok(html.includes('No credit for this cycle yet.'), 'a plan with no cycle yet says so');
         assert.deepStrictEqual(calls, [READS.providers]);
         for (const path of consolePaths) {
             const page = await fetch(`${base}${path}`, { headers: { 'x-test-role': 'owner' } });
@@ -141,6 +158,46 @@ app.use(createConsoleRoutes({
         });
         assert.strictEqual(providerSettings.status, 303);
         assert.ok(writes.some((write) => write.path === '/api/v1/providers/groq' && write.body.markup_percent === 12.5 && write.body.uncensored === true));
+
+        for (const role of ['user', 'admin']) {
+            const count = writes.length;
+            for (const path of ['/console/provider-credit-plans', '/console/provider-credit-plans/7']) {
+                const denied = await fetch(`${base}${path}`, { method: 'POST', headers: { 'x-test-role': role, Origin: 'https://openvibe.exchange' } });
+                assert.strictEqual(denied.status, 403, `${role} cannot record a provider credit plan`);
+            }
+            assert.strictEqual(writes.length, count, 'non-owners cannot reach the AI service');
+        }
+        const planCsrf = await fetch(`${base}/console/provider-credit-plans`, { method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://evil.example' } });
+        assert.strictEqual(planCsrf.status, 403);
+        const planWrite = await fetch(`${base}/console/provider-credit-plans`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ provider: 'openai', label: 'ChatGPT Pro API credits', monthly_usd: '100', renews_day: '1', starts_on: '2026-11-12', ends_on: '', prorate_first: '1', notes: 'API credits' }),
+            redirect: 'manual',
+        });
+        assert.strictEqual(planWrite.status, 303);
+        assert.strictEqual(planWrite.headers.get('location'), '/console/providers');
+        assert.deepStrictEqual(writes.at(-1), { path: '/api/v1/admin/console/provider-credit-plans', method: 'POST', subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', body: {
+            provider: 'openai', label: 'ChatGPT Pro API credits', monthly_usd: 100, renews_day: 1, starts_on: '2026-11-12', ends_on: null, prorate_first: true, notes: 'API credits',
+        } });
+        const planOn = await fetch(`${base}/console/provider-credit-plans/7`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ active: '1' }), redirect: 'manual',
+        });
+        assert.strictEqual(planOn.status, 303);
+        assert.deepStrictEqual(writes.at(-1), { path: '/api/v1/admin/console/provider-credit-plans/7', method: 'POST', subject: 'usr_01JAB2C3D4E5F6G7H8J9K0MNPX', body: { active: true } });
+        const planOff = await fetch(`${base}/console/provider-credit-plans/7`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({}), redirect: 'manual',
+        });
+        assert.strictEqual(planOff.status, 303);
+        assert.deepStrictEqual(writes.at(-1).body, { active: false }, 'an unchecked switch turns the plan off');
+        const planError = await fetch(`${base}/console/provider-credit-plans`, {
+            method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange', 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ provider: 'openai', label: 'fail', monthly_usd: '100', renews_day: '1', starts_on: '2026-11-12' }),
+        });
+        const planErrorHtml = await planError.text();
+        assert.strictEqual(planError.status, 502);
+        assert.ok(planErrorHtml.includes('provider credit plans are not configured'), 'the AI error is shown on the page');
         const loadConfirmed = await fetch(`${base}/console/pricebook/confirmed`, {
             method: 'POST', headers: { 'x-test-role': 'owner', Origin: 'https://openvibe.exchange' }, redirect: 'manual',
         });

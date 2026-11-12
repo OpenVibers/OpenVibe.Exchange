@@ -119,6 +119,48 @@ function presetCard(p) {
 </li>`;
 }
 
+// Monthly credits that come with a plan. The plan is the owner's: a monthly amount, the day it renews, and the
+// cycle it is in. The cycle's remaining credit comes from AI's estimate, never from a local sum.
+function creditPlansPanel(data = {}) {
+    const estimates = Array.isArray(data.credit_estimates) ? data.credit_estimates : [];
+    const providers = Array.isArray(data.providers) ? data.providers : [];
+    const keys = [...new Set([
+        ...providers.map((p) => p.key), ...estimates.map((e) => e.provider), 'anthropic', 'openai',
+    ].filter(Boolean))];
+    const usd = (v) => { const n = price(v); return n == null ? null : `$${n.toFixed(2)}`; };
+    const plans = estimates.flatMap((e) => (Array.isArray(e.plans) ? e.plans : []).map((plan) => ({
+        ...plan, provider: e.provider, cycles: Array.isArray(e.estimate && e.estimate.plans) ? e.estimate.plans : [],
+    })));
+    const row = (plan) => {
+        const cycle = plan.cycles.find((c) => String(c.applies_to || '').startsWith(`plan:${plan.id}:`)) || null;
+        const remaining = cycle ? usd(cycle.remaining_usd) : null;
+        const left = cycle
+            ? `${remaining ? `${remaining} left` : 'Remaining credit not reported'} this cycle${cycle.expires_at ? ` · ends ${day(cycle.expires_at)}` : ''}`
+            : 'No credit for this cycle yet.';
+        return `<li class="ex-console-action">
+  <p><b>${esc(plan.label)}</b> · ${esc(plan.provider)} · ${esc(usd(plan.monthly_usd) || '–')} a month · renews on day ${esc(plan.renews_day)}</p>
+  <p>${esc(left)}</p>
+  <form method="post" action="/console/provider-credit-plans/${encodeURIComponent(plan.id)}">
+    <label class="exc-check"><input type="checkbox" name="active" value="1" role="switch"${plan.active ? ' checked' : ''}><span>Plan on</span></label>
+    <button class="ovk-btn ovk-btn--quiet" type="submit">Save</button>
+  </form>
+</li>`;
+    };
+    return `<form class="ovk-form ex-console-quota" method="post" action="/console/provider-credit-plans">
+  <h3>Monthly credits from a plan</h3>
+  <label>Provider<select name="provider" required>${keys.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('')}</select></label>
+  <label>Label<input name="label" required maxlength="120" placeholder="e.g. ChatGPT Pro API credits"></label>
+  <label>Amount per month (USD)<input name="monthly_usd" type="number" min="0" step="0.01" required></label>
+  <label>Renews on day (1-31)<input name="renews_day" type="number" min="1" max="31" step="1" required></label>
+  <label>Starts on<input name="starts_on" type="date" required></label>
+  <label>Ends on (optional)<input name="ends_on" type="date"></label>
+  <label class="exc-check"><input name="prorate_first" type="checkbox" value="1" checked><span>Prorate the first month</span></label>
+  <label>Notes<input name="notes" maxlength="500"></label>
+  <button class="ovk-btn ovk-btn--primary" type="submit">Save plan</button>
+</form>
+${plans.length ? `<ul class="exc-list">${plans.map(row).join('')}</ul>` : '<p class="exc-note">No monthly plan recorded yet.</p>'}`;
+}
+
 function providersSection(data = {}) {
     const providers = Array.isArray(data.providers) ? data.providers : [];
     const models = Array.isArray(data.models) ? data.models : [];
@@ -142,6 +184,7 @@ function providersSection(data = {}) {
 <header class="exc-head"><h2>Providers</h2><p>Who the Exchange routes to, in what order and at what markup. A key is stored sealed and never shown; "Not verified" providers serve people's own keys until a resale agreement is on file.</p>
 ${stats.length ? `<dl class="exc-stats">${stats.map(([n, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(n)}</dd></div>`).join('')}</dl>` : ''}</header>
 <section class="exc-sec"><h3>On the Exchange <span class="exc-n">${providers.length}</span></h3>${providers.length ? `<ul class="exc-list">${ordered.map((p) => providerCard(p, models)).join('')}</ul>` : '<p class="exc-note">No provider yet. Add one below.</p>'}</section>
+<section class="exc-sec" id="credit-plans">${creditPlansPanel(data)}</section>
 ${presets.length ? `<section class="exc-sec"><h3>Ready to add <span class="exc-n">${presets.length}</span></h3><p class="exc-note">Cheapest first, from each provider's own price page. Add one with its key and its models arrive with these prices.</p><ul class="exc-grid">${presets.map(presetCard).join('')}</ul></section>` : ''}
 <section class="exc-sec">${custom}</section>
 </div>`;
@@ -473,4 +516,4 @@ ${recent.length ? `<table class="ovk-table"><thead><tr><th scope="col">When</th>
 }
 
 const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection, orientation: orientationSection };
-module.exports = { providersSection, modelsSection, pricebookSection, supplySection, gpuPolicySection, syncSection, orientationSection, SECTIONS, CSS: marks.CSS };
+module.exports = { providersSection, modelsSection, pricebookSection, supplySection, gpuPolicySection, syncSection, orientationSection, creditPlansPanel, SECTIONS, CSS: marks.CSS };
