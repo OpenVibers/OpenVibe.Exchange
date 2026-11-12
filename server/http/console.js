@@ -109,6 +109,69 @@ function createConsoleRoutes({ config, ai }) {
         try { return page(req, res, section, await ai.adminRequest(path)); }
         catch (err) { return page(req, res, section, {}, err.message || 'AI admin API did not answer.', err.status === 404 ? 404 : 502); }
     });
+    // ── Picture orientation (pictures, 2026-11-11) ──
+    // The detector's owner controls live in AI's `pics.orientation` task defaults; this page shows them, today's
+    // count and spend, the last tries, and a check that sends one picture without turning or storing anything.
+    const ORIENTATION = 'pics.orientation';
+    async function orientationData(req) {
+        const [admin, defaults] = await Promise.all([
+            ai.adminRequest('/api/v1/admin/orientation'),
+            ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults'),
+        ]);
+        let models = [];
+        try {
+            const view = await ai.meRequest(req.viewer.token, `/api/v1/choices?task=${encodeURIComponent(ORIENTATION)}`);
+            models = ((view.options && view.options.openvibe) || []).filter((m) => !m.adult)
+                .map(({ model, source, name, price_estimate_usd }) => ({ model, source, name, price_estimate_usd }));
+        } catch { /* the saved value still renders */ }
+        if (!models.length) models = [{ model: 'openvibe/auto', source: 'openvibe', name: 'Let OpenVibe choose' }];
+        return { ...admin, models, current: (defaults.defaults || {})[ORIENTATION] || null };
+    }
+    r.get('/console/orientation', async (req, res) => {
+        try {
+            const data = await orientationData(req);
+            return send(res, 200, {
+                viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'Picture orientation',
+                head: raw('<script src="/js/console-orientation.js" defer></script>'),
+                body: raw(consolePage({ section: 'orientation', data: { ...data, saved: req.query.saved === '1' } })),
+            });
+        } catch (err) { return page(req, res, 'orientation', {}, err.message || 'The detector setting could not be read.', err.status || 502); }
+    });
+    r.post('/console/orientation', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            const b = req.body || {};
+            const current = (await ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults')).defaults[ORIENTATION] || {};
+            const model = b.model ? JSON.parse(b.model) : (current.signed_in || { model: 'openvibe/auto', source: 'openvibe' });
+            const value = {
+                ...current,
+                signed_out: model, signed_in: model,
+                method: b.method === 'vision' ? 'vision' : 'off',
+                confidence: b.confidence === '' || b.confidence == null ? 0.8 : Number(b.confidence),
+                daily_cap: b.daily_cap === '' || b.daily_cap == null ? null : Number(b.daily_cap),
+                budget_usd_per_day: b.budget_usd_per_day === '' || b.budget_usd_per_day == null ? null : Number(b.budget_usd_per_day),
+            };
+            await ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults', { method: 'PUT', body: { defaults: [{ task: ORIENTATION, value }] } });
+            return res.redirect(303, '/console/orientation?saved=1');
+        } catch (err) {
+            try {
+                const data = await orientationData(req);
+                return send(res, err.status || 422, {
+                    viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'Picture orientation',
+                    head: raw('<script src="/js/console-orientation.js" defer></script>'),
+                    body: raw(consolePage({ section: 'orientation', data, error: err.message || 'That setting was not saved.' })),
+                });
+            } catch { return page(req, res, 'orientation', {}, err.message || 'That setting was not saved.', err.status || 502); }
+        }
+    });
+    r.post('/console/orientation/try', express.json({ limit: '3mb' }), async (req, res) => {
+        if (!sameOrigin(req)) return res.status(403).json({ error: 'A check comes from this page only.' });
+        try {
+            const out = await ai.meRequest(req.viewer.token, '/api/v1/vision/orientation', { method: 'POST', body: { image: req.body && req.body.image } });
+            return res.set('Cache-Control', 'no-store').json(out);
+        } catch (err) { return res.status(err.status || 502).json({ error: err.message || 'The detector did not answer.', code: err.code || null }); }
+    });
+
     r.get(['/console', '/console/:section'], async (req, res) => {
         const section = req.params.section || 'overview';
         const endpoint = READS[section];
