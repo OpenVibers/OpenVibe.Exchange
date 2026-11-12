@@ -82,7 +82,7 @@ function homePage({ viewer, depths = [], capture = null, error = null }) {
 <label class="dd-field"><span>What are you designing?</span><textarea name="question" rows="3" maxlength="500" required placeholder="a phone-first robot control panel"></textarea></label>
 ${depthCards(cards)}
 <label class="dd-field"><span>Sites you already know (optional, one per line)</span><textarea name="sites" rows="2" maxlength="2048" placeholder="https://example.com/panel"></textarea></label>
-<p class="dd-go">${kit.button({ label: 'Start the deep dive', type: 'submit' })}<span class="ovk-note">The price is held before it starts; you can cancel at any step.</span></p>
+<div class="dd-go">${kit.button({ label: 'Start the deep dive', type: 'submit' })}<p class="dd-go-note">${require('openvibe-shared/glyphs').svg('lock')}The price is held before it starts; you can cancel at any step.</p></div>
 </form>${error ? `<p class="dd-error" role="alert">${esc(error)}</p>` : ''}`
         : signIn();
     return `<div class="ex-wrap dd">${kit.head({ title: 'Deep dive', sub: 'Expert design research: we search everywhere, capture the best sites at phone and computer sizes, and tell you what works and why.' })}${form}${signedIn ? '' : `<section class="ovk-section"><h2>The depths and their prices</h2>${depthList(cards)}</section>`}`

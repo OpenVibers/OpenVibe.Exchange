@@ -82,17 +82,74 @@ function table(models, searchMeta = null) {
     }).join('')}</ul>`;
 }
 // What each way of calling costs, in the reader's words (home's Pricing section and /pricing). Opus, 11-09.
+const glyph = (name) => require('openvibe-shared/glyphs').svg(name);
 const PRICING = [
-    ['Your own provider key', "The provider's price. OpenVibe adds 0%, with no cap and no end date."],
-    ['Managed models', 'The input and output price per million tokens shown on each model, before you call.'],
-    ["Open models on OpenVibe's GPUs", 'A fixed price per million tokens, the same on every call. Coming next.'],
-    ['Your own endpoint', 'An hourly price, quoted before it starts; it stops when idle.'],
-    ['Search', "Each engine's price per 1,000 searches; the free engines first."],
+    ['key', 'Your own provider key', "The provider's price. OpenVibe adds 0%, with no cap and no end date."],
+    ['coin', 'Managed models', 'The input and output price per million tokens shown on each model, before you call.'],
+    ['chip', "Open models on OpenVibe's GPUs", 'A fixed price per million tokens, the same on every call. Coming next.'],
+    ['server', 'Your own endpoint', 'An hourly price, quoted before it starts; it stops when idle.'],
+    ['search', 'Search', "Each engine's price per 1,000 searches; the free engines first."],
 ];
-const pricingRows = () => `<ul class="xpr-list">${PRICING.map(([name, what]) => `<li><strong>${esc(name)}</strong><span>${esc(what)}</span></li>`).join('')}</ul>`
+const pricingRows = () => `<ul class="xpr-list">${PRICING.map(([icon, name, what]) => `<li><span class="xpr-ic" aria-hidden="true">${glyph(icon)}</span><span class="xpr-t"><strong>${esc(name)}</strong><span>${esc(what)}</span></span></li>`).join('')}</ul>`
     + '<p class="xpr-note">Paid models open soon. Every price shows before you call, and nothing is charged until then.</p>';
 function pricing() {
     return section('Pricing', pricingRows());
+}
+// Why Exchange: three cards, each with its mark, its words and the page that says more (the owner, 11-12: the
+// reasons read as bare text flush against their boxes).
+const REASONS = [
+    ['key', '0% fee on your own key', "Bring your provider key and pay the provider's price, nothing more. No cap, no end date.", '/dashboard/keys', 'Add a key'],
+    ['route', 'The cheapest route', "Every call goes to the cheapest provider that is up. Open models on OpenVibe's own GPUs, at a fixed price per million tokens, are coming next.", '/compute', 'Compute prices'],
+    ['shield', 'Uncensored, 18+', 'Uncensored models for adults who opt in. The content floor applies on every request.', '/uncensored', 'What the floor covers'],
+];
+function reasons() {
+    return `<section class="xp-features" aria-label="Why OpenVibe.Exchange">${REASONS.map(([icon, title, text, href, label]) =>
+        `<article class="xp-feature"><span class="xp-feature-ic" aria-hidden="true">${glyph(icon)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p><a class="xp-feature-a" href="${href}">${esc(label)}<span aria-hidden="true">${glyph('arrow-right')}</span></a></article>`).join('')}</section>`;
+}
+const QUESTIONS = [
+    ['code', 'Can I use my existing client?', 'Yes. Point any OpenAI-compatible client at the Exchange endpoint with your Exchange key; Anthropic-style clients work through /v1/messages.', '/docs', 'Read the docs'],
+    ['chat', 'Where can I talk to a model?', 'In Vibe on OpenVibe.Chat: talk to any model here, or two side by side.', 'https://openvibe.chat/vibe', 'Open Vibe'],
+    ['chart', 'Where do the numbers come from?', 'Prices come from the live catalogue. Speed and reliability come from measured requests. A number nobody has measured stays unknown, never guessed.', '/status', 'See the status'],
+];
+function questions() {
+    return section('Questions', `<div class="xp-faq">${QUESTIONS.map(([icon, q, a, href, label]) =>
+        `<details class="xp-q"><summary><span class="xp-q-ic" aria-hidden="true">${glyph(icon)}</span><span class="xp-q-t">${esc(q)}</span><span class="xp-q-chev" aria-hidden="true">${glyph('chevron')}</span></summary><div class="xp-q-a"><p>${esc(a)}</p><a href="${href}">${esc(label)}</a></div></details>`).join('')}</div>`);
+}
+
+// /compute: what an hour of a computer or a GPU costs at each provider (the owner, 11-12: the raw table ran off a
+// phone; "this compute list should be on openvibe.compare … or at least interconnected"). Cards by kind, the cheapest
+// marked, the provider's own price page one tap away; the same list is GET /api/compute/prices, and OpenVibe.Compare
+// compares it.
+const PROVIDER = { baseten: 'Baseten', daytona: 'Daytona', e2b: 'E2B', fly: 'Fly.io', runpod: 'RunPod', modal: 'Modal', vast: 'Vast.ai', lambda: 'Lambda' };
+const REGION = { 'us-pdx-1': 'US West', 'eu-lon-1': 'London', us: 'US', eu: 'EU', iad: 'Virginia', ewr: 'New Jersey', 'provider-default': "The provider's region" };
+const gb = (mb) => `${Math.round((Number(mb) || 0) / 1024)} GB`;
+const perHour = (n) => `$${Number(n).toFixed(n < 0.1 ? 3 : 2)}`;
+function ago(iso, now) {
+    const days = Math.floor((now - Date.parse(iso)) / 86400000);
+    return !Number.isFinite(days) ? 'recently' : days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+}
+function computePage({ prices = [], checked_at, now = Date.now() }) {
+    const kinds = [['gpu', 'GPUs', 'chip', 'For models and anything that needs a graphics card.'], ['cpu', 'Computers', 'server', 'Sandboxes and desks: two cores and a few GB of memory.']];
+    const stale = prices.some((p) => p.expires_at && now > p.expires_at);
+    const row = (p, cheapest) => {
+        const name = PROVIDER[p.provider] || p.provider;
+        const what = p.gpu ? `${p.gpu} · ${gb(p.gpu_mb)}` : `${p.cpu} vCPU · ${gb(p.ram_mb)} memory`;
+        const where = REGION[p.region] || p.region || '';
+        const tags = [cheapest ? '<span class="xc-tag is-best">Cheapest</span>' : '', p.interruptible ? '<span class="xc-tag">Can be interrupted</span>' : '', p.promotion ? `<span class="xc-tag is-promo" title="${esc(p.promotion)}">Offer</span>` : ''].join('');
+        return `<li class="xc-row"><span class="xc-mark" aria-hidden="true">${esc(name.charAt(0))}</span><span class="xc-t"><b>${esc(name)}</b><small>${esc([what, where].filter(Boolean).join(' · '))}</small>${tags ? `<span class="xc-tags">${tags}</span>` : ''}</span>`
+            + `<span class="xc-p"><b>${perHour(p.hourly)}<small>/hour</small></b><small>$${Number(p.per_second).toFixed(6)}/second</small></span>`
+            + `<a class="xc-src" href="${esc(p.source)}" rel="noopener nofollow" target="_blank" aria-label="${esc(name)}'s price page">${glyph('open')}</a></li>`;
+    };
+    const groups = kinds.map(([kind, title, icon, note]) => {
+        const list = prices.filter((p) => (p.kind || (p.gpu ? 'gpu' : 'cpu')) === kind).sort((a, b) => a.hourly - b.hourly);
+        if (!list.length) return '';
+        return `<section class="xc-group" id="${kind}"><h2><span class="xc-ic" aria-hidden="true">${glyph(icon)}</span>${esc(title)} <span class="xc-n">${list.length}</span></h2><p class="xc-note">${esc(note)}</p><ul class="xc-list">${list.map((p, i) => row(p, i === 0)).join('')}</ul></section>`;
+    }).join('');
+    return `<div class="ex-wrap xc">${kit.head({ title: 'Compute prices', sub: `What an hour of a computer or a GPU costs at each provider, checked ${ago(checked_at, now)}.` })}`
+        + `<nav class="xc-jump" aria-label="Kinds"><a href="#gpu">${glyph('chip')}GPUs</a><a href="#cpu">${glyph('server')}Computers</a><a href="https://openvibe.compare/compute">${glyph('scale')}Compare them on OpenVibe.Compare</a></nav>`
+        + (stale ? '<p class="xc-stale" role="status">Some of these prices are past their review date: check the provider before you rely on one.</p>' : '')
+        + groups
+        + `<p class="xc-foot">Base compute only: storage, network and plan fees may apply, and offers are per account. The same list is <a href="/api/compute/prices">GET /api/compute/prices</a> (JSON, open to anyone). <a href="/">Model prices</a></p></div>`;
 }
 /** /pricing: the page, with its head (it had no h1). */
 function pricingPage() {
@@ -117,7 +174,7 @@ function home({ catalog, usage, viewer }) {
                 'median time to first token',
             ],
         ],
-    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}<div class="xp-reasons">${section('0% fee on your own key', '<p>Bring your provider key and pay the provider\'s price, nothing more. No cap, no end date.</p>')}${section('The cheapest route', '<p>Every call goes to the cheapest provider that is up. Open models on OpenVibe\'s own GPUs, at a fixed price per million tokens, are coming next.</p>')}${section('Uncensored, 18+', '<p>Uncensored models for adults who opt in. The content floor applies on every request.</p><a href="/uncensored">What the floor covers</a>')}</div>${pricing()}${section('Questions', '<details><summary>Can I use my existing client?</summary><p>Yes. Use the OpenAI-compatible endpoint with your Exchange key.</p></details><details><summary>Where can I talk to a model?</summary><p><a href="https://openvibe.chat/vibe">Open Chat</a> to talk or compare models.</p></details><details><summary>Where do the numbers come from?</summary><p>Prices come from the live catalogue. Speed and reliability come from measured requests. Missing measurements stay unknown.</p></details>')}</div>`;
+    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}${reasons()}${pricing()}${questions()}</div>`;
 }
 function modelsPage({ catalog, query = {}, searchResults = null }) {
     const all = listed(catalog);
@@ -186,4 +243,4 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
     const sub = rows.length ? `${rows.length} to call now · live prices, measured speed` : 'None to call now match · the registry is below';
     return `<div class="ex-wrap xp xm-page">${kit.head({ title: 'Models', sub })}${unavailable(catalog)}<div class="xm-find">${filters}<nav class="ex-chips" aria-label="Model filters">${ordered.join('')}</nav></div>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
 }
-module.exports = { home, modelsPage, pricing, pricingPage, table };
+module.exports = { computePage, home, modelsPage, pricing, pricingPage, table };

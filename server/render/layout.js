@@ -23,7 +23,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const NAV = [
     { label: 'Models', href: '/models', icon: 'fa-microchip' },
     { label: 'Search', href: '/search', icon: 'fa-magnifying-glass' },
-    { label: 'Deep dive', href: '/deep-dive', icon: 'fa-binoculars' },
+    { label: 'Deep dive', href: '/deep-dive', icon: 'fa-compass' },   // fa-binoculars has no glyph: it drew nothing
     { label: 'Pricing', href: '/pricing', icon: 'fa-tag' },
     { label: 'Docs', href: '/docs', icon: 'fa-code' },
     { label: 'Status', href: '/status', icon: 'fa-gauge' },
@@ -103,6 +103,7 @@ function renderPage(o) {
 ${appIcon.headTags({ site: site.icon || 'exchange' })}
 <link rel="stylesheet" href="${ovServe.url('kit.css')}">
 <link rel="stylesheet" href="${ovServe.url('kit-data.css')}">
+<link rel="stylesheet" href="${ovServe.url('kit-layout.css')}">
 <link rel="stylesheet" href="${ovServe.url('room.css')}">
 <link rel="stylesheet" href="${ovServe.url('showcase.css')}">
 <link rel="stylesheet" href="${asset('css/exchange.css')}">
@@ -117,7 +118,7 @@ ${o.head || ''}
         body: `<a class="skip" href="#main">Skip to content</a>
 <div id="navbar-mount"></div>
 <noscript><div class="account-bar" role="navigation" aria-label="Account">${account}</div></noscript>
-<main id="main" class="ex ov-room ${o.class || ''}" style="${rooms.style('exchange')}">
+<main id="main" class="ex ov-room ov-base ${o.class || ''}" style="${rooms.style('exchange')}">
 ${render(o.body)}
 </main>
 <script>
