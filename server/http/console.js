@@ -312,6 +312,29 @@ function createConsoleRoutes({ config, ai }) {
             return res.redirect(303, '/console/providers');
         } catch (err) { return page(req, res, 'providers', {}, err.message || 'The credit record could not be saved.', 502); }
     });
+    r.post('/console/provider-credit-plans', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            await ai.adminRequest('/api/v1/admin/console/provider-credit-plans', { method: 'POST', subject: req.viewer.subject, body: {
+                provider: String(req.body.provider || ''),
+                label: String(req.body.label || ''),
+                monthly_usd: Number(req.body.monthly_usd),
+                renews_day: Number(req.body.renews_day),
+                starts_on: String(req.body.starts_on || ''),
+                ends_on: req.body.ends_on ? String(req.body.ends_on) : null,
+                prorate_first: req.body.prorate_first === '1',
+                notes: req.body.notes ? String(req.body.notes) : null,
+            } });
+            return res.redirect(303, '/console/providers');
+        } catch (err) { return page(req, res, 'providers', {}, err.message || 'The plan could not be saved.', 502); }
+    });
+    r.post('/console/provider-credit-plans/:id', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        try {
+            await ai.adminRequest(`/api/v1/admin/console/provider-credit-plans/${encodeURIComponent(req.params.id)}`, { method: 'POST', subject: req.viewer.subject, body: { active: req.body.active === '1' } });
+            return res.redirect(303, '/console/providers');
+        } catch (err) { return page(req, res, 'providers', {}, err.message || 'The plan could not be changed.', 502); }
+    });
     r.post('/console/provider-credit-preference', async (req, res) => {
         if (!sameOrigin(req)) return res.sendStatus(403);
         try {
