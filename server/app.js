@@ -164,7 +164,16 @@ async function createApp(opts = {}) {
     app.use(cookieParser());
 
     // ── Machine endpoints ───────────────────────────────────
-    app.get('/api/compute/prices', (_req, res) => res.set('Cache-Control', 'public, max-age=60').json(require('./compute-prices')));
+    app.get('/api/compute/prices', (_req, res) => res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Cache-Control': 'public, max-age=60',
+    }).json(require('./compute-prices')));
+    app.options('/api/compute/prices', (_req, res) => res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Max-Age': '86400',
+    }).sendStatus(204));
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'openvibe-exchange', name: 'OpenVibe.Exchange', version: VERSION }));
     // IndexNow's key file (/<key>.txt), when a key is configured.
     if (indexnow.enabled) app.use(indexnow.keyFile);
