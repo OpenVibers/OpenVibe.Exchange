@@ -4,7 +4,7 @@ const { esc } = require('../render/html');
 const designed = require('./console-ai');
 
 const SECTIONS = [
-    ['Overview', '/console'], ['Defaults', '/console/defaults'], ['GPU supply', '/console/supply'], ['Providers', '/console/providers'], ['Models', '/console/models'],
+    ['Overview', '/console'], ['Defaults', '/console/defaults'], ['Orientation', '/console/orientation'], ['GPU supply', '/console/supply'], ['Providers', '/console/providers'], ['Models', '/console/models'],
     ['Routes', '/console/routes'], ['Templates', '/console/templates'], ['Workflows', '/console/workflows'],
     ['Runs', '/console/runs'], ['Quotas', '/console/quotas'], ['Usage', '/console/usage'],
     ['Cache', '/console/cache'], ['GPUs', '/console/gpus'], ['Price book', '/console/pricebook'],
