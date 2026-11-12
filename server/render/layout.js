@@ -27,7 +27,7 @@ const NAV = [
     { label: 'Pricing', href: '/pricing', icon: 'fa-tag' },
     { label: 'Docs', href: '/docs', icon: 'fa-code' },
     { label: 'Status', href: '/status', icon: 'fa-gauge' },
-    { label: 'Rankings', href: 'https://openvibe.report/ai', icon: 'fa-chart-line', more: true },
+    { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line', more: true },
 ];
 
 const hashes = new Map();
