@@ -187,7 +187,15 @@ async function createApp(opts = {}) {
     // ── Sign-in (OAuth2 + PKCE client of OpenVibe.Network) ──
     app.use('/auth/', rateLimit({ windowMs: 15 * 60_000, limit: 60, skip: (req) => req.path === '/me' || req.path === '/navbar-token', standardHeaders: true, legacyHeaders: false }));
     app.use('/auth', sso.routes());
-    { const legal = require('openvibe-shared/legal'); app.get(legal.PATHS, legal.handler({ id: 'exchange', service: 'exchange', host: 'openvibe.exchange', name: 'OpenVibe.Exchange', profile: 'ugc' })); }
+    { const legal = require('openvibe-shared/legal');
+    // Shared's legal template starts the navbar without links, so /terms and /privacy showed its fallback
+    // (Home, My Account, Themes) instead of Exchange's own pages. Add Exchange's list to that init call.
+    const navLinks = JSON.stringify(require('./render/layout').NAV);
+    app.get(legal.PATHS, (req, res, next) => {
+        const send = res.send.bind(res);
+        res.send = (body) => send(String(body).replace('try{OpenVibeNavbar.init({service:', `try{OpenVibeNavbar.init({links:${navLinks},service:`));
+        next();
+    }, legal.handler({ id: 'exchange', service: 'exchange', host: 'openvibe.exchange', name: 'OpenVibe.Exchange', profile: 'ugc' })); }
 
     // ── OpenVibe.Events → this service (loopback only) ──────
     // Account export/deletion; the consumer reads the raw body itself, so it is mounted before any body parser.
