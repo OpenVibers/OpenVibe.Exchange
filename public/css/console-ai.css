@@ -105,3 +105,17 @@
 /* An offer's route: whether the catalogue and router list it, and the gate that stops it. */
 .exc-route{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0}
 .exc-route small{color:var(--ovk-muted);font-size:.82rem}
+.exc-gpu,.exc-gpu>*{min-width:0}
+.exc-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* GPU providers and job classes (11-12 design pass): a meter for the month and each class, sub-heads, an off row dimmed,
+   and the provider form's class checkboxes on one line. */
+.exc-meter{display:flex;height:8px;margin:2px 0 0;border-radius:999px;background:color-mix(in srgb,var(--ovk-line) 70%,transparent);overflow:hidden}
+.exc-meter span{display:block;height:100%}
+.exc-meter .is-used{background:var(--ovk-accent)}
+.exc-meter .is-held{background:color-mix(in srgb,var(--ovk-accent) 45%,transparent)}
+.exc-sub{display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:1rem}
+.exc-gpu .exc-pb-prov.is-off{opacity:.72}
+.exc-form fieldset{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0;padding:0;border:0}
+.exc-form fieldset legend{padding:0 0 4px;font-weight:650;font-size:.82rem;color:var(--ovk-text)}
+.exc-form fieldset .exc-check{grid-column:auto}
+.exc-form textarea{box-sizing:border-box;width:100%;min-height:72px;padding:10px 12px;border:1px solid var(--ovk-line);border-radius:10px;background:var(--ovk-input,transparent);color:var(--ovk-text);font:inherit}
