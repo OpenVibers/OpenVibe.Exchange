@@ -35,26 +35,37 @@ function progressBar(progress) {
     return `<div class="dd-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct(progress)}"><span style="display:block;width:${pct(progress)}%"></span></div>`;
 }
 
+/** One depth as a card: its name, the price large, sites and time, then what it adds (11-12 design pass: the three were
+ * one bulleted run-on where the prices were lost). The same card is a radio choice on the form. */
+const depthBody = (d) => `<span class="dd-depth-name">${esc(d.label || d.key)}</span><span class="dd-depth-price">${price(d.price_usd)}</span>`
+    + `<span class="dd-depth-size">${esc(String(d.sites || ''))} sites · about ${esc(String(d.minutes || '?'))} min</span>${d.analysis ? `<small>${esc(d.analysis)}</small>` : ''}`;
+
 function depthCards(depths, selected = 'quick') {
-    return `<fieldset class="dd-depths"><legend>Depth</legend>${(depths || []).map((d) => `<label class="dd-depth"><input type="radio" name="depth" value="${esc(d.key)}"${d.key === selected ? ' checked' : ''}> <strong>${esc(d.label || d.key)}</strong> <span>${esc(String(d.sites || ''))} sites · about ${esc(String(d.minutes || '?'))} min · ${price(d.price_usd)}</span><small>${esc(d.analysis || '')}</small></label>`).join('')}</fieldset>`;
+    return `<fieldset class="dd-depths"><legend>Depth</legend><div class="dd-depth-row">${(depths || []).map((d) => `<label class="dd-depth"><input type="radio" name="depth" value="${esc(d.key)}"${d.key === selected ? ' checked' : ''}>${depthBody(d)}</label>`).join('')}</div></fieldset>`;
 }
 
 function depthList(depths) {
-    return `<ul class="dd-depth-list">${(depths || []).map((d) => `<li><strong>${esc(d.label || d.key)}</strong> <span>${esc(String(d.sites || ''))} sites · about ${esc(String(d.minutes || '?'))} min · ${price(d.price_usd)}</span> <small>${esc(d.analysis || '')}</small></li>`).join('')}</ul>`;
+    return `<ul class="dd-depth-row dd-depth-list">${(depths || []).map((d) => `<li class="dd-depth">${depthBody(d)}</li>`).join('')}</ul>`;
 }
 
 function signIn(next = '/deep-dive') {
     return kit.empty({ icon: 'person', title: 'Sign in to run a deep dive', text: 'A deep dive keeps private screenshots and spends your allowance, so it needs your account. You can read what it does below first.', action: { href: `/auth/login?next=${encodeURIComponent(next)}`, label: 'Sign in with OpenVibe' } });
 }
 
+/** The six steps as a timeline: an icon, the step's name, its sentence; what a capture measures as chips. */
+const MEASURED = ['type scale', 'palette', 'spacing', 'radii', 'shadows', 'grid', 'navigation', 'heading outline', 'button and link words', 'components'];
+const EXPERT_ADDS = ['open menus', 'hover and focus states', 'a transition frame strip', 'axe-core findings', 'LCP/CLS/INP'];
+const chips = (words) => `<ul class="dd-chips">${words.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>`;
 function whatItDoes() {
+    const step = (icon, title, text, extra = '') => `<li><span class="dd-what-ic" aria-hidden="true">${kit.icon(icon)}</span><div><strong>${title}</strong><p>${text}</p>${extra}</div></li>`;
     return kit.section({ title: 'What a deep dive does', body: `<ol class="dd-what">
-<li><strong>Search every way we have.</strong> Our research sources, Exchange's web, picture and icon engines, open-source projects on GitHub, design write-ups, and our own rules register and component registry.</li>
-<li><strong>Choose the sites worth a look.</strong> A model ranks them with a reason each; you can add or drop any before Capture (Quick goes straight on).</li>
-<li><strong>Capture them properly.</strong> 390 and 1280 px, dark and light where the site supports it, the whole page after a slow scroll so lazy sections load, and the DOM facts: type scale, palette, spacing, radii, shadows, grid, navigation, heading outline, button and link words, components. Expert adds open menus, hover and focus states, a transition frame strip, axe-core findings and LCP/CLS/INP.</li>
-<li><strong>Read them.</strong> A vision model reads each screenshot and a text model reads the measured facts and the words: hierarchy, density, what draws the eye, what is good and what fails.</li>
-<li><strong>Synthesise.</strong> The patterns and how many sites use each, a comparison, the best version, what everyone gets wrong, the gap nobody fills, reference tokens as inspiration, do and don't, accessibility and speed, and recommendations checked against OpenVibe's own rules.</li>
-<li><strong>Show the evidence.</strong> Every claim names its site, capture and the date it was read. Screenshots stay private to you and are shown as attributed commentary, never republished.</li>
+${step('search', 'Search every way we have.', 'Our research sources, Exchange\'s web, picture and icon engines, open-source projects on GitHub, design write-ups, and our own rules register and component registry.')}
+${step('check', 'Choose the sites worth a look.', 'A model ranks them with a reason each; you can add or drop any before Capture (Quick goes straight on).')}
+${step('image', 'Capture them properly.', '390 and 1280 px, dark and light where the site supports it, the whole page after a slow scroll so lazy sections load, and the DOM facts:',
+        `${chips(MEASURED)}<p class="dd-what-sub">Expert adds</p>${chips(EXPERT_ADDS)}`)}
+${step('eye', 'Read them.', 'A vision model reads each screenshot and a text model reads the measured facts and the words: hierarchy, density, what draws the eye, what is good and what fails.')}
+${step('spark', 'Synthesise.', 'The patterns and how many sites use each, a comparison, the best version, what everyone gets wrong, the gap nobody fills, reference tokens as inspiration, do and don\'t, accessibility and speed, and recommendations checked against OpenVibe\'s own rules.')}
+${step('book', 'Show the evidence.', 'Every claim names its site, capture and the date it was read. Screenshots stay private to you and are shown as attributed commentary, never republished.')}
 </ol>
 <p class="ovk-note">The price is shown before it starts and held; cancelling stops the spend. No paid screenshot service: our own Chrome, one page budget at a time.</p>` });
 }
