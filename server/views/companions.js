@@ -224,7 +224,7 @@ function memoryPage({ card = {}, notes = [], locked = false, lock = null, proble
             + '</div></li>';
     };
     return '<div class="ex-wrap ex-narrow ex-memory-page">'
-        + '<p><a class="ex-back" href="' + esc(pathOf(card)) + '">← Back to ' + esc(card.name) + '</a></p>'
+        + '<p><a class="ex-back" href="' + esc(pathOf(card)) + '">' + kit.icon('back') + ' Back to ' + esc(card.name) + '</a></p>'
         + '<h1>Memory</h1>'
         + '<p class="ex-lede">What <b>' + esc(card.name) + '</b> remembers about you. The notes are yours: edit them, pin the ones that matter, delete the rest, or add your own. They live in your OpenVibe memory, not in a plan.</p>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')
@@ -297,7 +297,7 @@ function lorebookPage({ card = {}, books = [], chat = null, problem = null, noti
             + '</section>';
     };
     return '<div class="ex-wrap ex-narrow ex-lorebook-page">'
-        + '<p><a class="ex-back" href="' + esc(pathOf(card)) + '">← Back to ' + esc(card.name) + '</a></p>'
+        + '<p><a class="ex-back" href="' + esc(pathOf(card)) + '">' + kit.icon('back') + ' Back to ' + esc(card.name) + '</a></p>'
         + '<h1>Lorebooks</h1>'
         + '<p class="ex-lede">Entries that join the context when one of their keys appears in the recent turns, the highest priority first, within a token budget. Attach a book to your world, to <b>' + esc(card.name) + '</b>, or to this chat. The chat’s “What the model saw” panel lists the entries used for each answer.</p>'
         + (problem ? kit.notice({ kind: 'error', text: problem }) : '')

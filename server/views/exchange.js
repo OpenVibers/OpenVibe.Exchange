@@ -7,6 +7,8 @@
  * read is unavailable the page says so and shows no invented figure.
  */
 const kit = require('openvibe-shared/kit');
+const glyphs = require('openvibe-shared/glyphs');
+const GO = glyphs.svg('arrow-right', { size: 16 });
 const { esc } = require('../render/html');
 const { mark, product, productMark } = require('./marks');
 const metrics = require('./metrics');
@@ -220,7 +222,7 @@ ${stats.length ? kit.stats(stats) : ''}
 ${panel({
         title: 'Popular now', note: 'By real requests in the last seven days.', id: 'popular',
         body: `${modelList(popular, { empty: 'No requests yet. The first one will show up here.', withTry: true })}
-${models.length ? `<p class="ex-more"><a href="/models">All ${models.length} models →</a></p>` : ''}`,
+${models.length ? `<p class="ex-more"><a href="/models">All ${models.length} models ${GO}</a></p>` : ''}`,
     })}
 <div class="ex-lines">
 ${lineCard({ href: '/arena', name: 'The Arena', text: 'One prompt, two unnamed models, one vote: then both names and their receipts.', icon: 'swap', tone: 'accent' })}
@@ -237,7 +239,7 @@ ${panel({
         title: 'Use it from code', note: 'One endpoint, compatible with OpenAI and with Anthropic.', id: 'code', body: `
 <p class="ex-prose">Point an OpenAI client at <code>https://api.openvibe.exchange/v1</code>, or Claude Code at its <code>/v1/messages</code>. Model ids are <code>deepseek/deepseek-chat</code>, or <code>openvibe/auto</code> to let the router pick by your floor, ceiling and policy.</p>
 ${kit.snippet({ code: `curl ${ENDPOINT} \\\n  -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"deepseek/deepseek-chat","messages":[{"role":"user","content":"Hello"}]}'`, id: 'home-curl' })}
-<p class="ex-more"><a href="/start">Start building in four steps →</a> · <a href="/api">Keys, usage and the full reference →</a></p>`,
+<p class="ex-more"><a href="/start">Start building in four steps ${GO}</a> · <a href="/api">Keys, usage and the full reference ${GO}</a></p>`,
     })}
 ${panel({
         title: 'AI in OpenVibe', note: 'Which products run which models, and what each costs a day.', id: 'products',
@@ -266,7 +268,7 @@ function previewCard(preview) {
 <p class="ex-preview-tag">A side-by-side answer <span>example words · live prices</span></p>
 <p class="ex-preview-q">“Summarize this contract in three bullets.”</p>
 <div class="ex-preview-grid">${cells}</div>
-<p class="ex-more"><a href="https://openvibe.chat/vibe">Open the real chat →</a></p>
+<p class="ex-more"><a href="https://openvibe.chat/vibe">Open the real chat ${GO}</a></p>
 </aside>`;
 }
 
@@ -283,7 +285,7 @@ const EXAMPLE_ANSWER = {
 // A feature's own icon, from the kit's set, on a tint of a theme token. Model family marks name models only: on these
 // cards a family's mark read as a stray logo (owner, 11-09: "what is it even supposed to be?").
 function lineCard({ href, name, text, icon, tone = 'accent' }) {
-    return `<a class="ex-line" href="${href}"><span class="ex-line-ic ex-line-ic--${esc(tone)}" aria-hidden="true">${kit.icon(icon)}</span><span><b>${esc(name)}</b><small>${esc(text)}</small></span><span class="ex-line-go" aria-hidden="true">→</span></a>`;
+    return `<a class="ex-line" href="${href}"><span class="ex-line-ic ex-line-ic--${esc(tone)}" aria-hidden="true">${kit.icon(icon)}</span><span><b>${esc(name)}</b><small>${esc(text)}</small></span><span class="ex-line-go" aria-hidden="true">${GO}</span></a>`;
 }
 
 function productsSummary(usage) {
@@ -322,8 +324,8 @@ ${families.length ? `<div class="ex-chips" role="group" aria-label="Family">${fa
 ${unavailable(catalog)}
 ${panel({ title: '', body: modelList(models, { empty: 'No model matches that search. Try a family or a provider.' }) })}
 ${communityPools(community)}
-<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p>
-<p class="ex-more"><a href="/status">Uptime and incidents →</a></p>
+<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare ${GO}</a></p>
+<p class="ex-more"><a href="/status">Uptime and incidents ${GO}</a></p>
 </div>`;
 }
 
@@ -422,7 +424,7 @@ ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${measuredPanel(measured)}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
-<p class="ex-more"><a href="https://openvibe.compare/things/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model →</a></p>
+<p class="ex-more"><a href="https://openvibe.compare/things/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model ${GO}</a></p>
 ${activityPanel(model.activity)}
 ${require('./analysis').modelFacts(analysis)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
@@ -946,7 +948,7 @@ function changelogBody(changes) {
     const block = (title, items, render) => (items.length
         ? `<h3 class="ex-h3">${esc(title)} <span class="ex-muted">${items.length}</span></h3><ul class="ex-changes">${items.map(render).join('')}</ul>`
         : '');
-    const priceChange = (x) => `${x.was_in == null && x.was_out == null ? 'no price' : `${money(x.was_in)} in / ${money(x.was_out)} out`} → ${x.price_in == null && x.price_out == null ? 'free capacity' : `${money(x.price_in)} in / ${money(x.price_out)} out`}`;
+    const priceChange = (x) => `${x.was_in == null && x.was_out == null ? 'no price' : `${money(x.was_in)} in / ${money(x.was_out)} out`} to ${x.price_in == null && x.price_out == null ? 'free capacity' : `${money(x.price_in)} in / ${money(x.price_out)} out`}`;
     const where = (x) => (x.community ? 'a community machine' : (x.provider ? providerLabel({ provider: x.provider, provider_name: x.provider }) : ''));
     const added = block('New', changes.added, (x) => `<li><b>${esc(x.name)}</b>${x.family ? ` · <span class="ex-muted">${esc(x.family)}</span>` : ''}${where(x) ? ` on ${esc(where(x))}` : ''}${x.price_out == null ? '' : ` · ${money(x.price_out)} out per M`}</li>`);
     const repriced = block('Price changed', changes.repriced, (x) => `<li><b>${esc(x.name)}</b> · ${esc(priceChange(x))}</li>`);
@@ -1150,7 +1152,7 @@ function startPage({ catalog = null } = {}) {
         'curl -s -X POST https://ai.openvibe.services/api/v1/chat \\',
         '  -H "Authorization: Bearer $TOKEN" -H \'Content-Type: application/json\' \\',
         '  -d \'{ "messages": [ { "role": "user", "content": "Name three uses for a paperclip." } ] }\'',
-        '# → { "run": { "id": "run_…", "status": "succeeded", "output": …, "provenance": …, "explain": … } }',
+        '# Response: { "run": { "id": "run_…", "status": "succeeded", "output": …, "provenance": …, "explain": … } }',
     ].join('\n');
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Start building', sub: 'One endpoint, a key, and every answer says which model ran and why.', actions: [kit.button({ href: '/api', label: 'Keys and the API', kind: 'quiet' })] })}

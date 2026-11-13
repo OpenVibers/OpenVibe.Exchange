@@ -10,12 +10,14 @@ document.querySelectorAll('[data-task-default]').forEach((form) => {
     const byValue = new Map(models.map((m) => [JSON.stringify({ model: m.model, source: m.source }), m.model]));
     let dragged = null;
 
+    const UP = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 20V4M6 10l6-6 6 6"/></svg>';
+    const DOWN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4v16M6 14l6 6 6-6"/></svg>';
     const buttonsFor = (li) => {
-        for (const [move, text, label] of [['-1', '↑', 'Move fallback up'], ['1', '↓', 'Move fallback down']]) {
+        for (const [move, svg, label] of [['-1', UP, 'Move fallback up'], ['1', DOWN, 'Move fallback down']]) {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'ovk-btn ovk-btn--quiet';
-            button.textContent = text;
+            button.innerHTML = svg;
             button.setAttribute('aria-label', label);
             button.dataset.move = move;
             li.append(button);

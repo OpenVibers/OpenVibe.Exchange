@@ -1,5 +1,6 @@
 'use strict';
 const kit = require('openvibe-shared/kit');
+const glyphs = require('openvibe-shared/glyphs');
 const thread = require('openvibe-shared/thread');
 const legacy = require('./exchange');
 const listed = (catalog) => legacy.chatModels(catalog);
@@ -241,6 +242,6 @@ function modelsPage({ catalog, query = {}, searchResults = null }) {
     // Filters that match nothing go last (still there, still saying 0), so the row starts with what narrows.
     const ordered = [...chips.filter((c) => !c.includes('is-empty')), ...chips.filter((c) => c.includes('is-empty'))];
     const sub = rows.length ? `${rows.length} to call now · live prices, measured speed` : 'None to call now match · the registry is below';
-    return `<div class="ex-wrap xp xm-page">${kit.head({ title: 'Models', sub })}${unavailable(catalog)}<div class="xm-find">${filters}<nav class="ex-chips" aria-label="Model filters">${ordered.join('')}</nav></div>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare →</a></p></div>`;
+    return `<div class="ex-wrap xp xm-page">${kit.head({ title: 'Models', sub })}${unavailable(catalog)}<div class="xm-find">${filters}<nav class="ex-chips" aria-label="Model filters">${ordered.join('')}</nav></div>${table(rows, searchMeta)}<p class="ex-more"><a href="https://openvibe.compare/">Compare models side by side on OpenVibe.Compare ${glyphs.svg('arrow-right', { size: 16 })}</a></p></div>`;
 }
 module.exports = { computePage, home, modelsPage, pricing, pricingPage, table };

@@ -793,11 +793,11 @@ function createCompanionRoutes(ctx) {
         if (at < 0) at = pairs.length - 1;
         const url = (p) => branchUrl(chatId, query, turn.id, p);
         const prev = at > 0
-            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at - 1])) + '" rel="nofollow" aria-label="The previous branch">\u2039</a>'
-            : '<span class="ex-branch-arrow is-off" aria-hidden="true">\u2039</span>';
+            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at - 1])) + '" rel="nofollow" aria-label="The previous branch">' + kit.icon('back') + '</a>'
+            : '<span class="ex-branch-arrow is-off" aria-hidden="true">' + kit.icon('back') + '</span>';
         const next = at < pairs.length - 1
-            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at + 1])) + '" rel="nofollow" aria-label="The next branch">\u203a</a>'
-            : '<span class="ex-branch-arrow is-off" aria-hidden="true">\u203a</span>';
+            ? '<a class="ex-branch-arrow" href="' + esc(url(pairs[at + 1])) + '" rel="nofollow" aria-label="The next branch">' + kit.icon('forward') + '</a>'
+            : '<span class="ex-branch-arrow is-off" aria-hidden="true">' + kit.icon('forward') + '</span>';
         return '<span class="ex-branch-nav" title="Branch ' + (at + 1) + ' of ' + pairs.length + '">' + prev
             + '<span class="ex-branch-count">' + (at + 1) + '/' + pairs.length + '</span>' + next + '</span>';
     }

@@ -9,6 +9,7 @@
  */
 const { esc } = require('../render/html');
 const marks = require('openvibe-shared/ai-marks');
+const glyphs = require('openvibe-shared/glyphs');
 
 const ACCESS = Object.freeze({
     OWN_DEPLOYMENT: ['Our own deployment', 'Runs on machines OpenVibe controls.'],
@@ -265,7 +266,7 @@ function pricebookSection(data = {}) {
         const dir = c.old_price == null ? 'new' : Number(c.new_price) > Number(c.old_price) ? 'up' : 'down';
         return `<li class="exc-change">
   <div class="exc-model-head">${mark(c.provider_key, 24)}<b>${esc(c.model_key || '')}</b><small>${esc(c.provider_key || '')} · ${esc(FIELD[c.field] || c.field || '')} price per 1M${c.checked_at ? ` · read ${esc(day(c.checked_at))}` : ''}${c.source ? ` · <a href="${esc(c.source)}" rel="noopener noreferrer" target="_blank">their page</a>` : ''}</small></div>
-  <p class="exc-delta is-${dir}"><span>${esc(money(c.old_price) || 'No price')}</span><span aria-hidden="true">→</span><b>${esc(money(c.new_price) || '–')}</b>${pct != null ? `<em>${pct > 0 ? '+' : ''}${esc(pct.toFixed(Math.abs(pct) < 10 ? 1 : 0))}%</em>` : ''}</p>
+  <p class="exc-delta is-${dir}"><span>${esc(money(c.old_price) || 'No price')}</span><span aria-hidden="true">${glyphs.svg('arrow-right', { size: 16 })}</span><b>${esc(money(c.new_price) || '–')}</b>${pct != null ? `<em>${pct > 0 ? '+' : ''}${esc(pct.toFixed(Math.abs(pct) < 10 ? 1 : 0))}%</em>` : ''}</p>
   ${open ? `<form method="post" action="/console/pricebook/changes/${encodeURIComponent(c.id)}" class="exc-inline exc-decide"><button class="ovk-btn ovk-btn--primary" name="decision" value="approve">Accept</button><button class="ovk-btn ovk-btn--quiet" name="decision" value="reject">Keep the current price</button></form>` : `<p class="exc-note">${esc(c.status === 'applied' ? 'Applied' : c.status || '')}${c.decided_at ? ` ${esc(day(c.decided_at))}` : ''}</p>`}
 </li>`;
     };
