@@ -4,6 +4,16 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **Search: one engine by default, honest prices, one combined cap when you compare (2026-11-13).** A search now
+  runs one engine, the router's pick unless you name one; comparing two or three engines is an explicit choice and
+  shares ONE spending cap that is shown before the run. Prices are words, never "Free": no provider fee, your
+  instance, included allowance (with the allowance), or your key. Every filter says whether the chosen engine
+  applies it, we filter the results, or it is not supported and will be refused rather than dropped. Image results
+  keep the provider's rank beside our order, and the engine list names each supplier's upstream (Google, Bing,
+  Yandex). New image engines: SerpAPI Google Images and reverse image, SearchAPI Images, TinEye. Pexels says new
+  keys are paused. Unsplash results have a "Use this picture" action that records its required download event once.
+  The picture and search views now allow provider thumbnails and the AI image proxy in the CSP.
+
 - **Measured, and your own AI usage (2026-11-12).** A model page now has a **Measured** panel from
   OpenVibe.Report's public performance rows: first token and whole-answer percentiles, tokens a second, success,
   cache hits, what a call and a million output tokens were charged, and calls in the last 30 days. A model below
