@@ -99,6 +99,15 @@ function load(env = process.env) {
             pollMs: Math.max(500, int(env.EXCHANGE_ACTOR_POLL_MS, 2000)),
         },
 
+        // OpenVibe.Report (server/report.js): the public AI performance rows behind a model's Measured panel, and a
+        // signed-in person's own AI usage. A short timeout: Report is a read for the page, never a reason to wait.
+        // Performance rows keep for five minutes; a person's rows are private and never cached.
+        report: {
+            url: trim(env.OV_REPORT_URL || 'https://openvibe.report'),
+            timeoutMs: Math.max(250, int(env.EXCHANGE_REPORT_TIMEOUT_MS, 2000)),
+            cacheMs: Math.max(10_000, int(env.EXCHANGE_REPORT_CACHE_MS, 300_000)),
+        },
+
         // OpenVibe.Bench (server/bench.js): the Arena's rounds and each person's vote are a Bench
         // human_pairwise judgement, and the rankings read the board by task category. The token is this
         // service's own client-credentials grant (bench.round.create, bench.judgement.cast, bench.board.read).

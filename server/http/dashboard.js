@@ -4,7 +4,8 @@ const { raw } = require('../render/html');
 const { send } = require('../render/layout');
 const { sameOrigin } = require('./principal');
 const views = require('../views/dashboard');
-function createDashboardRoutes({ config, ai }) {
+const metricsView = require('../views/metrics');
+function createDashboardRoutes({ config, ai, report }) {
     const r = express.Router();
     r.use(express.urlencoded({ extended: false, limit: '32kb' }));
     const render = (req, res, tab, html, status = 200) =>
@@ -14,6 +15,7 @@ function createDashboardRoutes({ config, ai }) {
             path: req.originalUrl,
             index: false,
             title: 'Dashboard · ' + tab,
+            head: tab === 'Usage' ? metricsView.HEAD : '',
             body: raw(html),
         });
     r.use('/dashboard', (req, res, next) => {
@@ -78,18 +80,17 @@ function createDashboardRoutes({ config, ai }) {
         safe(async (req, res) => {
             const data = await call(req, '/api/v1/exchange/key-usage');
             const rows = data.rows || [];
-            const keyList = req.path.endsWith('.csv') ? null : await call(req, '/api/v1/exchange/keys').catch(() => ({ keys: [] }));
-            const columns = [
-                'day',
-                'key_id',
-                'model',
-                'requests',
-                'tokens_in',
-                'tokens_out',
-                'cost_usd',
-                'status',
-            ];
             if (req.path.endsWith('.csv')) {
+                const columns = [
+                    'day',
+                    'key_id',
+                    'model',
+                    'requests',
+                    'tokens_in',
+                    'tokens_out',
+                    'cost_usd',
+                    'status',
+                ];
                 const cell = (v) =>
                     '"' +
                     String(v ?? '')
@@ -111,7 +112,12 @@ function createDashboardRoutes({ config, ai }) {
                         ].join('\n'),
                     );
             }
-            render(req, res, 'Usage', views.usagePage(rows, (keyList && keyList.keys) || []));
+            // The person's own AI usage is a separate read: Report failing leaves the keys' usage untouched.
+            const [keyList, aiUsage] = await Promise.all([
+                call(req, '/api/v1/exchange/keys').catch(() => ({ keys: [] })),
+                report ? report.personUsage(req.viewer.token).catch(() => null) : null,
+            ]);
+            render(req, res, 'Usage', views.usagePage(rows, (keyList && keyList.keys) || [], aiUsage));
         }),
     );
     r.get('/dashboard/credits', (req, res) => render(req, res, 'Credits', views.creditsPage()));

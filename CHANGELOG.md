@@ -4,6 +4,13 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **Measured, and your own AI usage (2026-11-12).** A model page now has a **Measured** panel from
+  OpenVibe.Report's public performance rows: first token and whole-answer percentiles, tokens a second, success,
+  cache hits, what a call and a million output tokens were charged, and calls in the last 30 days. A model below
+  Report's floor of 20 calls says "Not measured yet". A signed-in person's dashboard Usage adds **Your AI usage**
+  (calls, tokens, charged, a call a day and the products), read from Report with the person's own Network session.
+  Both draw with `openvibe-shared/ov-metrics`; the same numbers stay as plain text without JavaScript.
+
 - **The public pages of ai.openvibe.services are here now (2026-11-07).** The old site's home, prices and latency,
   changelog, legal pages and discovery files answer 301 on an exact page map; every API route there is unchanged.
   Three pages carry the content: `/start` (the endpoint, four steps, OpenAI/Anthropic/Link samples, AI's six

@@ -9,6 +9,8 @@
 const kit = require('openvibe-shared/kit');
 const { esc } = require('../render/html');
 const { mark, product, productMark } = require('./marks');
+const metrics = require('./metrics');
+const { NOT_MEASURED } = require('../report');
 
 const ENDPOINT = 'https://api.openvibe.exchange/v1/chat/completions';
 const CHAT = 'https://openvibe.chat/vibe';
@@ -326,7 +328,42 @@ ${communityPools(community)}
 }
 
 // ── One model ──────────────────────────────────────────────
-function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null, analysis = null }) {
+const f = metrics.format;
+
+/**
+ * What real calls measured on this model in the last 30 days, from Report's public performance row: the first
+ * token and the whole answer's percentiles, speed, success, cache hits and what a call was charged. A model below
+ * Report's floor (20 calls in 30 days) has no row, and a Report failure looks the same: said plainly, never a zero.
+ */
+function measuredPanel(row) {
+    const title = 'Measured';
+    const note = 'From OpenVibe.Report: real calls in the last 30 days, with no prompt and no person in them.';
+    if (!row) return panel({ title, note, id: 'measured', body: kit.notice({ kind: 'info', text: NOT_MEASURED }) });
+    const ttft = row.ttft_ms || {};
+    const latency = row.latency_ms || {};
+    const tps = row.tps || {};
+    const cost = row.cost || {};
+    const tiles = [
+        { label: 'Calls, 30 days', value: f.count(row.calls) },
+        { label: 'First token p50', value: f.ms(ttft.p50), sub: `p95 ${f.ms(ttft.p95)}` },
+        { label: 'Output speed p50', value: f.tps(tps.p50) },
+        { label: 'Success', value: f.rate(row.success_rate) },
+        { label: 'Cache hit', value: f.rate(row.cache_hit_rate) },
+        { label: 'Charged per call', value: f.usd(cost.per_call_usd) },
+        { label: 'Charged per 1M output', value: f.usd(cost.per_million_output_usd) },
+    ];
+    const parts = [
+        { kind: 'tiles', args: [tiles] },
+        { kind: 'percentiles', args: [ttft, { unit: 'ms', label: 'Time to first token' }] },
+        { kind: 'percentiles', args: [latency, { unit: 'ms', label: 'Latency, whole answer' }] },
+    ];
+    const fallback = `<p class="ex-metrics-line"><b>Calls, 30 days</b> ${f.count(row.calls)} · <b>First token</b> p50 ${f.ms(ttft.p50)}, p95 ${f.ms(ttft.p95)} · <b>Output speed p50</b> ${f.tps(tps.p50)}</p>
+<p class="ex-metrics-line"><b>Success</b> ${f.rate(row.success_rate)} · <b>Cache hit</b> ${f.rate(row.cache_hit_rate)} · <b>Charged</b> ${f.usd(cost.per_call_usd)} a call, ${f.usd(cost.per_million_output_usd)} per 1M output tokens</p>
+<p class="ex-metrics-line"><b>Time to first token</b> p50 ${f.ms(ttft.p50)} · p95 ${f.ms(ttft.p95)} (${f.count(ttft.n)} samples) · <b>Latency, whole answer</b> p50 ${f.ms(latency.p50)} · p95 ${f.ms(latency.p95)} (${f.count(latency.n)} samples)</p>`;
+    return panel({ title, note, id: 'measured', body: metrics.block(parts, fallback) });
+}
+
+function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null, analysis = null, measured = null }) {
     const offers = model.offers || [];
     const best = cheapest(model);
     const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : (offers.some(freePaused) ? kit.badge('Free paused') : '')].join('');
@@ -383,6 +420,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
 ${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` · ${model.variant}` : ''} · ${offers.length} offer${offers.length === 1 ? '' : 's'}`, back: { href: '/models', label: 'Models' }, actions: badges ? [badges] : [] })}
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
+${measuredPanel(measured)}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
 <p class="ex-more"><a href="https://openvibe.compare/things/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model →</a></p>
 ${activityPanel(model.activity)}
