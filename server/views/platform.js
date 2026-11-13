@@ -136,7 +136,9 @@ function computePage({ prices = [], checked_at, now = Date.now() }) {
         const name = PROVIDER[p.provider] || p.provider;
         const what = p.gpu ? `${p.gpu} · ${gb(p.gpu_mb)}` : `${p.cpu} vCPU · ${gb(p.ram_mb)} memory`;
         const where = REGION[p.region] || p.region || '';
-        const tags = [cheapest ? '<span class="xc-tag is-best">Cheapest</span>' : '', p.interruptible ? '<span class="xc-tag">Can be interrupted</span>' : '', p.promotion ? `<span class="xc-tag is-promo" title="${esc(p.promotion)}">Offer</span>` : ''].join('');
+        // Daytona's own price page calls the cheap tier "Preemptible": the machine may be stopped at any time.
+        // The tag says the provider's word, so a reader who has seen the page recognises the row.
+        const tags = [cheapest ? '<span class="xc-tag is-best">Cheapest</span>' : '', p.interruptible ? '<span class="xc-tag" title="The provider may stop this machine at any time">Preemptible</span>' : '', p.promotion ? `<span class="xc-tag is-promo" title="${esc(p.promotion)}">Offer</span>` : ''].join('');
         return `<li class="xc-row"><span class="xc-mark" aria-hidden="true">${esc(name.charAt(0))}</span><span class="xc-t"><b>${esc(name)}</b><small>${esc([what, where].filter(Boolean).join(' · '))}</small>${tags ? `<span class="xc-tags">${tags}</span>` : ''}</span>`
             + `<span class="xc-p"><b>${perHour(p.hourly)}<small>/hour</small></b><small>$${Number(p.per_second).toFixed(6)}/second</small></span>`
             + `<a class="xc-src" href="${esc(p.source)}" rel="noopener nofollow" target="_blank" aria-label="${esc(name)}'s price page">${glyph('open')}</a></li>`;

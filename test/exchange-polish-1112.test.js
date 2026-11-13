@@ -38,6 +38,7 @@ const gpu = html.slice(html.indexOf('id="gpu"'), html.indexOf('id="cpu"'));
 const hourly = [...gpu.matchAll(/\$([0-9.]+)<small>\/hour/g)].map((m) => Number(m[1]));
 assert.deepStrictEqual(hourly, [...hourly].sort((a, b) => a - b), 'cheapest first');
 assert.ok(gpu.indexOf('is-best') > 0 && gpu.indexOf('is-best') < gpu.indexOf('xc-row', gpu.indexOf('xc-row') + 1), 'the first is marked Cheapest');
+assert.match(gpu, /Preemptible/, 'the cheapest RTX 4090 says it is preemptible, in the provider\'s word');
 assert.match(html, /openvibe\.compare\/compute/, 'linked to OpenVibe.Compare');
 assert.match(html, /\/api\/compute\/prices/, 'the same list as JSON');
 assert.match(read('server/app.js'), /app\.get\('\/api\/compute\/prices'/);
