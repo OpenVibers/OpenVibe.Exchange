@@ -96,6 +96,9 @@
 
 .ex-more { margin: 10px 0 0; font-size: .9rem; }
 .ex-more a { text-decoration: none; }
+.ex-more a { gap: 5px; }
+.cd-open svg { margin-left: 5px; vertical-align: -2px; }
+.ex-back svg { margin-right: 5px; }
 .ex-more a:hover { text-decoration: underline; }
 .ex-prose { max-width: 74ch; line-height: 1.65; }
 /* OVMetrics blocks (openvibe-shared/ov-metrics.js): the browser draws tiles, strips, spark and bars; the plain-text

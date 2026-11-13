@@ -6,6 +6,7 @@
  * Design and layout come from the Kit; Opus restyles on review.
  */
 const { esc } = require('../render/html');
+const glyphs = require('openvibe-shared/glyphs');
 
 const AUTO = { model: 'openvibe/auto', source: 'openvibe' };
 
@@ -26,7 +27,7 @@ function picker(name, label, choice, models) {
 function fallbackRow(choice, models) {
     return `<li draggable="true"><span data-fallback-model>${esc(choice.model)}</span><input type="hidden" name="fallback" value="${esc(JSON.stringify(choice))}"><select data-fallback-edit aria-label="Change this fallback">
       ${models.map((m) => option({ model: m.model, source: m.source }, m.name || m.model, m.model === choice.model)).join('')}
-    </select><button type="button" class="ovk-btn ovk-btn--quiet" data-move="-1" aria-label="Move fallback up">↑</button><button type="button" class="ovk-btn ovk-btn--quiet" data-move="1" aria-label="Move fallback down">↓</button><button type="button" class="ovk-btn ovk-btn--quiet" data-remove>Remove</button></li>`;
+    </select><button type="button" class="ovk-btn ovk-btn--quiet" data-move="-1" aria-label="Move fallback up">${glyphs.svg('arrow-up', { size: 16 })}</button><button type="button" class="ovk-btn ovk-btn--quiet" data-move="1" aria-label="Move fallback down">${glyphs.svg('arrow-down', { size: 16 })}</button><button type="button" class="ovk-btn ovk-btn--quiet" data-remove>Remove</button></li>`;
 }
 
 /**

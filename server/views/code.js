@@ -56,7 +56,7 @@ function card(repo, now) {
 <p class="cd-desc">${repo.description ? esc(repo.description) : '<span class="cd-muted">No description.</span>'}</p>
 <p class="cd-stats"><span class="cd-stat" title="Stars">${icon('fa-star')}<b>${count(repo.stars)}</b>${gain}</span><span class="cd-stat" title="Forks">${icon('fa-code-branch') || ''}<b>${count(repo.forks)}</b> forks</span>${lang ? `<span class="cd-lang">${dot}${esc(lang)}</span>` : ''}</p>
 ${topics.length ? `<ul class="cd-topics" aria-label="Topics">${topics.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-<footer class="cd-foot"><span>Updated ${esc(when(repo.pushed, now))}</span><a class="cd-open" href="${esc(repo.url)}" rel="noopener noreferrer">GitHub →</a></footer>
+<footer class="cd-foot"><span>Updated ${esc(when(repo.pushed, now))}</span><a class="cd-open" href="${esc(repo.url)}" rel="noopener noreferrer">GitHub ${glyphs.svg('arrow-right', { size: 16 })}</a></footer>
 </li>`;
 }
 
