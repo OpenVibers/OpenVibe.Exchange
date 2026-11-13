@@ -31,6 +31,7 @@ const { createAi } = require('./ai');
 const { createActor } = require('./actor');
 const { createNetwork } = require('./network');
 const { createBench } = require('./bench');
+const { createReport } = require('./report');
 const { createCompare } = require('./compare');
 const { createOpenApi } = require('./openapi');
 const { createCode } = require('./code');
@@ -92,6 +93,8 @@ async function createApp(opts = {}) {
     // Network, read and changed with the person's own token: their machines and their machine pools.
     const network = opts.network || createNetwork({ config, fetchImpl, log });
     const bench = opts.bench || createBench({ config, fetchImpl: opts.benchFetchImpl || globalThis.fetch, log, now: s.now });
+    // Report's public performance rows (a model's Measured panel) and a person's own AI usage.
+    const report = opts.report || createReport({ config, fetchImpl: opts.reportFetchImpl || globalThis.fetch, log, now: s.now });
     // openvibe.compare's engine (server/compare.js): the join of AI's price/speed/privacy/tier with Bench's quality.
     const compare = createCompare({ s, ai, bench, config, now: s.now, log });
     const analysis = opts.analysis || require('./analysis').createAnalysis({ config, ai, bench, fetchImpl: opts.aiFetchImpl || globalThis.fetch, now: s.now });
@@ -131,7 +134,7 @@ async function createApp(opts = {}) {
     const code = opts.code || createCode({
         config, fetchImpl: opts.sourcesFetchImpl || globalThis.fetch, tokenFetch: fetchImpl, now: opts.now || (() => Date.now()), log,
     });
-    const ctx = { config, s, keys, sso, principal, ai, actor, network, bench, compare, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, code, log };
+    const ctx = { config, s, keys, sso, principal, ai, actor, network, bench, report, compare, analysis, arenaStore, history, openapi, chats, adult, adultAccount, characters, companionChats, groups, voice, sharing, accountData, accountSend, memory, notes, lorebooks, locker, noteTaker, indexnow, code, log };
 
     const app = express();
     app.disable('x-powered-by');

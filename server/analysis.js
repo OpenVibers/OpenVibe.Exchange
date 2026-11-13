@@ -53,4 +53,4 @@ function createAnalysis({ config, ai, bench, fetchImpl = globalThis.fetch, now =
     }
     return { model, compare, metrics: source };
 }
-module.exports = { createAnalysis, ratingFor };
+module.exports = { createAnalysis, ratingFor, bare };

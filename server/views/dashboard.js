@@ -7,6 +7,8 @@
  */
 const kit = require('openvibe-shared/kit');
 const { esc } = require('../render/html');
+const metrics = require('./metrics');
+const f = metrics.format;
 
 const TABS = [['keys', 'Keys'], ['usage', 'Usage'], ['credits', 'Credits'], ['deployments', 'Deployments'], ['settings', 'Settings']];
 const money = (v) => {
@@ -72,8 +74,70 @@ function newKeyPage(secret, key = null) {
         + `${kit.snippet({ code: secret, id: 'new-key' })}<p class="xd-actions">${kit.button({ href: '/dashboard/keys', label: 'Done' })}</p></section>`);
 }
 
+/**
+ * "Your AI usage", for the signed-in person: Report's own answer for their session — total calls, tokens and what
+ * was charged, a call a day, and the products the calls came from. It is a panel of its own above the API keys'
+ * usage, and a Report failure says so without touching the rest of the page. Every number is OVMetrics' words
+ * (server/views/metrics.js); the plain-text fallback is what a reader without JavaScript sees.
+ */
+function aiUsagePanel(usage) {
+    const title = 'Your AI usage';
+    const note = 'Every AI call on your account in the last 30 days, from OpenVibe.Report; no prompt and no answer.';
+    const card = (body) => `<section class="xd-card" id="your-ai-usage"><h2>${title}</h2><p class="xd-note">${note}</p>${body}</section>`;
+    if (!usage || !usage.day || !usage.day.totals) return card(kit.notice({ kind: 'info', text: 'Your AI usage is not available right now.' }));
+    const totals = usage.day.totals;
+    if (!Number(totals.calls)) return card(kit.empty({ title: 'No AI calls yet', text: 'Calls you make on any OpenVibe product show here, with their tokens and cost.' }));
+
+    const number = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Number(v));
+    const input = number(totals.input_tokens);
+    const cached = number(totals.cached_tokens);
+    const cacheWrite = number(totals.cache_write_tokens);
+    const output = number(totals.output_tokens);
+    const charged = number(totals.charged_usd);
+    const saved = number(totals.saved_usd);
+    const list = number(totals.cost_usd);
+    const tokens = [input, cached, cacheWrite, output].every((n) => n != null) ? input + cached + cacheWrite + output : null;
+    const tokensIn = [input, cached, cacheWrite].every((n) => n != null) ? input + cached + cacheWrite : null;
+    const tiles = [
+        { label: 'Calls', value: f.count(totals.calls) },
+        { label: 'Tokens', value: f.count(tokens), sub: tokensIn != null && output != null ? `${f.count(tokensIn)} in · ${f.count(output)} out` : '' },
+        { label: 'Charged', value: f.usd(charged), sub: saved != null && saved > 0 ? `${f.usd(saved)} saved by cache` : list != null ? `${f.usd(list)} at list` : '' },
+    ];
+
+    // The last 30 UTC days, with a measured zero on a day Report has no row: a day with no calls is not unknown.
+    const dayCalls = new Map((usage.day.rows || []).map((r) => [String(r.key).slice(0, 10), Number(r.calls) || 0]));
+    const today = new Date();
+    const end = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    const days = [];
+    const callsPerDay = [];
+    for (let i = 29; i >= 0; i -= 1) {
+        const d = new Date(end - i * 86400000).toISOString().slice(0, 10);
+        days.push(d);
+        callsPerDay.push(dayCalls.get(d) || 0);
+    }
+
+    const parts = [
+        { kind: 'tiles', args: [tiles] },
+        { kind: 'heading', text: 'Calls a day, last 30 days' },
+        { kind: 'spark', args: [callsPerDay, { label: 'AI calls a day, last 30 days' }] },
+    ];
+    const byDay = days.filter((d) => dayCalls.get(d)).map((d) => `${esc(d)} ${f.count(dayCalls.get(d))}`);
+    const tokensText = tokens == null ? f.count(null) : `${f.count(tokens)}${tokensIn != null && output != null ? ` (${f.count(tokensIn)} in · ${f.count(output)} out)` : ''}`;
+    let fallback = `<p class="ex-metrics-line"><b>Calls</b> ${f.count(totals.calls)} · <b>Tokens</b> ${tokensText} · <b>Charged</b> ${f.usd(charged)}${saved != null && saved > 0 ? ` (${f.usd(saved)} saved by cache)` : ''}</p>`;
+    fallback += `<p class="ex-metrics-line"><b>Calls a day</b> ${byDay.length ? byDay.join(' · ') : 'none in the last 30 days'}</p>`;
+
+    const surfaces = ((usage.surface && usage.surface.rows) || []).filter((r) => Number(r.calls) > 0).slice(0, 8);
+    if (surfaces.length) {
+        const rows = surfaces.map((r) => ({ label: !r.key || r.key === 'unknown' ? 'Not said' : String(r.key).slice(0, 80), value: Number(r.calls) || 0 }));
+        parts.push({ kind: 'heading', text: 'By product' });
+        parts.push({ kind: 'bars', args: [rows, { format: 'count' }] });
+        fallback += `<p class="ex-metrics-line"><b>By product</b> ${rows.map((r) => `${esc(r.label)} ${f.count(r.value)} calls`).join(' · ')}</p>`;
+    }
+    return card(metrics.block(parts, fallback));
+}
+
 /** Usage rows from the API (by day, key, model and status) with key names; the newest day first. */
-function usagePage(rows = [], keys = []) {
+function usagePage(rows = [], keys = [], aiUsage = null) {
     const names = new Map(keys.map((k) => [k.id, k.name]));
     const totals = rows.reduce((t, r) => ({
         cost: t.cost + (Number(r.cost_usd) || 0), requests: t.requests + (Number(r.requests) || 0),
@@ -81,7 +145,8 @@ function usagePage(rows = [], keys = []) {
     }), { cost: 0, requests: 0, tokens: 0 });
     const days = [...new Set(rows.map((r) => String(r.day).slice(0, 10)))].sort();
     const head = `<div class="xd-title"><h2>Usage</h2>${rows.length ? `<a class="ovk-btn ovk-btn--quiet ovk-btn--small" href="/dashboard/usage.csv" download><span>CSV</span></a>` : ''}</div>`;
-    if (!rows.length) return shell('usage', `<section class="xd-card">${head}${kit.empty({ title: 'No usage yet', text: 'Calls made with your keys show here by day, key and model, with their tokens and cost.' })}</section>`);
+    const ai = aiUsagePanel(aiUsage);
+    if (!rows.length) return shell('usage', `${ai}<section class="xd-card">${head}${kit.empty({ title: 'No usage yet', text: 'Calls made with your keys show here by day, key and model, with their tokens and cost.' })}</section>`);
     const span = days.length > 1 ? `${day(days[0])} – ${day(days[days.length - 1])}` : day(days[0]);
     const stat = (v, label) => `<div><dd>${esc(v)}</dd><dt>${esc(label)}</dt></div>`;
     // Requests per day, the last 14 days that have any: bars scaled to the busiest one (the rows below hold the numbers).
@@ -100,7 +165,7 @@ function usagePage(rows = [], keys = []) {
             }).join('');
         return `<h3 class="xd-day">${esc(day(d))}</h3><ul class="xd-use">${items}</ul>`;
     }).join('');
-    return shell('usage', `<section class="xd-card">${head}<p class="xd-note">${esc(span)}</p>`
+    return shell('usage', `${ai}<section class="xd-card">${head}<p class="xd-note">${esc(span)}</p>`
         + `<dl class="xd-stats">${stat(money(totals.cost), 'spent')}${stat(count(totals.requests), 'requests')}${stat(count(totals.tokens), 'tokens')}</dl>`
         + `${bars}</section><section class="xd-card"><h2 class="xd-sub">By day, key and model</h2>${byDay}</section>`);
 }

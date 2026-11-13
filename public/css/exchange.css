@@ -98,6 +98,14 @@
 .ex-more a { text-decoration: none; }
 .ex-more a:hover { text-decoration: underline; }
 .ex-prose { max-width: 74ch; line-height: 1.65; }
+/* OVMetrics blocks (openvibe-shared/ov-metrics.js): the browser draws tiles, strips, spark and bars; the plain-text
+   fallback is the same numbers for a reader without JavaScript, and is shown until a builder has drawn. */
+.ex-metrics { display: grid; gap: 12px; min-width: 0; }
+.ex-metrics [data-ov-metrics-live][hidden], .ex-metrics .ovm-fallback[hidden] { display: none; }
+.ex-metrics-line { margin: 0; line-height: 1.55; overflow-wrap: anywhere; }
+@media (max-width: 420px) {
+    .ex-metrics .ovm-tiles { grid-template-columns: minmax(0, 1fr); }
+}
 .ex-prose code, .ex-wrap code { font-size: .9em; overflow-wrap: anywhere; }
 .ex-h3 { margin: 22px 0 8px; font-size: 1rem; }
 .ex-list { margin: 0 0 12px; padding-left: 1.2em; line-height: 1.65; }

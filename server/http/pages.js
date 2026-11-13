@@ -27,6 +27,7 @@ const { esc, raw } = require('../render/html');
 const marks = require('../views/marks');
 const { send } = require('../render/layout');
 const views = require('../views/exchange');
+const metricsView = require('../views/metrics');
 const platform = require('../views/platform');
 const decisionsView = require('../views/decisions');
 const credentialViews = require('../views/credentials');
@@ -177,9 +178,15 @@ function createPageRoutes(ctx) {
             return page(req, res, { title: 'Not found', index: false, body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'No such model', text: `Nothing here serves ${esc(`${req.params.org}/${req.params.model}`)}. <a href="/models">Browse the models</a>.` })}</div>`) }, 404);
         }
         const isAdult = signedIn(req) ? await adult.confirmed(owner(req)) : false;
-        let analysis = null;
-        try { analysis = await ctx.analysis.model(model, { rating_kind: typeof req.query.rating_kind === 'string' ? req.query.rating_kind : 'chat.arena' }); }
-        catch (err) { log.warn('[exchange] model analysis unavailable: ' + String(err.message || err).slice(0, 160)); }
+        // The model's measured row and its Bench analysis are reads beside the page: each failing leaves its panel
+        // saying so, never a 500 page. Report's row is cached for five minutes inside server/report.js, and the two
+        // reads run together so neither waits on the other.
+        const [analysis, measured] = await Promise.all([
+            ctx.analysis.model(model, { rating_kind: typeof req.query.rating_kind === 'string' ? req.query.rating_kind : 'chat.arena' })
+                .catch((err) => { log.warn('[exchange] model analysis unavailable: ' + String(err.message || err).slice(0, 160)); return null; }),
+            (ctx.report ? ctx.report.measuredModel(model) : Promise.resolve(null))
+                .catch((err) => { log.warn('[exchange] Report performance unavailable: ' + String(err.message || err).slice(0, 160)); return null; }),
+        ]);
         const jsonLd = seo.jsonLd.webPage({
             name: `${model.name} on OpenVibe.Exchange`, url: `${config.baseUrl}${modelPath(model)}`,
             description: `${model.name}: ${model.offers.length} live offers with price, speed and uptime.`.slice(0, 160), siteUrl: config.baseUrl,
@@ -189,8 +196,8 @@ function createPageRoutes(ctx) {
             title: model.name, description: `${model.name}: price, speed, uptime and data policy of every offer.`,
             jsonLd: [jsonLd, { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: model.name,
                 url: `${config.baseUrl}${modelPath(model)}`, description: `${model.name}: context, model limits, price and available providers.`,
-                applicationCategory: 'DeveloperApplication' }], head: '',
-            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis })),
+                applicationCategory: 'DeveloperApplication' }], head: metricsView.HEAD,
+            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis, measured })),
         }, status);
     }
 
