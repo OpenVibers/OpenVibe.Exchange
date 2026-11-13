@@ -988,7 +988,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
 
     r.use((req, res) => page(req, res, {
         title: 'Not found', index: false,
-        body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'Not found', text: `Nothing lives at ${esc(req.path)}. <a href="/">The home</a> has every model.` })}</div>`),
+        body: raw(`<div class="ex-wrap ex-narrow">${kit.empty({ icon: 'search', title: 'Not found', text: `Nothing lives at ${req.path}.`, action: { href: '/', label: 'Every model' } })}</div>`),
     }, 404));
 
     return r;
