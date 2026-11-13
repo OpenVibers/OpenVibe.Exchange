@@ -8,8 +8,9 @@
  */
 const ovServe = require('openvibe-shared/serve');
 const M = require('openvibe-shared/ov-metrics');
+const { assetVersion } = require('../render/layout');
 
-const HEAD = `<script src="${ovServe.url('ov-metrics.js')}" defer></script><script src="/js/metrics-panel.js" defer></script>`;
+const HEAD = `<script src="${ovServe.url('ov-metrics.js')}" defer></script><script src="/js/metrics-panel.js?v=${assetVersion('js/metrics-panel.js')}" defer></script>`;
 
 /** The data as a script that cannot close its own tag, and cannot be read as markup. */
 function json(parts) {
