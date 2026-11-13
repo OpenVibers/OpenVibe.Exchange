@@ -50,6 +50,23 @@ assert.match(compare, /name="mode" value="compare" checked/);
 assert.ok(compare.includes('One combined cap $0.02') && compare.includes('spent $0.01'));
 assert.match(compare, /name="second">[\s\S]*?value="unsplash" selected/);
 
+// A picture's rights, in words (plan §W.2): web discovery says it grants nothing; a provider licence is not an open one;
+// an open licence names its conditions. Older results with no rights field show no line.
+const rightsPage = searchPage({
+    engines,
+    query: { kind: 'images', first: 'openverse' },
+    found: [{ engine: 'openverse', receipt: { cost_usd: 0, time_ms: 9 }, results: [
+        { title: 'Seen on the web', url: 'https://example.org/a.jpg', rank: 1, rights: { status: 'unknown', family: 'third_party' } },
+        { title: 'Stock', url: 'https://example.org/b.jpg', rank: 2, rights: { status: 'provider_claimed', family: 'provider_content_license', license_id: 'unsplash', attribution_required: true } },
+        { title: 'Open', url: 'https://example.org/c.jpg', rank: 3, rights: { status: 'provider_claimed', family: 'open_license', license_id: 'by-nc', commercial_use: false, modifications: true, attribution_required: true } },
+        { title: 'Old', url: 'https://example.org/d.jpg', rank: 4 },
+    ] }],
+});
+assert.match(rightsPage, /Rights unknown · discovery only/);
+assert.match(rightsPage, /Unsplash licence · free to use, not to resell on its own · credit the photographer/);
+assert.match(rightsPage, /by-nc · not for commercial use · credit the author/);
+assert.equal((rightsPage.match(/class="xs-rights/g) || []).length, 3, 'a result without rights shows no line');
+
 // The engine list never says a provider is free; only the words the brief allows.
 assert.ok(!result.includes('Free'));
 process.stdout.write('image search view passed\n');
