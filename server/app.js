@@ -389,8 +389,12 @@ async function createApp(opts = {}) {
     app.use(require('./http/dashboard').createDashboardRoutes(ctx));
     app.use(require('./http/search').createSearchRoutes(ctx));
     app.use(require('./http/deep-dive').createDeepDiveRoutes(ctx));
+    // The owner's console before the pages: the pages end in their Not found, so a console mounted after them was never
+    // reached (every /console page answered "Nothing lives at", 11-13; the admin guide links to /console/providers).
+    // Only /console reaches it: its owner check is for every request the router sees.
+    const consoleRoutes = createConsoleRoutes(ctx);
+    app.use((req, res, next) => (req.path === '/console' || req.path.startsWith('/console/') ? consoleRoutes(req, res, next) : next()));
     app.use(createPageRoutes(ctx));
-    app.use(createConsoleRoutes(ctx));
 
     // eslint-disable-next-line no-unused-vars
     app.use((err, req, res, _next) => {
