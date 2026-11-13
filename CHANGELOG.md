@@ -4,6 +4,17 @@ What changed in OpenVibe.Exchange, newest first.
 
 ## Unreleased
 
+- **The compute prices are read again (2026-11-13).** The price book behind `/compute` and
+  `GET /api/compute/prices` was reviewed against each provider's own price page on 2026-11-13 and
+  expires 2026-11-20 (it expired 2026-11-18). Every row keeps the page it was read from and the day it
+  was read. Baseten's prices are unchanged; its page showed no promotion on 2026-11-13, so the offer is
+  marked as one the owner must confirm rather than restated as a fact. Daytona's prices are unchanged
+  ($0.0504/vCPU, $0.0162/GiB) and its cheap RTX 4090 now says **Preemptible**, the word Daytona's page
+  uses, beside the "Cheapest" mark. E2B's $0.1656/hour and Fly's $13.39/month in iad and ewr are
+  unchanged. RunPod's RTX 4090 pod stays at $0.89/hour: the page also publishes a cheaper Community Cloud
+  4090 at $0.34/hour, but it does not say whether a community pod can be stopped, so it is not published
+  as a price to buy.
+
 - **Search: one engine by default, honest prices, one combined cap when you compare (2026-11-13).** A search now
   runs one engine, the router's pick unless you name one; comparing two or three engines is an explicit choice and
   shares ONE spending cap that is shown before the run. Prices are words, never "Free": no provider fee, your

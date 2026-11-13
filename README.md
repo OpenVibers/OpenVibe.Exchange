@@ -21,6 +21,7 @@ for a person — and keeps only two things of its own: a person's chats and thei
 | `/` | "Every AI model, one account": search, popular now, cheapest per million, uncensored, community machines, the endpoint, AI in OpenVibe. Every number is live. |
 | `/models`, `/m/<org>/<model>` | Every model and every offer that serves it: price in, out and cached per million, measured p50/p95, uptime, data policy, a **Try it** box, curl and the SDK line. |
 | `/chat` and `/chat/*` | 301 to `https://openvibe.chat/vibe`, carrying `?models=` and mapping old `@vN` model ids. Model pages' Try it links go there directly. |
+| `/compute` | What an hour of a computer or a GPU costs at Baseten, Daytona, E2B, Fly.io and RunPod: the reviewed tariff, the provider's price page one tap away, the date it was checked and the date it must be read again, and the same list as JSON at `GET /api/compute/prices`. The cheap RTX 4090 is marked **Preemptible**: the provider may stop that machine. |
 
 | `/api` | The endpoint, model ids (`deepseek/deepseek-chat`, `openvibe/auto`), keys from Network, aggregate usage, and the link to AI's own provider-keys page (`/you`, a session page). |
 | `/start` | Start building: one key, one endpoint, the OpenAI/Anthropic samples, four steps, AI's six operations, and the sandbox and production limits. |
