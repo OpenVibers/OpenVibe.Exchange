@@ -398,6 +398,10 @@
 .xs-result ol { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 8px; }
 .xs-result li p { margin: 2px 0 0; color: var(--ovk-muted); font-size: .86rem; overflow-wrap: anywhere; }
 .xs-receipt, .xs-note { margin: 0; color: var(--ovk-muted); font-size: .86rem; }
+/* A picture's reuse rights, in words (plan §W.2): unknown is the warning colour, open the good one. */
+.xs-rights { margin: 4px 0 0; font-size: .82rem; color: var(--ovk-muted); }
+.xs-rights.is-unknown { color: var(--ovk-warn, var(--warning, #f5a524)); }
+.xs-rights.is-open { color: var(--ovk-ok, var(--success, #3fb950)); }
 /* A result: its title as a link in the accent, the snippet under it, a picture's thumbnail rounded, and "Source and
    usage" as a small fold. */
 .xs-result li > a { color: var(--ovk-text); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }

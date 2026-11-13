@@ -9,6 +9,22 @@
 const kit = require('openvibe-shared/kit');
 const { esc } = require('../render/html');
 
+// What a picture's reuse rights say, in plain words, from the result's rights (OpenVibe.AI, plan §W.2 step 1). A web
+// discovery result grants nothing; a provider's licence is not an open licence; an open licence names its conditions.
+const PROVIDER_NAMES = { unsplash: 'Unsplash', pexels: 'Pexels', pixabay: 'Pixabay' };
+function rightsLine(r) {
+    const x = r && r.rights;
+    if (!x) return '';
+    if (x.status === 'unknown' || x.family === 'third_party') return '<p class="xs-rights is-unknown">Rights unknown · discovery only: ask the source before reusing it</p>';
+    if (x.family === 'provider_content_license') return `<p class="xs-rights">${esc(PROVIDER_NAMES[x.license_id] || 'Provider')} licence · free to use, not to resell on its own${x.attribution_required ? ' · credit the photographer' : ''}</p>`;
+    if (x.family === 'public_domain') return '<p class="xs-rights is-open">Public domain · free to use</p>';
+    if (x.family === 'open_license') {
+        const terms = [x.commercial_use === false ? 'not for commercial use' : 'commercial use allowed', x.modifications === false ? 'no changes' : '', x.attribution_required ? 'credit the author' : ''].filter(Boolean).join(' · ');
+        return `<p class="xs-rights is-open">${esc(x.license_id || 'Open licence')} · ${esc(terms)}</p>`;
+    }
+    return `<p class="xs-rights is-unknown">${x.license_id ? `${esc(x.license_id)}: ` : ''}a licence the catalog does not name · check before reusing</p>`;
+}
+
 const ENGINES = {
     openvibe: ['OpenVibe Search', "OpenVibe's own index of the network's pages."],
     searxng: ['SearXNG', 'Many search engines at once, through our own instance.'],
@@ -109,7 +125,7 @@ function resultRows(list, engines, query) {
             const use = r.download_location && engineId === 'unsplash'
                 ? `<form method="post" action="/search/unsplash" class="xs-use"><input type="hidden" name="download_location" value="${esc(r.download_location)}"><input type="hidden" name="url" value="${esc(r.url)}">${kit.button({ label: 'Use this picture', type: 'submit', kind: 'quiet' })}</form>`
                 : '';
-            return `<li><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">${esc(r.title || r.url)}</a>${r.snippet || r.attribution ? `<p>${esc(r.snippet || r.attribution)}</p>` : ''}${r.thumbnail ? `<img src="${esc(r.thumbnail)}" alt="" loading="lazy" width="160">` : ''}`
+            return `<li><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">${esc(r.title || r.url)}</a>${r.snippet || r.attribution ? `<p>${esc(r.snippet || r.attribution)}</p>` : ''}${r.thumbnail ? `<img src="${esc(r.thumbnail)}" alt="" loading="lazy" width="160">` : ''}${rightsLine(r)}`
                 + `<details><summary>Source, rights and rank</summary><p><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">Source page</a>${r.author ? ` · ${esc(r.author)}` : ''}${r.license ? ` · ${r.license_url ? `<a href="${esc(r.license_url)}" rel="noopener noreferrer">${esc(r.license)}</a>` : esc(r.license)}` : ' · Reuse rights unknown'}${r.width && r.height ? ` · ${Number(r.width)} × ${Number(r.height)} px` : ''}`
                 + ` · Our order #${Number(r.rank) || i + 1}${r.upstream_rank ? ` · Provider's rank #${Number(r.upstream_rank)}` : ''}${upstream ? ` · Upstream: ${esc(upstream)}` : ''}${r.reverse_image ? ' · Reverse image match' : ''}${r.published ? ` · ${esc(r.published)}` : ''}</p></details>${use}</li>`;
         }).join('') || '<li class="xs-note">Nothing found.</li>'}</ol>`;
