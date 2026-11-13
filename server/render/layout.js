@@ -21,15 +21,15 @@ const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 // Six places in the bar, the rest under More (11-07: fourteen links wrapped into two lines and cut the name to
 // "OpenVibe..."). Icons are the navbar's own glyphs; the brand is the way home.
 const NAV = [
-    { label: 'Models', href: '/models', icon: 'fa-microchip' },
-    { label: 'Search', href: '/search', icon: 'fa-magnifying-glass' },
-    { label: 'Deep dive', href: '/deep-dive', icon: 'fa-compass' },   // fa-binoculars has no glyph: it drew nothing
-    { label: 'Pricing', href: '/pricing', icon: 'fa-tag' },
-    { label: 'Docs', href: '/docs', icon: 'fa-code' },
-    { label: 'Status', href: '/status', icon: 'fa-gauge' },
-    { label: 'Rankings', href: '/rankings', icon: 'fa-chart-line', more: true },
-    { label: 'Code', href: '/code', icon: 'fa-code', more: true },
-    { label: 'Decisions', href: '/decisions', icon: 'fa-list-check', more: true },
+    { label: 'Models', href: '/models', icon: 'chip' },
+    { label: 'Search', href: '/search', icon: 'search' },
+    { label: 'Deep dive', href: '/deep-dive', icon: 'compass' },   // binoculars has no glyph: it drew nothing
+    { label: 'Pricing', href: '/pricing', icon: 'tag' },
+    { label: 'Docs', href: '/docs', icon: 'code' },
+    { label: 'Status', href: '/status', icon: 'gauge' },
+    { label: 'Rankings', href: '/rankings', icon: 'chart', more: true },
+    { label: 'Code', href: '/code', icon: 'code', more: true },
+    { label: 'Decisions', href: '/decisions', icon: 'steps', more: true },
 ];
 
 const hashes = new Map();
@@ -70,8 +70,8 @@ function renderPage(o) {
         apiBase: NETWORK_URL,
         links: [
             ...siteNav.map((l) => ({ label: l.label, href: l.href, icon: l.icon, ...(l.more ? { more: true } : {}), active: active(pathNow, l.href) })),
-            ...(signedIn ? [{ label: 'Dashboard', href: '/dashboard', icon: 'fa-key', active: active(pathNow, '/dashboard') }] : []),
-            ...(viewer.role === 'owner' ? [{ label: 'AI console', href: '/console', icon: 'fa-sliders', active: active(pathNow, '/console') }] : []),
+            ...(signedIn ? [{ label: 'Dashboard', href: '/dashboard', icon: 'key', active: active(pathNow, '/dashboard') }] : []),
+            ...(viewer.role === 'owner' ? [{ label: 'AI console', href: '/console', icon: 'sliders', active: active(pathNow, '/console') }] : []),
         ],
         history: { type: 'page', title: o.title || siteName },
         silentLogin: `${o.config.baseUrl}/auth/login?silent=1&next={url}`,

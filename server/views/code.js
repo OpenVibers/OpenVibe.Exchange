@@ -19,15 +19,15 @@ const LANG_COLOR = {
     'C++': '#f34b7d', 'C#': '#178600', PHP: '#4F5D95', Ruby: '#701516', Swift: '#F05138', Kotlin: '#A97BFF',
 };
 const TABS = Object.freeze([
-    { key: 'trending', label: 'Trending today', fa: 'fa-fire' },
-    { key: 'week', label: 'This week', fa: 'fa-calendar' },
-    { key: 'hot', label: 'Hot', fa: 'fa-arrow-trend-up' },
-    { key: 'new', label: 'New', fa: 'fa-plus' },
-    { key: 'top', label: 'Top', fa: 'fa-star' },
+    { key: 'trending', label: 'Trending today', glyph: 'fire' },
+    { key: 'week', label: 'This week', glyph: 'calendar' },
+    { key: 'hot', label: 'Hot', glyph: 'trend-up' },
+    { key: 'new', label: 'New', glyph: 'plus' },
+    { key: 'top', label: 'Top', glyph: 'star' },
 ]);
 
 /** The glyph for a Font Awesome name, or nothing when the registry has none. */
-const icon = (fa) => { const name = glyphs.fromFa(fa); return name ? glyphs.svg(name) : ''; };
+const icon = (name) => glyphs.svg(name);
 const count = (n) => (Number.isFinite(Number(n)) ? Number(n).toLocaleString('en-US') : '—');
 const when = (iso, now) => {
     const t = Date.parse(iso || '');
@@ -54,7 +54,7 @@ function card(repo, now) {
     return `<li class="cd-card">
 <header class="cd-card-head">${avatar(repo)}<div class="cd-card-id"><a class="cd-name" href="${esc(repo.url)}" rel="noopener noreferrer">${esc(repo.full_name)}</a><span class="cd-owner">${esc(String(repo.full_name || '').split('/')[0] || '')}</span></div></header>
 <p class="cd-desc">${repo.description ? esc(repo.description) : '<span class="cd-muted">No description.</span>'}</p>
-<p class="cd-stats"><span class="cd-stat" title="Stars">${icon('fa-star')}<b>${count(repo.stars)}</b>${gain}</span><span class="cd-stat" title="Forks">${icon('fa-code-branch') || ''}<b>${count(repo.forks)}</b> forks</span>${lang ? `<span class="cd-lang">${dot}${esc(lang)}</span>` : ''}</p>
+<p class="cd-stats"><span class="cd-stat" title="Stars">${icon('star')}<b>${count(repo.stars)}</b>${gain}</span><span class="cd-stat" title="Forks">${icon('branch') || ''}<b>${count(repo.forks)}</b> forks</span>${lang ? `<span class="cd-lang">${dot}${esc(lang)}</span>` : ''}</p>
 ${topics.length ? `<ul class="cd-topics" aria-label="Topics">${topics.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
 <footer class="cd-foot"><span>Updated ${esc(when(repo.pushed, now))}</span><a class="cd-open" href="${esc(repo.url)}" rel="noopener noreferrer">GitHub →</a></footer>
 </li>`;
@@ -68,7 +68,7 @@ function cards(repos, now) {
 function tabLinks(list, lang, q) {
     return TABS.map((t) => {
         const href = `/code?list=${encodeURIComponent(t.key)}${lang ? `&lang=${encodeURIComponent(lang)}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
-        return `<a class="cd-tab${t.key === list ? ' is-on' : ''}" href="${href}"${t.key === list ? ' aria-current="page"' : ''}>${icon(t.fa)}${esc(t.label)}</a>`;
+        return `<a class="cd-tab${t.key === list ? ' is-on' : ''}" href="${href}"${t.key === list ? ' aria-current="page"' : ''}>${icon(t.glyph)}${esc(t.label)}</a>`;
     }).join('');
 }
 

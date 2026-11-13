@@ -7,7 +7,7 @@ const { PAGES } = (() => { try { return require('../server/http/discovery'); } c
 
 const inBar = NAV.filter((l) => !l.more);
 assert.ok(inBar.length <= 6, `at most six places in the bar, not ${inBar.length}`);
-assert.ok(NAV.every((l) => /^fa-[a-z0-9-]+$/.test(l.icon || '')), 'every place has an icon');
+assert.ok(NAV.every((l) => /^[a-z][a-z0-9-]*$/.test(l.icon || '')), 'every place names an OpenVibe glyph');
 assert.ok(!NAV.some((l) => l.href === '/'), 'the brand is the way home');
 assert.deepStrictEqual(new Set(NAV.map((l) => l.href)).size, NAV.length, 'no place twice');
 for (const want of ['/models', '/search', '/pricing', '/docs', '/status', '/rankings']) {
