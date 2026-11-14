@@ -48,8 +48,9 @@ app.use(createConsoleRoutes({
     try {
         const consolePaths = ['/console', ...Object.keys(READS).map((section) => `/console/${section}`), '/console/providers/new', '/console/providers/openai', '/console/providers/openai/models', '/console/gpus/model-a/quote', '/console/data/providers', '/console/data/models', '/console/data/pricebook'];
         for (const path of consolePaths) for (const headers of [{}, { 'x-test-role': 'user' }, { 'x-test-role': 'admin' }]) {
-            const response = await fetch(`${base}${path}`, { headers });
-            assert.strictEqual(response.status, headers['x-test-role'] ? 403 : 404, `${path}: signed-in non-owners are forbidden; signed-out people see no console route`);
+            const response = await fetch(`${base}${path}`, { headers, redirect: 'manual' });
+            assert.strictEqual(response.status, headers['x-test-role'] ? 403 : 303, `${path}: signed-in non-owners are forbidden; signed-out people go to sign in (11-14)`);
+            if (!headers['x-test-role']) assert.strictEqual(response.headers.get('location'), `/auth/login?next=${encodeURIComponent(path)}`);
         }
         const response = await fetch(`${base}/console/providers`, { headers: { 'x-test-role': 'owner' } });
         const html = await response.text();

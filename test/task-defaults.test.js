@@ -39,7 +39,7 @@ app.use(createConsoleRoutes({
     try {
         // Owner rank only: signed-in non-owners are forbidden; signed-out people see no route.
         for (const role of ['', 'user', 'admin']) {
-            assert.strictEqual((await fetch(base + '/console/defaults', { headers: role ? { 'x-role': role } : {} })).status, role ? 403 : 404, `${role || 'signed out'} is not the owner`);
+            assert.strictEqual((await fetch(base + '/console/defaults', { headers: role ? { 'x-role': role } : {}, redirect: 'manual' })).status, role ? 403 : 303, `${role || 'signed out'} is not the owner`);
         }
         const page = await fetch(base + '/console/defaults', { headers: { 'x-role': 'owner' } });
         const html = await page.text();
