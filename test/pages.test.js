@@ -80,6 +80,13 @@ const contracts = require('openvibe-contracts');
             assert.strictEqual(twin.status, 200, twin.text);
             assert.ok(twin.text.includes('Gemini Old'));
         });
+        await check('robots: OpenVibe\'s own fetcher may read the models list, and only that of the API', async () => {
+            const robots = (await t.get('/robots.txt')).text;
+            const ours = robots.split('\n\n').find((g) => g.includes('User-agent: OpenVibeSources'));
+            assert.ok(ours && ours.includes('Allow: /api/v1/models') && ours.includes('Disallow: /api/') && ours.includes('Disallow: /chat'), ours);
+            const everyone = robots.split('\n\n').find((g) => /User-agent: \*/.test(g));
+            assert.ok(everyone && everyone.includes('Disallow: /api/') && !everyone.includes('Allow: /api/v1/models'), 'everyone else keeps /api/ closed');
+        });
         await check('public directory JSON and model structured data match the catalog', async () => {
             const all = await t.get('/api/v1/models');
             assert.strictEqual(all.status, 200, all.text);

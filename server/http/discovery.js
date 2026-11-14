@@ -96,6 +96,9 @@ function createDiscoveryRoutes(ctx) {
     r.get('/robots.txt', (_req, res) => {
         res.type('text/plain').set('Cache-Control', TEXT).send(
             '# openvibe.exchange: the models and their prices are for search and AI crawlers; a chat, sign-in and the retired v1 paths are not.\n'
+            // OpenVibe's own fetcher (OpenVibe.Sources, for News's wire: plan §AB.37) reads the public models list, and
+            // only that of the API; it keeps every other rule below.
+            + 'User-agent: OpenVibeSources\nUser-agent: OpenVibeBot\nAllow: /api/v1/models\n' + DISALLOW.map((d) => `Disallow: ${d}\n`).join('') + '\n'
             + seo.robotsTxt({ sitemaps: [abs('/sitemap.xml')], disallow: DISALLOW })
             + `# Agent manifest: ${abs('/.well-known/agent.json')}\n`);
     });
