@@ -114,15 +114,19 @@ function createPageRoutes(ctx) {
 
     // ── Home ─────────────────────────────────────────────────
     r.get('/', async (req, res) => {
-        const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(7)]);
+        const [catalog, usage, directory] = await Promise.all([catalogOf(), ai.usage(7), directoryOf().catch(() => ({ models: [] }))]);
         const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 120) : '';
+        // New this week (plan §AB.37): the models first seen in the last seven days, the providers' own first (Hugging Face's
+        // research uploads are on /models?status=spotted), newest first.
+        const fresh = require('../model-directory').select((directory && directory.models) || [], { since_days: '7', sort: 'new' })
+            .filter((m) => m.provider !== 'huggingface').slice(0, 8);
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: null,
             description: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
             head: COMPOSER_HEAD,
-            body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config })),
+            body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config, fresh })),
         });
     });
 

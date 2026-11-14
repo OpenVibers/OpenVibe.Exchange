@@ -158,7 +158,17 @@ function computePage({ prices = [], checked_at, now = Date.now() }) {
 function pricingPage() {
     return `<div class="ex-wrap xp">${kit.head({ title: 'Pricing', sub: 'What a call costs, before you make it.' })}<section class="xpr">${pricingRows()}</section></div>`;
 }
-function home({ catalog, usage, viewer }) {
+/** New this week (plan §AB.37): each model first seen in the last seven days, its maker and the day, to its page. */
+function freshSection(fresh) {
+    const rows = (Array.isArray(fresh) ? fresh : []).filter((m) => m && m.id && m.name);
+    if (!rows.length) return '';
+    const PROVIDERS = { gemini: 'Google', openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', arena: 'LMArena', deepseek: 'DeepSeek', mistral: 'Mistral', xai: 'xAI', meta: 'Meta' };
+    const day = (t) => { const d = Date.parse(t || ''); return Number.isFinite(d) ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ''; };
+    const list = kit.list(rows.map((m) => kit.row({ href: `/models/${encodeURIComponent(m.id)}`, title: m.name,
+        sub: [PROVIDERS[m.provider] || m.provider, m.status === 'spotted' ? 'spotted, not on sale yet' : '', day(m.first_seen_at) ? `first seen ${day(m.first_seen_at)}` : ''].filter(Boolean).join(' · ') })));
+    return section('New this week', `${list}<p class="xp-more"><a href="/models?status=spotted">Every model spotted</a></p>`);
+}
+function home({ catalog, usage, viewer, fresh = [] }) {
     const models = listed(catalog);
     return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${modelSearch()}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })} ${kit.button({ href: '/compute', label: 'Compute prices', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
         [
@@ -177,7 +187,7 @@ function home({ catalog, usage, viewer }) {
                 'median time to first token',
             ],
         ],
-    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}${reasons()}${pricing()}${questions()}</div>`;
+    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}${freshSection(fresh)}${reasons()}${pricing()}${questions()}</div>`;
 }
 function modelsPage({ catalog, query = {}, searchResults = null }) {
     const all = listed(catalog);

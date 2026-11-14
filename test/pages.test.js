@@ -52,6 +52,26 @@ const contracts = require('openvibe-contracts');
             assert.ok(index.text.includes('Gemini Preview') && !index.text.includes('Gemini Old'));
             const spotted = await t.get('/models?status=spotted');
             assert.ok(spotted.text.includes('anonymous-silver') && !spotted.text.includes('Gemini Old'));
+            // New models for News's wire (plan §AB.37): newest first, a window in days, a limit, several providers, a page each.
+            const fresh = await t.get('/api/v1/models?status=spotted&sort=new&since_days=90&limit=5');
+            assert.ok(fresh.json().models.some(m => m.id === 'arena/anonymous-silver'), 'a model first seen in the window');
+            assert.ok(fresh.json().models.every(m => m.url === `https://openvibe.exchange/models/${encodeURIComponent(m.id)}`), 'each with its page here');
+            assert.strictEqual(fresh.json().models.find(m => m.id === 'arena/anonymous-silver').headline, 'New model from LMArena: anonymous-silver', 'and a sentence for the wire');
+            const stale = await t.get('/api/v1/models?status=spotted&since_days=1');
+            assert.ok(!stale.json().models.some(m => m.id === 'arena/anonymous-silver'), 'one seen before the window is left out');
+            const two = await t.get('/api/v1/models?provider=arena,google&limit=2');
+            assert.strictEqual(two.json().models.length, 2, 'a limit');
+            assert.ok(two.json().models.every(m => ['arena', 'google'].includes(m.provider)), 'several providers at once');
+            const sorted = (await t.get('/api/v1/models?sort=new')).json().models.map(m => m.first_seen_at || '');
+            assert.deepStrictEqual(sorted, sorted.slice().sort().reverse(), 'newest first');
+            // The home's New this week: each to its page, its maker and the day it was first seen; none, no section.
+            const platformView = require('../server/views/platform');
+            const homeCatalog = { models: [], median_ttft_ms: null };
+            const withFresh = platformView.home({ catalog: homeCatalog, usage: null, viewer: null,
+                fresh: [{ id: 'openrouter/google/gemini-4-hydrogen', name: 'google/gemini-4-hydrogen', provider: 'openrouter', status: 'spotted', first_seen_at: '2026-11-13T10:02:00Z' }] });
+            assert.ok(withFresh.includes('New this week') && withFresh.includes('href="/models/openrouter%2Fgoogle%2Fgemini-4-hydrogen"'), 'a new model links to its page');
+            assert.ok(withFresh.includes('OpenRouter · spotted, not on sale yet · first seen Nov 13'), 'its maker, that it is not on sale yet, and the day');
+            assert.ok(!platformView.home({ catalog: homeCatalog, usage: null, viewer: null, fresh: [] }).includes('New this week'), 'nothing new: no section');
             const spotPage = await t.get('/models/arena%2Fanonymous-silver');
             assert.ok(spotPage.text.includes('lmarena.ai') && spotPage.text.includes('2026-11-11'));
             const map = await t.get('/sitemap.xml');
