@@ -42,7 +42,10 @@ app.use(createConsoleRoutes({
     const owner = { 'x-role': 'owner' };
     try {
         for (const role of ['', 'user', 'admin']) {
-            assert.strictEqual((await fetch(base + '/console/orientation', { headers: role ? { 'x-role': role } : {} })).status, role ? 403 : 404, `${role || 'signed out'} is not the owner`);
+            const r = await fetch(base + '/console/orientation', { headers: role ? { 'x-role': role } : {}, redirect: 'manual' });
+            // Signed out: to sign in and back (11-14); signed in as someone else: a page that says it is the owner's.
+            assert.strictEqual(r.status, role ? 403 : 303, `${role || 'signed out'} is not the owner`);
+            if (!role) assert.strictEqual(r.headers.get('location'), '/auth/login?next=%2Fconsole%2Forientation');
         }
         const page = await fetch(base + '/console/orientation', { headers: owner });
         const html = await page.text();

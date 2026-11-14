@@ -29,7 +29,17 @@ function createConsoleRoutes({ config, ai }) {
         head: ['providers', 'models', 'pricebook', 'supply'].includes(section) ? DESIGNED_HEAD : undefined,
         body: raw(consolePage({ section, data, error })),
     });
-    r.use((req, res, next) => isOwner(req) ? next() : res.sendStatus(req.viewer?.kind === 'user' ? 403 : 404));
+    // Signed out, a page of the console sends the person to sign in and back here (11-14, the owner: the admin guide's
+    // "Open Providers on Exchange" answered a bare "Not Found" to a phone that had not signed in to Exchange yet). A
+    // signed-in person who is not the owner gets a page that says so; anything but a page read stays a plain refusal.
+    r.use((req, res, next) => {
+        if (isOwner(req)) return next();
+        const signedIn = req.viewer?.kind === 'user';
+        if (req.method !== 'GET') return res.sendStatus(signedIn ? 403 : 404);
+        if (!signedIn) return res.redirect(303, `/auth/login?next=${encodeURIComponent(req.originalUrl)}`);
+        return send(res, 403, { viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI operator console',
+            body: raw('<div class="ex-wrap ex-narrow"><h1>The console is the owner\'s</h1><p class="ex-lede">You are signed in, but only the owner of this OpenVibe opens the AI operator console. Models, prices and your own keys are on <a href="/models">Models</a> and <a href="/dashboard/keys">Your keys</a>.</p></div>') });
+    });
     // The owner's AI defaults: one row per task, the model inline, and the fallback order. Posting one task's form
     // saves only that task, and AI resolves it within a minute.
     const DEFAULTS_HEAD = raw('<link rel="stylesheet" href="/css/task-defaults.css"><script src="/js/task-defaults.js" defer></script>');
