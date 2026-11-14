@@ -75,19 +75,31 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return out || {};
     }
 
-    async function catalog() {
-        if (catalogHit.value && now() - catalogHit.at < CATALOG_MS) return catalogHit.value;
+    // Stale while revalidating (11-14: the home took 27 s whenever its 30-second cache had run out, because the page
+    // waited for AI): a read past its freshness answers with the last value at once and refreshes behind it, one fetch
+    // at a time; only the very first read of a process waits. A value older than five minutes says stale: true.
+    const inflight = new Map();
+    const refresh = (key, load) => {
+        if (!inflight.has(key)) inflight.set(key, Promise.resolve().then(load).finally(() => inflight.delete(key)));
+        return inflight.get(key);
+    };
+    const served = (hit, freshMs, key, load) => {
+        if (!hit || !hit.value) return refresh(key, load);
+        const age = now() - hit.at;
+        if (age >= freshMs) refresh(key, load).catch(() => {});
+        return age > 5 * 60_000 ? { ...hit.value, stale: true } : hit.value;
+    };
+    async function loadCatalog() {
         try {
             const body = withDisplayNames(await get('/api/v1/exchange/catalog', 'catalog'));
             catalogHit = { at: now(), value: body };
             return body;
         } catch (err) {
             warned('catalog', err);
-            // Keep the last good catalog for a while rather than turning every page empty on one failed poll.
-            if (catalogHit.value && now() - catalogHit.at < 5 * 60_000) return { ...catalogHit.value, stale: true };
-            return empty('catalog');
+            return catalogHit.value ? { ...catalogHit.value, stale: true } : empty('catalog');
         }
     }
+    async function catalog() { return served(catalogHit, CATALOG_MS, 'catalog', loadCatalog); }
 
     async function directory() {
         if (directoryHit.value && now() - directoryHit.at < CATALOG_MS) return directoryHit.value;
@@ -140,18 +152,19 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
 
     async function usage(days = 30) {
         const key = String(days);
-        const hit = usageHit.get(key);
-        if (hit && now() - hit.at < USAGE_MS) return hit.value;
-        try {
-            const body = await get(`/api/v1/exchange/usage?days=${encodeURIComponent(days)}`, 'usage');
-            usageHit.set(key, { at: now(), value: body });
-            if (usageHit.size > 8) usageHit.delete(usageHit.keys().next().value);
-            return body;
-        } catch (err) {
-            warned('usage', err);
-            if (hit && now() - hit.at < 5 * 60_000) return { ...hit.value, stale: true };
-            return empty('usage');
-        }
+        const load = async () => {
+            try {
+                const body = await get(`/api/v1/exchange/usage?days=${encodeURIComponent(days)}`, 'usage');
+                usageHit.set(key, { at: now(), value: body });
+                if (usageHit.size > 8) usageHit.delete(usageHit.keys().next().value);
+                return body;
+            } catch (err) {
+                warned('usage', err);
+                const last = usageHit.get(key);
+                return last ? { ...last.value, stale: true } : empty('usage');
+            }
+        };
+        return served(usageHit.get(key), USAGE_MS, `usage:${key}`, load);
     }
 
     /**
