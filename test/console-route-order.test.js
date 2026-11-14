@@ -14,7 +14,7 @@ const { createFakeAi } = require('./helpers/ai');
     try {
         await check('/console is the console\'s, not the pages\' Not found', async () => {
             const r = await t.get('/console/providers');
-            assert.strictEqual(r.status, 404, 'signed out: the console\'s own 404');
+            assert.strictEqual(r.status, 303, 'signed out: the console sends you to sign in (11-14)');
             assert.ok(!r.text.includes('Nothing lives at'), 'not the pages\' Not found');
         });
         await check('the pages answer everyone else as before', async () => {
