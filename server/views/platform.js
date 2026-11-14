@@ -186,6 +186,12 @@ function home({ catalog, usage, viewer, fresh = [] }) {
                 catalog.median_ttft_ms == null ? null : metric(catalog.median_ttft_ms, ' ms'),
                 'median time to first token',
             ],
+            // The whole answer's time, which every answered call measures (AI's median_reply_ms; a first token needs a
+            // streamed answer and is rarely recorded).
+            [
+                catalog.median_reply_ms == null ? null : metric(catalog.median_reply_ms, ' ms'),
+                'median reply',
+            ],
         ],
     )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}${freshSection(fresh)}${reasons()}${pricing()}${questions()}</div>`;
 }
