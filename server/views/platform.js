@@ -175,16 +175,15 @@ function home({ catalog, usage, viewer, fresh = [] }) {
         [
             [models.length, 'models'],
             [
-                metric(
-                    usage?.totals
-                        ? Number(usage.totals.tokens_in || 0) +
-                              Number(usage.totals.tokens_out || 0)
-                        : null,
-                ),
+                usage?.totals
+                    ? metric(Number(usage.totals.tokens_in || 0) + Number(usage.totals.tokens_out || 0))
+                    : null,
                 'tokens routed this week',
             ],
+            // A figure nobody has measured yet is left out (kit.stats drops an empty value), not shown as "Not measured"
+            // in the page's first row (11-14 review).
             [
-                metric(catalog.median_ttft_ms, ' ms'),
+                catalog.median_ttft_ms == null ? null : metric(catalog.median_ttft_ms, ' ms'),
                 'median time to first token',
             ],
         ],

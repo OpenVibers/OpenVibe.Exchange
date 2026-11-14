@@ -17,7 +17,9 @@ const contracts = require('openvibe-contracts');
             const r = await t.get('/'); assert.strictEqual(r.status,200);
             assert.ok(r.text.includes('One API for every model.') && r.text.includes('Pay what the model costs.'));
             assert.ok(r.text.includes('Get a key') && r.text.includes('api.openvibe.exchange/v1/chat/completions'));
-            assert.ok(r.text.includes('tokens routed this week') && r.text.includes('median time to first token'));
+            assert.ok(r.text.includes('tokens routed this week'), 'the week\'s tokens are in the first row');
+            // A figure nobody has measured is left out of the first row, never shown as "Not measured" (11-14 review).
+            assert.ok(!r.text.includes('median time to first token') && !r.text.includes('Not measured'), 'no unmeasured hero figure');
             assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Try in Chat') && r.text.includes('How it ranks'));
             assert.ok(r.text.includes('data-ovt-composer') && r.text.includes('name="q"') && r.text.includes('ov-composer.'));
             assert.strictEqual((r.text.match(/<h1[\s>]/g)||[]).length,1);
