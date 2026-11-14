@@ -112,7 +112,7 @@ function load(env = process.env) {
         // human_pairwise judgement, and the rankings read the board by task category. The token is this
         // service's own client-credentials grant (bench.round.create, bench.judgement.cast, bench.board.read).
         bench: {
-            url: trim(env.OV_BENCH_URL || 'https://bench.openvibe.services'),
+            url: trim(env.OV_BENCH_URL || 'https://openvibe.compare'),
             audience: env.OV_BENCH_AUDIENCE || 'openvibe.bench',
             scope: env.OV_BENCH_SCOPE || 'bench.round.create bench.judgement.cast bench.board.read',
             timeoutMs: Math.max(2000, int(env.EXCHANGE_BENCH_TIMEOUT_MS, 15_000)),
