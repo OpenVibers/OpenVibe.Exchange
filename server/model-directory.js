@@ -44,7 +44,10 @@ function select(models, query = {}) {
     if (query.sort === 'new') out = out.slice().sort((a, b) => String(b.first_seen_at || '').localeCompare(String(a.first_seen_at || '')));
     const limit = Number.parseInt(query.limit, 10);
     if (Number.isFinite(limit) && limit >= 1) out = out.slice(0, Math.min(limit, 500));
-    return out.map((m) => (m.url ? m : { ...m, url: `https://openvibe.exchange${href(m.id)}` }));
+    // A newest-first read is the "new models" feed (News's wire): each says so in a sentence.
+    const maker = (m) => PROVIDER_NAMES[String(m.provider || '').toLowerCase()] || m.provider;
+    return out.map((m) => ({ ...m, ...(m.url ? {} : { url: `https://openvibe.exchange${href(m.id)}` }),
+        ...(query.sort === 'new' ? { headline: `New model from ${maker(m)}: ${m.name}` } : {}) }));
 }
 const usd = value => value == null || !Number.isFinite(Number(value)) ? 'Price not listed' : `$${Number(value)} per million tokens`;
 /** "128K" / "1M": a context window the way people say it (binary sizes in K of 1,024, as providers name them). */

@@ -56,6 +56,7 @@ const contracts = require('openvibe-contracts');
             const fresh = await t.get('/api/v1/models?status=spotted&sort=new&since_days=90&limit=5');
             assert.ok(fresh.json().models.some(m => m.id === 'arena/anonymous-silver'), 'a model first seen in the window');
             assert.ok(fresh.json().models.every(m => m.url === `https://openvibe.exchange/models/${encodeURIComponent(m.id)}`), 'each with its page here');
+            assert.strictEqual(fresh.json().models.find(m => m.id === 'arena/anonymous-silver').headline, 'New model from LMArena: anonymous-silver', 'and a sentence for the wire');
             const stale = await t.get('/api/v1/models?status=spotted&since_days=1');
             assert.ok(!stale.json().models.some(m => m.id === 'arena/anonymous-silver'), 'one seen before the window is left out');
             const two = await t.get('/api/v1/models?provider=arena,google&limit=2');
