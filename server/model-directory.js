@@ -27,12 +27,24 @@ function withLiveCatalog(directoryModels = [], catalogModels = []) {
     }
     return rows;
 }
+/**
+ * The directory, filtered: q, status, provider (one, or several comma-separated), and (plan §AB.37: new models the hour
+ * they appear, for News's wire through OpenVibe.Sources) since_days (first seen in the last N days, 1-90), sort=new
+ * (newest first) and limit (1-500). Each model carries `url`, its page here.
+ */
 function select(models, query = {}) {
     const q = String(query.q || '').toLowerCase().slice(0, 120);
     const status = String(query.status || '').toLowerCase();
-    const provider = String(query.provider || '').toLowerCase().slice(0, 80);
-    return models.filter(m => (!q || `${m.name} ${m.id} ${m.family || ''}`.toLowerCase().includes(q))
-        && (!allowedStatus.has(status) || m.status === status) && (!provider || m.provider.toLowerCase() === provider));
+    const providers = new Set(String(query.provider || '').toLowerCase().slice(0, 200).split(',').map((x) => x.trim()).filter(Boolean));
+    const days = Number.parseInt(query.since_days, 10);
+    const since = Number.isFinite(days) && days >= 1 && days <= 90 ? Date.now() - days * 86_400_000 : null;
+    let out = models.filter(m => (!q || `${m.name} ${m.id} ${m.family || ''}`.toLowerCase().includes(q))
+        && (!allowedStatus.has(status) || m.status === status) && (!providers.size || providers.has(String(m.provider).toLowerCase()))
+        && (since == null || Date.parse(m.first_seen_at || '') >= since));
+    if (query.sort === 'new') out = out.slice().sort((a, b) => String(b.first_seen_at || '').localeCompare(String(a.first_seen_at || '')));
+    const limit = Number.parseInt(query.limit, 10);
+    if (Number.isFinite(limit) && limit >= 1) out = out.slice(0, Math.min(limit, 500));
+    return out.map((m) => (m.url ? m : { ...m, url: `https://openvibe.exchange${href(m.id)}` }));
 }
 const usd = value => value == null || !Number.isFinite(Number(value)) ? 'Price not listed' : `$${Number(value)} per million tokens`;
 /** "128K" / "1M": a context window the way people say it (binary sizes in K of 1,024, as providers name them). */
