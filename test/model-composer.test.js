@@ -9,6 +9,9 @@ const platform = require('../server/views/platform');
     assert.match(home, /<form[^>]+data-ovt-composer/);
     assert.match(home, /action="\/models"/);
     assert.match(home, /name="q"/);
+    // A model search takes words, typed or spoken: no + (camera, photos, files) and no file chips (11-14 review).
+    assert.match(home, /<form[^>]+data-ovc-no-more[^>]*>/, 'no + on the model search');
+    assert.match(home, /<form[^>]+data-ovc-no-files[^>]*>/, 'and no files');
     const list = platform.modelsPage({ catalog, query: { q: 'Gemini', provider: 'google', capability: 'vision' } });
     assert.equal((list.match(/name="q"/g) || []).length, 1, 'one main search box');
     assert.match(list, /class="ovt-c-row"/);

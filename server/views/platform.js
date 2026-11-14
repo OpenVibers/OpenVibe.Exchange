@@ -45,7 +45,8 @@ const modelSearch = (query = {}, filters = false) => {
     const form = thread.composer({ action: '/models', method: 'get', name: 'q', value: query.q || '',
         id: filters ? 'model-search' : 'home-model-search', label: 'Search models',
         placeholder: 'Find a model or a provider', sendLabel: 'Search models', maxlength: 120,
-        options, attrs: { 'data-ovc-no-draft': '', style: '--ovt-line:var(--border,#1f2d47);--ovt-accent:var(--accent,#3b82f6)' },
+        // A model search takes words (typed or spoken), never a camera, photos or files: no + and no file chips (11-14).
+        options, attrs: { 'data-ovc-no-draft': '', 'data-ovc-no-more': '', 'data-ovc-no-files': '', style: '--ovt-line:var(--border,#1f2d47);--ovt-accent:var(--accent,#3b82f6)' },
         commands: [{ name: 'gemini', hint: 'Find Gemini models', insert: 'gemini' },
             { name: 'gpt', hint: 'Find GPT models', insert: 'gpt' }],
     });
