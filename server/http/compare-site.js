@@ -22,11 +22,11 @@ const SITE = Object.freeze({
     home: '/',
     icon: 'exchange',
     nav: [
-        { label: 'Compare', href: '/', icon: 'fa-scale-balanced' },
-        { label: 'Side by side', href: '/compare', icon: 'fa-table-columns' },
-        { label: 'Versions', href: '/versions', icon: 'fa-code-branch' },
-        { label: 'How it measures', href: '/method', icon: 'fa-ruler' },
-        { label: 'Exchange', href: 'https://openvibe.exchange', icon: 'fa-arrow-up-right-from-square' },
+        { label: 'Compare', href: '/', icon: 'scale' },
+        { label: 'Side by side', href: '/compare', icon: 'columns' },
+        { label: 'Versions', href: '/versions', icon: 'branch' },
+        { label: 'How it measures', href: '/method', icon: 'gauge' },
+        { label: 'Exchange', href: 'https://openvibe.exchange', icon: 'open' },
     ],
 });
 

@@ -16,9 +16,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const config = require('../server/config').load({});
 assert.strictEqual(config.ai.scope, 'ai.run.create');
 
-// Every menu icon is a glyph that exists (fa-binoculars drew nothing for Deep dive).
+// Every menu icon is a glyph that exists (Font Awesome's binoculars drew nothing for Deep dive).
 const { NAV } = require('../server/render/layout');
-for (const item of NAV) if (item.icon) assert.ok(glyphs.fromFa(item.icon), `${item.label}: ${item.icon} has a glyph`);
+for (const item of NAV) if (item.icon) assert.ok(glyphs.NAMES.includes(item.icon), `${item.label}: ${item.icon} has a glyph`);
 // Plain elements get the themed base.
 const layout = read('server/render/layout.js');
 assert.ok(/class="ex ov-room ov-base /.test(layout) && /kit-layout\.css/.test(layout), 'main carries .ov-base and its stylesheet');
