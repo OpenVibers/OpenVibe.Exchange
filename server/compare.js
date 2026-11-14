@@ -528,7 +528,7 @@ function createCompare({ s, ai, bench, config = {}, now = () => Date.now(), log 
                 fields: ['price', 'speed', 'uptime', 'requests', 'privacy', 'tier', 'context'],
             },
             {
-                name: 'OpenVibe.Bench boards', service: 'OpenVibe.Bench', url: `${config.bench && config.bench.url ? config.bench.url : 'https://bench.openvibe.services'}/api/v1/boards`,
+                name: 'OpenVibe.Bench boards', service: 'OpenVibe.Bench', url: `${config.bench && config.bench.url ? config.bench.url : 'https://openvibe.compare'}/api/v1/boards`,
                 read_at: q.at, fields: ['quality (Elo)', 'games', 'intervals'],
                 unavailable: Boolean(q.unavailable),
             },

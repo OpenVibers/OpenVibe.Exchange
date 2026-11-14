@@ -21,7 +21,7 @@ async function jsonOf(res) {
 }
 
 function createBench({ config, fetchImpl = globalThis.fetch, log = console, now = () => Date.now() }) {
-    const shared = require('openvibe-sdk/bench').createBenchClient(require('openvibe-sdk/core').createClient({ fetch: fetchImpl, retries: 0 }), { baseUrl: config.bench.url });
+    const shared = require('openvibe-sdk/compare').createCompareClient(require('openvibe-sdk/core').createClient({ fetch: fetchImpl, retries: 0 }), { baseUrl: config.bench.url });
     const tokens = config.oauth.clientSecret ? createServiceTokenClient({
         tokenUrl: `${config.networkInternalUrl}/oauth/token`,
         clientId: config.oauth.clientId, clientSecret: config.oauth.clientSecret,
