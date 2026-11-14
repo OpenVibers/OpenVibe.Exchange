@@ -20,6 +20,9 @@ const contracts = require('openvibe-contracts');
             assert.ok(r.text.includes('tokens routed this week'), 'the week\'s tokens are in the first row');
             // A figure nobody has measured is left out of the first row, never shown as "Not measured" (11-14 review).
             assert.ok(!r.text.includes('median time to first token') && !r.text.includes('Not measured'), 'no unmeasured hero figure');
+            const platform = require('../server/views/platform');
+            const withReply = platform.home({ catalog: { ...(await ai.catalog()), median_reply_ms: 1840 }, usage: {}, viewer: { kind: 'anonymous' } });
+            assert.ok(withReply.includes('median reply') && withReply.includes('1,840 ms'), 'a measured median reply takes its tile');
             assert.ok(r.text.includes('DeepSeek Chat') && r.text.includes('Try in Chat') && r.text.includes('How it ranks'));
             assert.ok(r.text.includes('data-ovt-composer') && r.text.includes('name="q"') && r.text.includes('ov-composer.'));
             assert.strictEqual((r.text.match(/<h1[\s>]/g)||[]).length,1);
