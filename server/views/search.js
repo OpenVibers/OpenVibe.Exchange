@@ -129,7 +129,9 @@ function resultRows(list, engines, query) {
                 + `<details><summary>Source, rights and rank</summary><p><a href="${esc(r.source_page || r.url)}" rel="noopener noreferrer">Source page</a>${r.author ? ` · ${esc(r.author)}` : ''}${r.license ? ` · ${r.license_url ? `<a href="${esc(r.license_url)}" rel="noopener noreferrer">${esc(r.license)}</a>` : esc(r.license)}` : ' · Reuse rights unknown'}${r.width && r.height ? ` · ${Number(r.width)} × ${Number(r.height)} px` : ''}`
                 + ` · Our order #${Number(r.rank) || i + 1}${r.upstream_rank ? ` · Provider's rank #${Number(r.upstream_rank)}` : ''}${upstream ? ` · Upstream: ${esc(upstream)}` : ''}${r.reverse_image ? ' · Reverse image match' : ''}${r.published ? ` · ${esc(r.published)}` : ''}</p></details>${use}</li>`;
         }).join('') || '<li class="xs-note">Nothing found.</li>'}</ol>`;
-        return `<section class="xs-result"><h3>${esc(nameOf({ id: x.engine }))}</h3>${receipt}${attempts}${rows}</section>`;
+        // The engine that answered (the router's pick names itself in the receipt), never "Auto".
+        const who = x.engine === 'auto' ? (x.receipt?.engine ? nameOf({ id: x.receipt.engine }) : "The router's pick") : nameOf({ id: x.engine });
+        return `<section class="xs-result"><h3>${esc(who)}</h3>${receipt}${attempts}${rows}</section>`;
     }).join('')}</div>`;
 }
 
@@ -176,20 +178,39 @@ function searchPage({ engines = [], found = [], query = {} } = {}) {
     }).join('');
     const single = `<div class="xs-single">${enginePick('engine', 'Engine', forKind, singleDefault, true)}</div>`;
     const compare = `<div class="xs-compare">${enginePick('first', 'First engine', forKind, compareDefaults[0])}${enginePick('second', 'Second engine', forKind, compareDefaults[1])}${enginePick('third', 'Third engine (optional)', forKind, compareDefaults[2], false, true)}</div>`;
-    const resultHead = mode === 'compare'
-        ? `<p class="xs-receipt">One combined cap ${query.max_cost_usd != null && query.max_cost_usd !== '' ? money(query.max_cost_usd) : 'not set'} · spent ${money(query.spent || 0)}</p>`
-        : `<p class="xs-receipt">Cap ${query.max_cost_usd != null && query.max_cost_usd !== '' ? money(query.max_cost_usd) : 'not set'} · spent ${money(query.spent || 0)}</p>`;
-    return `<div class="ex-wrap xs">${kit.head({ title: 'Search', sub: 'Web, pictures and icons from many engines, with the same key as your models. One engine by default; comparing is your choice.' })}`
-        + `<section class="xs-try" aria-labelledby="xs-try-h"><h2 id="xs-try-h">Search</h2><form method="post" action="/search" class="xs-form">`
-        + `<div class="xs-q"><input name="q" required maxlength="500" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
-        + `${kit.button({ label: 'Search', type: 'submit', icon: 'search' })}</div>`
-        + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
+    const capSet = query.max_cost_usd != null && query.max_cost_usd !== '';
+    const searched = found.length > 0 || query.spent != null;   // a search ran (the cost line shows even when nothing came back)
+    const resultHead = !searched ? ''
+        : mode === 'compare'
+            ? `<p class="xs-receipt">One combined cap ${capSet ? money(query.max_cost_usd) : 'not set'} · spent ${money(query.spent || 0)}</p>`
+            : `<p class="xs-receipt">Cap ${capSet ? money(query.max_cost_usd) : 'not set'} · spent ${money(query.spent || 0)}</p>`;
+    // What the folded settings are now, in a few words, so nobody has to open them to know.
+    const engineWords = mode === 'compare'
+        ? `Compare ${compareDefaults.filter(Boolean).map((id) => nameOf({ id })).join(', ')}`
+        : singleDefault === 'auto' ? "The router's pick" : nameOf({ id: singleDefault });
+    const optsWords = [engineWords, capSet ? `cap ${money(query.max_cost_usd)}` : 'no cap', filterCount ? `${filterCount} filter${filterCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    const optsOpen = mode === 'compare' || capSet || filterCount > 0;
+    // 11-15 (the owner: "nothing happens upon search attempt … the search bar fixed float top when you scroll down"):
+    // the box, its button and the kind ride at the top while the page scrolls; the answer (results, or why there are
+    // none) comes straight under them; the engine, the cap and the filters fold below, closed until they matter. The
+    // controls in the bar belong to the form through form="xs-form", so the bar can stick across the whole page.
+    const F = 'form="xs-form"';
+    return `<div class="ex-wrap xs">${kit.head({ title: 'Search', sub: 'Web, pictures and icons from many engines, with the same key as your models.', sticky: false })}`
+        + `<div class="xs-bar" role="search">`
+        + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
+        + `${kit.button({ label: 'Search', type: 'submit', icon: 'search', attrs: { form: 'xs-form' } })}</div>`
+        + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input ${F} type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
+        + `</div>`
+        + `<div id="xs-working" class="xs-working"></div>`
+        + (searched || query.note ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${resultHead}${resultRows(found, engines, query)}</section>` : '')
+        + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working">`
+        + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`
         + `<fieldset class="xs-modes"><legend class="ex-sr">How many engines</legend><label><input type="radio" name="mode" value="single"${mode === 'single' ? ' checked' : ''}><span>One engine</span></label><label><input type="radio" name="mode" value="compare"${mode === 'compare' ? ' checked' : ''}><span>Compare 2 or 3 engines</span></label></fieldset>`
         + `${single}${compare}`
-        + `<label class="xs-field xs-cap"><span>Spending cap, USD</span><input name="max_cost_usd" type="number" min="0" step="0.001" placeholder="Set a cap" value="${query.max_cost_usd != null ? esc(query.max_cost_usd) : ''}"><small>${mode === 'compare' ? 'One combined cap for every engine in this comparison. The search stops before it is exceeded.' : 'The most this search may spend with the provider.'}</small></label>`
+        + `<label class="xs-field xs-cap"><span>Spending cap, USD</span><input name="max_cost_usd" type="number" min="0" step="0.001" inputmode="decimal" placeholder="No cap" value="${query.max_cost_usd != null ? esc(query.max_cost_usd) : ''}"><small>${mode === 'compare' ? 'One combined cap for every engine in this comparison. The search stops before it is exceeded.' : 'The most this search may spend with the provider.'}</small></label>`
         + `<details class="xs-more"${filterCount ? ' open' : ''}><summary>Filters${filterCount ? `<span class="ovk-count">${filterCount}</span>` : ''}<small>for ${esc((KINDS.find(([k]) => k === kind) || [])[1] || 'Web')}</small></summary><div class="xs-more-body">${filters}</div></details>`
-        + `<details class="xs-support"${support ? ' open' : ''}><summary>What the chosen ${mode === 'compare' ? 'engines' : 'engine'} can filter</summary>${support || '<p class="xs-note">Choose an engine to see what it can honour.</p>'}<p class="xs-note">A filter the chosen engine cannot honour is refused before the search, never dropped.</p></details>`
-        + `</form>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${resultHead}${resultRows(found, engines, query)}</section>`
+        + `<details class="xs-support"><summary>What the chosen ${mode === 'compare' ? 'engines' : 'engine'} can filter</summary>${support || '<p class="xs-note">Choose an engine to see what it can honour.</p>'}<p class="xs-note">A filter the chosen engine cannot honour is refused before the search, never dropped.</p></details>`
+        + `</div></details></form>`
         + `<section class="xs-list" aria-labelledby="xs-list-h"><h2 id="xs-list-h">The engines<span class="ovk-count">${engines.length}</span></h2>`
         + (groups || '<p class="xs-note">The engine list is not reachable right now.</p>') + '</section>'
         + `<p class="xs-note">The words matter: “No provider fee” is open data; “Your instance” is a SearXNG you run; “Included allowance” is a provider free tier; “Your key” is your own key and the provider may charge. Nothing here is labelled free. Pictures come with their licence and author: keep the attribution line with each one.</p></div>`;

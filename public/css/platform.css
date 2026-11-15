@@ -426,6 +426,49 @@
 /* Grid children never stretch the page for a long line (the head's subtitle widened /search to 514 px on a phone). */
 .xs > * { min-width: 0; }
 
+/* 11-15 (the owner: "the search bar fixed float top when you scroll down"): the box, its button and the kind ride
+   under the navbar, and to the very top while a phone's navbar is away (it slides off reading down). The answer comes
+   straight under the bar; the engine, the cap and the filters fold below it. */
+.xs { gap: 16px; }
+.xs-bar { position: sticky; top: var(--ovk-top, 52px); z-index: 40; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px;
+    margin: 0 -16px; padding: 10px 16px 12px; background: color-mix(in srgb, var(--ovk-bg) 90%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px); backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid transparent; transition: top .22s ease, border-color .2s, box-shadow .2s; }
+html:has(.ovnav-hide) .xs-bar { top: 0; }
+.ovk-scrolled .xs-bar { border-bottom-color: var(--ovk-line); box-shadow: var(--ov-elev-2); }
+.xs-bar .xs-q { flex: 1 1 420px; }
+.xs-bar .xs-kinds { flex: none; }
+.xs-working:empty { display: none; }
+.xs-working .ex-working { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--ovk-panel); color: var(--ovk-muted); font-size: .9rem; }
+.xs-out { display: grid; gap: 8px; animation: xs-in .22s ease both; }
+.xs-out .xs-results { margin-top: 0; }
+/* One engine's answer takes the whole width; a comparison sits side by side. */
+.xs-results:has(> .xs-result:only-child) { grid-template-columns: minmax(0, 1fr); }
+.xs-out .xs-result { padding: 14px 16px; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+/* The box and its button are one height (the button's 48 px used to add its padding: 69 px against 51). */
+.xs-bar .xs-q input, .xs-bar .xs-q .ovk-btn { box-sizing: border-box; height: 48px; min-height: 48px; }
+.xs-bar .xs-q .ovk-btn { padding-block: 0; }
+/* A result's "Source, rights and rank" is a quiet line, not the kit's boxed fold, with one chevron. */
+.xs-result details { padding: 0; border: 0; border-radius: 0; background: none; }
+.xs-result details > summary::after { content: none; display: none; }
+/* The kit caps a list item's width; an engine row spans its list. */
+.xs-engine { max-width: none; }
+@keyframes xs-in { from { opacity: 0; transform: translateY(calc(6px * var(--ov-move, 1))); } to { opacity: 1; transform: none; } }
+.xs-opts { border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
+.xs-opts > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 10px; min-height: 52px; padding: 8px 44px 8px 16px; position: relative; cursor: pointer; list-style: none; font-weight: 650; }
+.xs-opts > summary::-webkit-details-marker { display: none; }
+.xs-opts > summary small { min-width: 0; color: var(--ovk-muted); font-weight: 400; font-size: .86rem; overflow-wrap: anywhere; }
+.xs-opts > summary::after { content: ""; position: absolute; right: 18px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-right: 2px solid var(--ovk-muted); border-bottom: 2px solid var(--ovk-muted); transform: rotate(45deg); transition: transform .18s ease; }
+.xs-opts[open] > summary::after { transform: rotate(-135deg); margin-top: -1px; }
+.xs-opts-body { display: grid; gap: 14px; padding: 4px 16px 16px; }
+@media (max-width: 760px) {
+    .xs-bar { gap: 8px; padding-bottom: 10px; }
+    .xs-bar .xs-q { flex-basis: 100%; }
+    .xs-out { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .xs-bar { transition: none; } .xs-out { animation: none; } .xs-opts > summary::after { transition: none; } }
+html[data-ov-motion="off"] .xs-out { animation: none; }
+
 /* ── Pricing: one row per way of calling, the name above what it costs ── */
 .xpr-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
 .xpr-list li { display: grid; gap: 2px; padding: 12px 16px; border-top: 1px solid var(--ovk-line); }

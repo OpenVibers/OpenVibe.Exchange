@@ -69,4 +69,20 @@ assert.equal((rightsPage.match(/class="xs-rights/g) || []).length, 3, 'a result 
 
 // The engine list never says a provider is free; only the words the brief allows.
 assert.ok(!result.includes('Free'));
+
+// 11-15 (the owner: "nothing happens upon search attempt … the search bar fixed float top"): the box, its button and the
+// kind ride in the sticky bar, tied to the form by form="xs-form"; the answer comes before the folded engine, cap and
+// filters; the router's pick is named by the engine that answered, never "Auto"; the page head does not stick.
+assert.match(result, /<div class="xs-bar" role="search"><div class="xs-q"><input form="xs-form" name="q"/);
+assert.match(result, /<button[^>]*form="xs-form"/, 'the bar\'s button sends the form');
+assert.match(result, /<input form="xs-form" type="radio" name="kind" value="images" checked>/);
+assert.ok(result.indexOf('class="xs-out"') > result.indexOf('class="xs-bar"') && result.indexOf('class="xs-out"') < result.indexOf('class="xs-opts"'), 'the answer sits between the bar and the settings');
+assert.match(result, /<form id="xs-form" method="post" action="\/search" class="xs-form" data-working-in="#xs-working">/);
+assert.match(result, /ovk-head--static/, 'the title scrolls away; the bar is what stays');
+const routed = searchPage({ engines, query: { q: 'x', spent: 0 }, found: [{ engine: 'auto', receipt: { engine: 'openverse', cost_usd: 0, time_ms: 5 }, results: [] }] });
+assert.match(routed, /<h3>Openverse<\/h3>/);
+assert.ok(!/<h3>Auto<\/h3>/.test(routed));
+const fresh = searchPage({ engines, query: {} });
+assert.ok(!fresh.includes('class="xs-out"') && !fresh.includes('spent $0'), 'before a search: no empty answer and no cost line');
+assert.match(fresh, /<details class="xs-opts">/, 'the settings start folded');
 process.stdout.write('image search view passed\n');
