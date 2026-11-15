@@ -40,6 +40,16 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(r.text.includes('DeepSeek Chat'));
         });
 
+        await check('the model page\'s structured data names what the page shows (the browser check, 11-15)', async () => {
+            const r = await t.get('/m/deepseek/deepseek-chat');
+            assert.strictEqual(r.status, 200);
+            const ld = [...r.text.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).flat();
+            const page = ld.find((n) => n && n['@type'] === 'WebPage');
+            assert.ok(page, 'a WebPage');
+            const visible = r.text.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<title[\s\S]*?<\/title>/g, '').replace(/<[^>]+>/g, ' ');
+            assert.ok(visible.includes(page.name), `"${page.name}" is on the page`);
+        });
+
         await check('a model page has a twin; a chat and an unknown .md are 404', async () => {
             const r = await t.get('/m/deepseek/deepseek-chat.md');
             assert.strictEqual(r.status, 200);

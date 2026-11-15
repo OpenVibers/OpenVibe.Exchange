@@ -192,7 +192,9 @@ function createPageRoutes(ctx) {
                 .catch((err) => { log.warn('[exchange] Report performance unavailable: ' + String(err.message || err).slice(0, 160)); return null; }),
         ]);
         const jsonLd = seo.jsonLd.webPage({
-            name: `${model.name} on OpenVibe.Exchange`, url: `${config.baseUrl}${modelPath(model)}`,
+            // The page's heading is the model's name: the structured data names what a reader sees (the browser check,
+            // 11-15: "… on OpenVibe.Exchange" was in the title only).
+            name: model.name, url: `${config.baseUrl}${modelPath(model)}`,
             description: `${model.name}: ${model.offers.length} live offers with price, speed and uptime.`.slice(0, 160), siteUrl: config.baseUrl,
         });
         return page(req, res, {
