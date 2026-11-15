@@ -135,7 +135,21 @@ function resultRows(list, engines, query) {
     }).join('')}</div>`;
 }
 
-function searchPage({ engines = [], found = [], query = {} } = {}) {
+/**
+ * Deep dive this (11-15, the owner: Exchange's search was meant to "deep dive any query in a general sense"): under
+ * any question, the way to the general deep dive, its three depths and their prices. It reads the best pages in full
+ * and answers with every source named (AI research.deep_dive); the search above stays the quick look.
+ */
+function diveCard(q, depths) {
+    const list = (depths && depths.length ? depths : [{ key: 'quick', label: 'Quick', price_usd: 0.1, pages: 8 }, { key: 'thorough', label: 'Thorough', price_usd: 0.3, pages: 16 }, { key: 'expert', label: 'Expert', price_usd: 0.8, pages: 30 }]);
+    const dollars = (n) => `$${Number(n || 0).toFixed(2)}`;
+    return `<section class="xs-dive" aria-labelledby="xs-dive-h"><div class="xs-dive-text"><h2 id="xs-dive-h">${kit.icon('spark')}<span>Deep dive this</span></h2><p>We plan the questions an expert would ask, read the best pages in full, and answer with every source named.</p></div>`
+        + `<form method="post" action="/deep-dive" class="xs-dive-form"><input type="hidden" name="question" value="${esc(q)}">`
+        + `<fieldset class="xs-dive-depths"><legend class="ex-sr">How deep</legend>${list.map((d, i) => `<label><input type="radio" name="depth" value="${esc(d.key)}"${i === 0 ? ' checked' : ''}><span><b>${esc(d.label || d.key)}</b><small>${esc(String(d.pages || ''))} pages · ${esc(dollars(d.price_usd))}</small></span></label>`).join('')}</fieldset>`
+        + `${kit.button({ label: 'Deep dive', type: 'submit', icon: 'spark' })}</form></section>`;
+}
+
+function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) {
     const kind = KINDS.some(([k]) => k === query.kind) ? query.kind : 'web';
     const mode = query.mode === 'compare' ? 'compare' : 'single';
     const forKind = engines.filter((e) => Array.isArray(e.kinds) && e.kinds.includes(kind));
@@ -195,13 +209,14 @@ function searchPage({ engines = [], found = [], query = {} } = {}) {
     // none) comes straight under them; the engine, the cap and the filters fold below, closed until they matter. The
     // controls in the bar belong to the form through form="xs-form", so the bar can stick across the whole page.
     const F = 'form="xs-form"';
-    return `<div class="ex-wrap xs">${kit.head({ title: 'Search', sub: 'Web, pictures and icons from many engines, with the same key as your models.', sticky: false })}`
+    return `<div class="ex-wrap xs">${kit.head({ title: 'Search', sub: 'Web, pictures and icons from many engines, with the same key as your models.', sticky: false, actions: [kit.button({ href: query.q ? `/deep-dive?q=${encodeURIComponent(query.q)}` : '/deep-dive', label: 'Deep dive', icon: 'spark', kind: 'quiet' })] })}`
         + `<div class="xs-bar" role="search">`
         + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
         + `${kit.button({ label: 'Search', type: 'submit', icon: 'search', attrs: { form: 'xs-form' } })}</div>`
         + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input ${F} type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
         + `</div>`
         + `<div id="xs-working" class="xs-working"></div>`
+        + (query.q && kind === 'web' ? diveCard(query.q, dive && dive.depths) : '')
         + (searched || query.note ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${resultHead}${resultRows(found, engines, query)}</section>` : '')
         + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working">`
         + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`

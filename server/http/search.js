@@ -94,7 +94,7 @@ function createSearchRoutes({ config, ai }) {
             path: req.originalUrl,
             title: 'Search',
             description: 'One search API for the web, pictures and icons: many engines, one key, a receipt with every answer.',
-            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query })),
+            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null })),
         });
     r.get('/search', (req, res) => {
         const kind = ['web', 'images', 'icons'].includes(req.query.kind) ? req.query.kind : 'web';

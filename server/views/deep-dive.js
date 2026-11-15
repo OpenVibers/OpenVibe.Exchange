@@ -248,4 +248,4 @@ function exportMarkdown(report) {
     return lines.join('\n');
 }
 
-module.exports = { homePage, runPage, reportPage, exportMarkdown, STEP_LABELS };
+module.exports = { homePage, runPage, reportPage, exportMarkdown, codeSources, STEP_LABELS };

@@ -350,6 +350,25 @@
 .xs-kinds input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .xs-kinds span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; font-size: .9rem; color: var(--ovk-muted); }
 .xs-kinds input:checked + span { background: color-mix(in srgb, var(--ovk-accent) 20%, transparent); color: var(--ovk-text); font-weight: 650; }
+/* Deep dive this (11-15): the way from any question to the general deep dive, under the bar. */
+.xs-dive { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin: 14px 0; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--ovk-accent) 45%, var(--ovk-line)); border-radius: 16px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--ovk-accent) 14%, var(--ovk-panel)), var(--ovk-panel) 70%); animation: xs-dive-in .4s cubic-bezier(.2, .8, .2, 1) both; }
+.xs-dive-text { flex: 1 1 260px; min-width: 0; }
+.xs-dive-text h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 2px; font-size: 1.02rem; }
+.xs-dive-text h2 svg { width: 18px; height: 18px; color: var(--ovk-accent); }
+.xs-dive-text p { margin: 0; color: var(--ovk-muted); font-size: .88rem; line-height: 1.45; }
+.xs-dive-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.xs-dive-depths { display: inline-flex; gap: 4px; margin: 0; padding: 4px; border: 1px solid var(--ovk-line); border-radius: 14px; background: var(--ovk-panel-2); min-width: 0; }
+.xs-dive-depths label { position: relative; display: inline-flex; }
+.xs-dive-depths input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.xs-dive-depths span { display: grid; gap: 0; min-height: 44px; align-content: center; padding: 2px 12px; border-radius: 10px; color: var(--ovk-muted); transition: background .15s, color .15s; }
+.xs-dive-depths b { font-size: .86rem; }
+.xs-dive-depths small { font-size: .72rem; }
+.xs-dive-depths input:checked + span { background: color-mix(in srgb, var(--ovk-accent) 20%, transparent); color: var(--ovk-text); }
+.xs-dive-depths input:focus-visible + span { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
+@keyframes xs-dive-in { from { opacity: 0; transform: translateY(calc(6px * var(--ov-move, 1))); } }
+html[data-ov-motion="off"] .xs-dive { animation: none; }
+@media (max-width: 640px) { .xs-dive-form, .xs-dive-depths { width: 100%; } .xs-dive-depths label { flex: 1 1 0; } .xs-dive-depths span { width: 100%; justify-items: center; } .xs-dive-form .ovk-btn { width: 100%; justify-content: center; } }
 .xs-kinds input:focus-visible + span { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
 .xs-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
 .xs-vs { padding-bottom: 12px; color: var(--ovk-muted); font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
