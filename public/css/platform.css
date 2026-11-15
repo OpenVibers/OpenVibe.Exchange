@@ -491,9 +491,10 @@
 .xc-t b { font-size: 1rem; }
 .xc-t small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ovk-muted); font-size: .85rem; }
 .xc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.xc-tag { padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ovk-text) 8%, transparent); color: var(--ovk-muted); font-size: .72rem; font-weight: 700; }
-.xc-tag.is-best { background: color-mix(in srgb, #22c55e 18%, transparent); color: #86efac; }
-.xc-tag.is-promo { background: color-mix(in srgb, var(--ovk-accent) 16%, transparent); color: var(--ovk-accent); }
+/* Tags are small (.72rem): each colour leans toward the text colour, so it reads in both themes (browser check 11-15). */
+.xc-tag { padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ovk-text) 8%, transparent); color: color-mix(in srgb, var(--ovk-muted) 65%, var(--ovk-text)); font-size: .72rem; font-weight: 700; }
+.xc-tag.is-best { background: color-mix(in srgb, #22c55e 18%, transparent); color: color-mix(in srgb, #22c55e 45%, var(--ovk-text)); }
+.xc-tag.is-promo { background: color-mix(in srgb, var(--ovk-accent) 16%, transparent); color: color-mix(in srgb, var(--ovk-accent) 55%, var(--ovk-text)); }
 .xc-p { display: grid; justify-items: end; gap: 1px; text-align: right; font-variant-numeric: tabular-nums; }
 .xc-p b { font-size: 1.15rem; letter-spacing: -.01em; white-space: nowrap; }
 .xc-p b small { margin-left: 2px; color: var(--ovk-muted); font-size: .72rem; font-weight: 650; }
