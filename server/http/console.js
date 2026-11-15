@@ -8,6 +8,7 @@ const { defaultsPage } = require('../views/task-defaults');
 
 const READS = Object.freeze({
     supply: '/api/v1/admin/console/supply',
+    setup: '/api/v1/setup',
     'gpu-policy': '/api/v1/admin/console/gpu-policy',
     overview: '/api/v1/admin/console/overview', providers: '/api/v1/admin/console/providers', models: '/api/v1/admin/console/models', routes: '/api/v1/routes',
     templates: '/api/v1/templates', workflows: '/api/v1/workflows', runs: '/api/v1/admin/console/runs', quotas: '/api/v1/admin/console/quotas',
@@ -26,7 +27,7 @@ function createConsoleRoutes({ config, ai }) {
     const DESIGNED_HEAD = raw(`<link rel="stylesheet" href="/css/console-ai.css"><style>${require('../views/console-ai').CSS}</style>`);
     const page = (req, res, section, data, error = null, status = 200) => send(res, status, {
         viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI operator console',
-        head: ['providers', 'models', 'pricebook', 'supply'].includes(section) ? DESIGNED_HEAD : undefined,
+        head: ['providers', 'models', 'pricebook', 'supply', 'setup'].includes(section) ? DESIGNED_HEAD : undefined,
         body: raw(consolePage({ section, data, error })),
     });
     // Signed out, a page of the console sends the person to sign in and back here (11-14, the owner: the admin guide's
@@ -184,6 +185,24 @@ function createConsoleRoutes({ config, ai }) {
             const out = await ai.meRequest(req.viewer.token, '/api/v1/vision/orientation', { method: 'POST', body: { image: req.body && req.body.image } });
             return res.set('Cache-Control', 'no-store').json(out);
         } catch (err) { return res.status(err.status || 502).json({ error: err.message || 'The detector did not answer.', code: err.code || null }); }
+    });
+
+    // Setup (plan §AD.9, one API with Network's /admin/ai/setup): a job's monthly cap and the pictures each person may
+    // make a day, saved through AI's setup API, then back to the section.
+    r.post('/console/setup/caps/:step', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const raw = String((req.body && req.body.cap_usd) || '').trim();
+        const cap = raw === '' ? null : Number(raw);
+        if (cap !== null && (!Number.isFinite(cap) || cap < 0)) return page(req, res, 'setup', {}, 'A cap is a number of dollars, or empty for no cap.', 422);
+        try { await ai.adminRequest(`/api/v1/setup/caps/${encodeURIComponent(req.params.step)}`, { method: 'PUT', body: { cap_usd: cap } }); return res.redirect(303, '/console/setup'); }
+        catch (err) { return page(req, res, 'setup', {}, err.message || 'OpenVibe.AI did not save the cap.', 502); }
+    });
+    r.post('/console/setup/free/pictures', async (req, res) => {
+        if (!sameOrigin(req)) return res.sendStatus(403);
+        const n = Number(String((req.body && req.body.per_day) || '').trim());
+        if (!Number.isInteger(n) || n < 0 || n > 1000) return page(req, res, 'setup', {}, 'Pictures a day is a whole number from 0 to 1000.', 422);
+        try { await ai.adminRequest('/api/v1/setup/free/pictures', { method: 'PUT', body: { per_day: n } }); return res.redirect(303, '/console/setup'); }
+        catch (err) { return page(req, res, 'setup', {}, err.message || 'OpenVibe.AI did not save it.', 502); }
     });
 
     r.get(['/console', '/console/:section'], async (req, res) => {

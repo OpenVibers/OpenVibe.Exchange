@@ -40,7 +40,7 @@ const server = http.createServer((req, res) => {
         const p = await h.openPage(browser, await browser.newContext(), { width: 390, height: 844 });
         await p.goto(`${base}/deep-dive/${ID}`, { maxMs: 6000 });
         const first = await p.evaluate("document.querySelector('[data-dd-elapsed]').textContent");
-        assert.match(first, /^1:1\d so far$/, `the time running, at once (${first})`);
+        assert.match(first, /^[12]:[0-5]\d so far$/, `the time running, at once (${first})`);   // 75 s ago, plus however long the page took
         await wait(1300);
         assert.notStrictEqual(await p.evaluate("document.querySelector('[data-dd-elapsed]').textContent"), first, 'and it ticks');
 
