@@ -16,6 +16,11 @@
 .ex-muted { color: var(--ovk-muted); }
 .ex-prose a:not(.ovk-btn), .ex-list a:not(.ovk-btn), .ex-more a:not(.ovk-btn), .ex-empty a:not(.ovk-btn), .ovk-empty a:not(.ovk-btn) { color: var(--ovk-accent); text-underline-offset: 2px; }
 
+/* The head's bleed is sized with 100vw, which counts the scrollbar: clipping sideways overflow keeps the page from
+   scrolling 8 px sideways at 1280 (browser check 11-15). clip, unlike hidden, makes no scroll container, so the
+   head stays sticky. */
+html, body { overflow-x: clip; }
+
 /* A sticky head inside the column still spans the window; its title sits on the content line. */
 .ex-page > .ovk-head {
     --ex-head-pad: max(16px, calc((100vw - var(--ex-max)) / 2 + 16px));
