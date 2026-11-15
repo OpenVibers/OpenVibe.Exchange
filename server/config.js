@@ -73,6 +73,9 @@ function load(env = process.env) {
             scope: env.OV_AI_SCOPE || 'ai.run.create',
             consoleScope: env.OV_AI_CONSOLE_SCOPE || 'ai.usage.read ai.workflow.manage ai.provider.manage',
             timeoutMs: Math.max(2000, int(env.EXCHANGE_AI_TIMEOUT_MS, 30_000)),
+            // 11-15 (the owner: "It's specifically the search and deep dive which lags / freezes"): one engine's search
+            // gives up after this, so a slow engine (or AI busy) costs seconds, not half a minute per engine.
+            searchTimeoutMs: Math.max(2000, int(env.EXCHANGE_SEARCH_TIMEOUT_MS, 15_000)),
             // The last good answers from AI, kept on disk so a restarted Exchange starts warm (11-15: the pages waited
             // on AI after every deploy). Empty turns it off; tests leave it off.
             cacheFile: env.EXCHANGE_AI_CACHE_FILE != null ? String(env.EXCHANGE_AI_CACHE_FILE) : (env.NODE_ENV === 'test' ? '' : require('path').join(process.cwd(), 'data', 'ai-cache.json')),

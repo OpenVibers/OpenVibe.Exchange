@@ -215,3 +215,40 @@
     if (form) form.addEventListener('submit', send);
     start();
 })();
+
+/* Every page: a search or a deep dive says it is working (its own scope: the sealed chat above returns early on
+ * other pages). */
+(function () {
+    'use strict';
+    // 11-15 (the owner: "It's specifically the search and deep dive which lags / freezes"): a search or a deep dive
+    // waits on AI for seconds. The form says it is working the moment it is sent (the OpenVibe mark on its button, a
+    // line under it), cannot be sent twice, and after a few seconds says why it is still going.
+    const WORKING = [
+        [/^\/search$/, 'Searching…', 'Still searching: some engines are slow. It stops after 15 seconds with what it has.'],
+        [/^\/deep-dive$/, 'Starting the deep dive: planning the research…', 'Still starting: it plans what to look at first.'],
+        [/^\/deep-dive\/[^/]+\/sites$/, 'Saving the sites…', 'Still saving.'],
+        [/^\/deep-dive\/[^/]+\/cancel$/, 'Cancelling…', 'Still cancelling.'],
+    ];
+    document.addEventListener('submit', (e) => {
+        const f = e.target;
+        if (!(f instanceof HTMLFormElement) || e.defaultPrevented) return;
+        let path = '';
+        try { path = new URL(f.action, location.href).pathname; } catch { return; }
+        const how = WORKING.find(([re]) => re.test(path));
+        if (!how) return;
+        if (f.dataset.sending === '1') { e.preventDefault(); return; }
+        f.dataset.sending = '1';
+        f.setAttribute('aria-busy', 'true');
+        const btn = e.submitter || f.querySelector('button[type=submit], button:not([type])');
+        if (btn && window.OVMark && typeof window.OVMark.busy === 'function') { try { window.OVMark.busy(btn); } catch { /* the line below says it */ } }
+        let note = f.querySelector(':scope > .ex-working');
+        if (!note) { note = document.createElement('p'); note.className = 'ex-working'; note.setAttribute('role', 'status'); f.append(note); }
+        note.textContent = how[1];
+        setTimeout(() => { if (f.isConnected && f.dataset.sending === '1') note.textContent = how[2]; }, 6000);
+    }, true);
+    // Back from the browser's cache, a form is ready again.
+    window.addEventListener('pageshow', () => document.querySelectorAll('form[data-sending]').forEach((f) => {
+        delete f.dataset.sending; f.removeAttribute('aria-busy');
+        const n = f.querySelector(':scope > .ex-working'); if (n) n.remove();
+    }));
+})();
