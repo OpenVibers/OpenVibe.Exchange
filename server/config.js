@@ -73,6 +73,9 @@ function load(env = process.env) {
             scope: env.OV_AI_SCOPE || 'ai.run.create',
             consoleScope: env.OV_AI_CONSOLE_SCOPE || 'ai.usage.read ai.workflow.manage ai.provider.manage',
             timeoutMs: Math.max(2000, int(env.EXCHANGE_AI_TIMEOUT_MS, 30_000)),
+            // The last good answers from AI, kept on disk so a restarted Exchange starts warm (11-15: the pages waited
+            // on AI after every deploy). Empty turns it off; tests leave it off.
+            cacheFile: env.EXCHANGE_AI_CACHE_FILE != null ? String(env.EXCHANGE_AI_CACHE_FILE) : (env.NODE_ENV === 'test' ? '' : require('path').join(process.cwd(), 'data', 'ai-cache.json')),
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 

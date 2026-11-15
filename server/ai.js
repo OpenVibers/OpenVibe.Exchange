@@ -43,7 +43,37 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     let directoryHit = { at: 0, value: null };
     let usageHit = new Map();
     let communityHit = { at: 0, value: null };
+    let enginesHit = { at: 0, value: null };
     let warnedAt = 0;
+
+    // Warm from disk (2026-11-15, the owner: "openvibe.exchange is failing to load": after a deploy restarted Exchange
+    // while AI was restarting too, every page waited on AI). The last good answers are kept in config.ai.cacheFile and
+    // read back at start, so the first page after a restart answers at once and refreshes behind it.
+    const fs = require('fs');
+    const path = require('path');
+    const cacheFile = (config.ai && config.ai.cacheFile) || '';
+    try {
+        if (cacheFile && fs.existsSync(cacheFile)) {
+            const kept = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+            const back = (h) => (h && h.value && Number.isFinite(Number(h.at)) ? { at: Number(h.at), value: h.value } : { at: 0, value: null });
+            catalogHit = back(kept.catalog); directoryHit = back(kept.directory); communityHit = back(kept.community); enginesHit = back(kept.engines);
+            for (const [k, h] of Object.entries(kept.usage || {})) { const b = back(h); if (b.value) usageHit.set(k, b); }
+        }
+    } catch (err) { log.warn(`[exchange] the kept AI answers could not be read: ${String((err && err.message) || err).slice(0, 120)}`); }
+    let saveTimer = null;
+    const keep = () => {
+        if (!cacheFile || saveTimer) return;
+        saveTimer = setTimeout(() => {
+            saveTimer = null;
+            try {
+                fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+                const body = JSON.stringify({ catalog: catalogHit, directory: directoryHit, community: communityHit, engines: enginesHit, usage: Object.fromEntries(usageHit) });
+                fs.writeFileSync(`${cacheFile}.tmp`, body);
+                fs.renameSync(`${cacheFile}.tmp`, cacheFile);
+            } catch (err) { log.warn(`[exchange] the AI answers could not be kept: ${String((err && err.message) || err).slice(0, 120)}`); }
+        }, (config.ai && config.ai.keepMs) || 5000);
+        if (saveTimer.unref) saveTimer.unref();
+    };
 
     const warned = (what, err) => {
         if (now() - warnedAt < 60_000) return;
@@ -93,6 +123,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         try {
             const body = withDisplayNames(await get('/api/v1/exchange/catalog', 'catalog'));
             catalogHit = { at: now(), value: body };
+            keep();
             return body;
         } catch (err) {
             warned('catalog', err);
@@ -101,8 +132,8 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
     async function catalog() { return served(catalogHit, CATALOG_MS, 'catalog', loadCatalog); }
 
-    async function directory() {
-        if (directoryHit.value && now() - directoryHit.at < CATALOG_MS) return directoryHit.value;
+    async function directory() { return served(directoryHit, CATALOG_MS, 'directory', loadDirectory); }
+    async function loadDirectory() {
         try {
             const body = await get('/api/v1/exchange/directory', 'model directory');
             if (!Array.isArray(body.models)) throw new Error('invalid model directory');
@@ -119,10 +150,11 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             }))];
             const value = { ...body, models, count: models.length };
             directoryHit = { at: now(), value };
+            keep();
             return value;
         } catch (err) {
             warned('model directory', err);
-            if (directoryHit.value && now() - directoryHit.at < 5 * 60_000) return { ...directoryHit.value, stale: true };
+            if (directoryHit.value) return { ...directoryHit.value, stale: true };
             return { unavailable: true, models: [] };
         }
     }
@@ -136,17 +168,18 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
 
     /** AI's search engines (GET /api/v1/exchange/search/engines, public): ids, kinds, prices, availability. */
-    let enginesHit = { at: 0, value: null };
-    async function searchEngines() {
-        if (enginesHit.value && now() - enginesHit.at < CATALOG_MS) return enginesHit.value;
+    // Kept as { engines } (served() marks a stale value by spreading it, which an array would not survive).
+    async function searchEngines() { const v = await served(enginesHit, CATALOG_MS, 'engines', loadEngines); return v && Array.isArray(v.engines) ? v.engines : []; }
+    async function loadEngines() {
         try {
             const body = await get('/api/v1/exchange/search/engines', 'search engines');
-            const value = Array.isArray(body.engines) ? body.engines : [];
+            const value = { engines: Array.isArray(body.engines) ? body.engines : [] };
             enginesHit = { at: now(), value };
+            keep();
             return value;
         } catch (err) {
             warned('search engines', err);
-            return enginesHit.value || [];
+            return enginesHit.value || { engines: [] };
         }
     }
 
@@ -157,6 +190,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
                 const body = await get(`/api/v1/exchange/usage?days=${encodeURIComponent(days)}`, 'usage');
                 usageHit.set(key, { at: now(), value: body });
                 if (usageHit.size > 8) usageHit.delete(usageHit.keys().next().value);
+                keep();
                 return body;
             } catch (err) {
                 warned('usage', err);
@@ -171,16 +205,17 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
      * The live community offers, as AI lets anyone read them: a pool's `pool` names its members only by stable
      * pseudonym and its count, so the public card shows "Community pool (N machines)" and never a machine.
      */
-    async function communityOffers() {
-        if (communityHit.value && now() - communityHit.at < COMMUNITY_MS) return communityHit.value;
+    async function communityOffers() { return served(communityHit, COMMUNITY_MS, 'community', loadCommunity); }
+    async function loadCommunity() {
         try {
             const body = await get('/api/v1/community/offers', 'community offers');
             const value = { generated_at: body.generated_at || new Date(now()).toISOString(), offers: Array.isArray(body.offers) ? body.offers : [] };
             communityHit = { at: now(), value };
+            keep();
             return value;
         } catch (err) {
             warned('community offers', err);
-            if (communityHit.value && now() - communityHit.at < 5 * 60_000) return { ...communityHit.value, stale: true };
+            if (communityHit.value) return { ...communityHit.value, stale: true };
             return { generated_at: new Date(now()).toISOString(), unavailable: true, offers: [] };
         }
     }
