@@ -835,3 +835,10 @@ label.dd-depth input:focus-visible { outline: 2px solid var(--accent); outline-o
     .cd-tab { min-height: 36px; padding: 0 11px; font-size: .82rem; }
     .cd-chip { min-height: 28px; font-size: .75rem; }
 }
+
+/* 11-15: a search or a deep dive at work says so under its form (public/js/exchange.js). */
+.ex-working { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--text-secondary, #a8b3c4); font-size: 14px; }
+.ex-working::before { content: ''; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--accent, #3b82f6); animation: ex-working 1.2s ease-in-out infinite; }
+form[aria-busy="true"] button[type=submit] { cursor: progress; }
+@keyframes ex-working { 50% { opacity: .35; transform: scale(.8); } }
+html[data-ov-motion="off"] .ex-working::before { animation: none; }

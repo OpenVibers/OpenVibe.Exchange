@@ -44,13 +44,14 @@ function why(err) {
     if (status === 429) return 'Too many searches this minute, or the key cap cannot cover this search. Try again shortly.';
     if (status === 422) return (err && err.message) || 'This engine does not take this kind of search or cannot honour a filter.';
     if (status === 503) return (err && err.message) || 'No configured engine serves this search within its price and freshness limits.';
+    if (err && (err.name === 'TimeoutError' || err.name === 'AbortError')) return 'This engine took too long, so it was stopped. Try again, or choose another engine.';
     return 'This engine did not answer. Try again, or choose another engine.';
 }
 /**
  * Runs a single search once, or an explicit comparison sequentially against one combined cap. Sequential
  * calls are deliberate: the remaining cap is passed to each call, so the total can never exceed it.
  */
-async function runSearch({ ai, token, body, kind, engines = [] }) {
+async function runSearch({ ai, token, body, kind, engines = [], timeoutMs = null }) {
     const chosen = selectedEngines(body, engines, kind);
     const cap = capOf(body.max_cost_usd);
     const filters = filterBody(body, kind);
@@ -70,7 +71,7 @@ async function runSearch({ ai, token, body, kind, engines = [] }) {
         const payload = { q: one(body.q, 500), engine, limit: 6, ...filters };
         if (remaining != null) payload.max_cost_usd = remaining;
         try {
-            const out = await ai.meRequest(token, '/v1/search' + (kind === 'web' ? '' : '/' + kind), { method: 'POST', body: payload });
+            const out = await ai.meRequest(token, '/v1/search' + (kind === 'web' ? '' : '/' + kind), { method: 'POST', body: payload, ...(timeoutMs ? { timeoutMs } : {}) });
             const actual = out.receipt?.engine || engine;
             results.push({ engine, meta: engines.find((e) => e.id === actual) || engines.find((e) => e.id === engine) || null, ...out });
             spent = Math.round((spent + (Number(out.receipt?.cost_usd) || 0)) * 1e6) / 1e6;
@@ -110,7 +111,7 @@ function createSearchRoutes({ config, ai }) {
         if (!sameOrigin(req, config.baseUrl)) return res.sendStatus(403);
         const kind = ['web', 'images', 'icons'].includes(req.body.kind) ? req.body.kind : 'web';
         const body = req.body || {};
-        const out = await runSearch({ ai, token: req.viewer.token, body, kind, engines: await ai.searchEngines() });
+        const out = await runSearch({ ai, token: req.viewer.token, body, kind, engines: await ai.searchEngines(), timeoutMs: config.ai.searchTimeoutMs });
         await render(req, res, out.results, {
             q: one(body.q, 500), kind, mode: out.mode,
             engine: one(body.engine), first: one(body.first), second: one(body.second), third: one(body.third),

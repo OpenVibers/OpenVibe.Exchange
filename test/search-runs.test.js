@@ -8,8 +8,8 @@ const engines = [card('openvibe'), card('deepseek'), card('brave'), card('openve
 (async () => {
     const calls = [];
     const ai = {
-        async meRequest(_token, path, { body }) {
-            calls.push({ path, body });
+        async meRequest(_token, path, { body, timeoutMs }) {
+            calls.push({ path, body, timeoutMs });
             const engine = body.engine === 'auto' ? 'openvibe' : body.engine;
             return { results: [], receipt: { engine, cost_usd: body.engine === 'brave' ? 0.002 : 0.003, time_ms: 1 } };
         },
@@ -21,6 +21,15 @@ const engines = [card('openvibe'), card('deepseek'), card('brave'), card('openve
     assert.equal(calls.length, 1);
     assert.equal(calls[0].body.engine, 'auto');
     assert.equal(out.spent, 0.003);
+    assert.equal(calls[0].timeoutMs, undefined, 'no limit given: the default one');
+    // 11-15: the route's search limit reaches each engine's call (a slow engine costs seconds, not half a minute).
+    calls.length = 0;
+    await runSearch({ ai, token: 't', body: { q: 'x' }, kind: 'web', engines, timeoutMs: 15000 });
+    assert.equal(calls[0].timeoutMs, 15000);
+    // A call that timed out says so in plain words.
+    const slow = { async meRequest() { throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }); } };
+    const timedOut = await runSearch({ ai: slow, token: 't', body: { q: 'x' }, kind: 'web', engines, timeoutMs: 15000 });
+    assert.match(timedOut.results[0].error, /took too long/);
 
     // An explicit engine is still one call.
     calls.length = 0;

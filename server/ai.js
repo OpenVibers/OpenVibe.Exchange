@@ -477,13 +477,13 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
 
     /** The person's own AI credentials: pass only their signed Network session, never the Exchange service token. */
-    async function meRequest(token, path, { method = 'GET', body = undefined } = {}) {
+    async function meRequest(token, path, { method = 'GET', body = undefined, timeoutMs = null } = {}) {
         if (!token && path !== '/api/v1/tasks' && !path.startsWith('/api/v1/choices?')) throw Object.assign(new Error('Sign in is required'), { status: 401 });
         const headers = { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), Origin: config.baseUrl };
         if (body !== undefined) headers['Content-Type'] = 'application/json';
         const res = await fetchImpl(`${config.ai.url}${path}`, {
             method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-            signal: AbortSignal.timeout(config.ai.timeoutMs),
+            signal: AbortSignal.timeout(Number(timeoutMs) > 0 ? Number(timeoutMs) : config.ai.timeoutMs),
         });
         const out = await jsonOf(res);
         if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
