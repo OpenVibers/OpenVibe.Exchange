@@ -42,18 +42,19 @@ const REPORT = {
         // Signed out: the page explains and asks for sign-in, and still names the price of every depth.
         let r = await t.get('/deep-dive');
         assert.strictEqual(r.status, 200);
+        // 11-15: /deep-dive is the general deep dive (any question); a design run started earlier is still read below.
         assert.match(r.text, /Deep dive/);
-        assert.match(r.text, /Expert design research/);
+        assert.match(r.text, /Any question, researched like an expert would/);
         assert.match(r.text, /Sign in to run a deep dive/);
-        assert.match(r.text, /\$0\.20/);
-        assert.match(r.text, /Search every way we have/);
+        assert.match(r.text, /\$0\.10/);
+        assert.match(r.text, /Searches every way we have/);
 
         // Signed in: the field, the depths and their prices.
         r = await t.get('/deep-dive', { as: USER });
         assert.strictEqual(r.status, 200);
-        assert.match(r.text, /What are you designing\?/);
+        assert.match(r.text, /What do you want to know\?/);
         assert.match(r.text, /name="depth" value="quick" checked/);
-        assert.match(r.text, /\$0\.50/);
+        assert.match(r.text, /\$0\.30/);
         assert.match(r.text, /Start the deep dive/);
 
         // Start: AI is called for the person and the page redirects to the run.
@@ -63,6 +64,9 @@ const REPORT = {
         const row = ai.deepDives.get(ID);
         assert.strictEqual(row.question, 'a phone-first robot control panel');
         assert.strictEqual(row.owner.id, USER.subject);
+        assert.deepStrictEqual(ai.deepDiveCalls[ai.deepDiveCalls.length - 1].create.kind, 'research', 'Exchange starts the general kind');
+        // The rest of this test reads a design run (the kind Exchange started before 11-15): its views are kept.
+        row.kind = 'design';
 
         // A running run: the six step names, the progress and Cancel.
         row.status = 'running'; row.step = 'capture'; row.progress = 0.5;

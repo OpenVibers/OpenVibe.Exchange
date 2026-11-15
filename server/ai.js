@@ -426,15 +426,18 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
      * answer (GET /api/v1/deep-dives/depths), never a number copied into this site; the shot bytes come back
      * through AI because the screenshots are private to the run's owner.
      */
-    let depthsHit = { at: 0, value: null };
-    async function deepDiveDepths() {
-        if (depthsHit.value && now() - depthsHit.at < CATALOG_MS) return depthsHit.value;
+    // Per kind: research (the general deep dive, pages read) and design (sites captured, OpenVibe.Design's).
+    const depthsHit = { research: { at: 0, value: null }, design: { at: 0, value: null } };
+    async function deepDiveDepths(kind = 'research') {
+        const k = kind === 'design' ? 'design' : 'research';
+        const hit = depthsHit[k];
+        if (hit.value && now() - hit.at < CATALOG_MS) return hit.value;
         try {
-            const body = await get('/api/v1/deep-dives/depths');
-            const value = { depths: Array.isArray(body.depths) ? body.depths : [], capture: body.capture || null };
-            depthsHit = { at: now(), value };
+            const body = await get(`/api/v1/deep-dives/depths${k === 'research' ? '?kind=research' : ''}`);
+            const value = { kind: body.kind || k, depths: Array.isArray(body.depths) ? body.depths : [], capture: body.capture || null };
+            depthsHit[k] = { at: now(), value };
             return value;
-        } catch (err) { warned('deep dive depths', err); return depthsHit.value || { depths: [], unavailable: true }; }
+        } catch (err) { warned('deep dive depths', err); return hit.value || { depths: [], unavailable: true }; }
     }
     async function deepDiveCall(method, path, { body = undefined } = {}) {
         if (!tokens) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
@@ -454,13 +457,18 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
         return out || {};
     }
-    async function deepDiveCreate({ question, depth, sites = [], subject }) {
+    async function deepDiveCreate({ question, depth, sites = [], subject, kind = 'research' }) {
         return deepDiveCall('POST', '/api/v1/deep-dives', { body: {
-            question, depth, ...(sites.length ? { sites } : {}),
+            question, depth, kind: kind === 'design' ? 'design' : 'research', ...(sites.length ? { sites } : {}),
             ...(subject ? { on_behalf_of: { type: 'user', id: subject } } : {}),
         } });
     }
     async function deepDiveGet(id) { return deepDiveCall('GET', `/api/v1/deep-dives/${encodeURIComponent(id)}`); }
+    /** The person's own deep dives (both kinds), newest first: AI lists the caller's (Exchange's), filtered to them here. */
+    async function deepDiveList(subject, { limit = 20 } = {}) {
+        const out = await deepDiveCall('GET', `/api/v1/deep-dives?limit=100`);
+        return (out.deep_dives || []).filter((d) => d.owner && d.owner.type === 'user' && d.owner.id === subject).slice(0, limit);
+    }
     async function deepDiveState(id) { return deepDiveCall('GET', `/api/v1/deep-dives/${encodeURIComponent(id)}/state`); }
     async function deepDiveSites(id, { add = [], drop = [], start = false } = {}) {
         return deepDiveCall('POST', `/api/v1/deep-dives/${encodeURIComponent(id)}/sites`, { body: { ...(add.length ? { add } : {}), ...(drop.length ? { drop } : {}), ...(start ? { start: true } : {}) } });
@@ -494,7 +502,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
+    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveList, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
 }
 
 /**

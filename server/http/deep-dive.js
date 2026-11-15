@@ -10,6 +10,10 @@
  */
 const express = require('express');
 const views = require('../views/deep-dive');
+// The general deep dive (research.deep_dive, ai.research@1): what /deep-dive starts since 11-15. A design deep dive
+// started here before then is still read with the design views; new ones start on OpenVibe.Design.
+const research = require('../views/research');
+const isResearch = (row) => row && row.kind === 'research';
 const { raw } = require('../render/html');
 const { send } = require('../render/layout');
 const { sameOrigin } = require('./principal');
@@ -34,42 +38,48 @@ function createDeepDiveRoutes({ config, ai, log = console }) {
         return out.deep_dive || null;
     }
 
-    r.get('/deep-dive', async (req, res) => {
+    const home = async (req, { error = null, question = '' } = {}) => {
         let depths = [];
-        let capture = null;
-        try { const d = await ai.deepDiveDepths(); depths = d.depths || []; capture = d.capture || null; } catch (err) { log.warn('[deep-dive] depths:', String(err && err.message || err).slice(0, 160)); }
-        page(req, res, { title: 'Deep dive', description: 'Expert design research: search everywhere, capture the best sites at phone and computer sizes, and read what works and why.', body: raw(views.homePage({ viewer: req.viewer, depths, capture })) });
+        try { const d = await ai.deepDiveDepths('research'); depths = d.depths || []; } catch (err) { log.warn('[deep-dive] depths:', String(err && err.message || err).slice(0, 160)); }
+        let mine = [];
+        if (signedIn(req) && typeof ai.deepDiveList === 'function') mine = await ai.deepDiveList(req.viewer.subject).catch(() => []);
+        return raw(research.homePage({ viewer: req.viewer, depths, error, question, mine }));
+    };
+
+    r.get('/deep-dive', async (req, res) => {
+        const question = String(req.query.q || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+        page(req, res, { title: 'Deep dive', description: 'Any question, researched like an expert would: the questions planned, every search, the best pages read in full, and an answer with every source named.', body: await home(req, { question }) });
     });
 
     r.post('/deep-dive', async (req, res) => {
-        if (!signedIn(req)) return res.redirect(303, `/auth/login?next=${encodeURIComponent('/deep-dive')}`);
+        // Signed out (from a search's "Deep dive this"): sign in, then back to the form with the question kept.
+        if (!signedIn(req)) return res.redirect(303, `/auth/login?next=${encodeURIComponent(`/deep-dive${req.body.question ? `?q=${encodeURIComponent(String(req.body.question).slice(0, 500))}` : ''}`)}`);
         if (!sameOrigin(req, config.baseUrl)) return res.sendStatus(403);
         const question = String(req.body.question || '').replace(/\s+/g, ' ').trim().slice(0, 500);
         const depth = ['quick', 'thorough', 'expert'].includes(req.body.depth) ? req.body.depth : 'quick';
-        const sites = String(req.body.sites || '').split(/\r?\n/).map((s) => s.trim()).filter((s) => /^https?:\/\//i.test(s)).slice(0, 30);
-        if (!question) {
-            const d = await ai.deepDiveDepths().catch(() => ({ depths: [] }));
-            return page(req, res, { title: 'Deep dive', index: false, body: raw(views.homePage({ viewer: req.viewer, depths: d.depths, error: 'Say what you are designing first.' })) }, 422);
-        }
+        if (!question) return page(req, res, { title: 'Deep dive', index: false, body: await home(req, { error: 'Say what you want to know first.' }) }, 422);
         try {
-            const out = await ai.deepDiveCreate({ question, depth, sites, subject: req.viewer.subject });
+            const out = await ai.deepDiveCreate({ question, depth, subject: req.viewer.subject, kind: 'research' });
             const id = out.deep_dive && out.deep_dive.id;
             if (!id) throw Object.assign(new Error('AI did not return a deep dive id'), { status: 502 });
             return res.redirect(303, `/deep-dive/${encodeURIComponent(id)}`);
         } catch (err) {
-            const d = await ai.deepDiveDepths().catch(() => ({ depths: [] }));
             const status = err.status === 402 ? 402 : err.status === 422 ? 422 : 502;
-            return page(req, res, { title: 'Deep dive', index: false, body: raw(views.homePage({ viewer: req.viewer, depths: d.depths, error: errorOf(err) })) }, status);
+            return page(req, res, { title: 'Deep dive', index: false, body: await home(req, { error: errorOf(err), question }) }, status);
         }
     });
 
     r.get('/deep-dive/:id', async (req, res) => {
-        if (!signedIn(req)) return page(req, res, { title: 'Deep dive', body: raw(views.homePage({ viewer: null, depths: [], error: null })) }, 401);
+        if (!signedIn(req)) return page(req, res, { title: 'Deep dive', body: await home(req) }, 401);
         try {
             const out = await ai.deepDiveGet(req.params.id);
             const row = out.deep_dive;
             if (!row) throw Object.assign(new Error('No such deep dive'), { status: 404 });
             const title = row.question || 'Deep dive';
+            if (isResearch(row)) {
+                if (row.status === 'succeeded' && row.report) return page(req, res, { title, description: 'A deep dive: the answer, with every page it read and what each said.', body: raw(research.reportPage({ row, id: row.id })) });
+                return page(req, res, { title, index: false, body: raw(research.runPage({ row, id: row.id })) });
+            }
             if (row.status === 'succeeded' && row.report) return page(req, res, { title, description: 'A deep dive report with its sources, captures, synthesis and receipts.', body: raw(views.reportPage({ viewer: req.viewer, row, id: row.id })) });
             return page(req, res, { title, index: false, body: raw(views.runPage({ viewer: req.viewer, row, id: row.id })) });
         } catch (err) {
@@ -130,7 +140,7 @@ function createDeepDiveRoutes({ config, ai, log = console }) {
             const report = out.deep_dive && out.deep_dive.report;
             if (!report) return res.status(409).send('The deep dive has not written its report yet.');
             res.set({ 'Content-Type': 'text/markdown; charset=utf-8', 'Content-Disposition': `attachment; filename="deep-dive-${req.params.id}.md"`, 'Cache-Control': 'private, no-store' });
-            res.send(views.exportMarkdown(report));
+            res.send(report.schema === 'ai.research@1' ? research.exportMarkdown(report) : views.exportMarkdown(report));
         } catch (err) { res.status(err.status === 404 ? 404 : 502).send(errorOf(err)); }
     });
 

@@ -93,20 +93,27 @@ function createFakeAi({ chat = null, community = [] } = {}) {
                 { id: 'iconify', kinds: ['icons'], price_per_1000: 0, byok: false, available: true, healthy: true },
             ];
         },
-        // Deep dives (AI workflow design.deep_dive): a small in-memory run the page tests drive.
-        async deepDiveDepths() {
+        // Deep dives (AI workflows research.deep_dive and design.deep_dive): a small in-memory run the page tests drive.
+        async deepDiveDepths(kind = 'research') {
+            if (kind === 'research') return { kind: 'research', depths: [
+                { key: 'quick', label: 'Quick', pages: 8, price_usd: 0.1, minutes: 1, analysis: 'reads the 8 best pages and answers with their sources' },
+                { key: 'thorough', label: 'Thorough', pages: 16, price_usd: 0.3, minutes: 3, analysis: 'reads 16 pages from more searches' },
+                { key: 'expert', label: 'Expert', pages: 30, price_usd: 0.8, minutes: 6, analysis: 'reads 30 pages, every angle the plan finds' },
+            ] };
             return { depths: [
                 { key: 'quick', label: 'Quick', sites: 6, price_usd: 0.2, minutes: 3, analysis: 'captures and reads each site' },
                 { key: 'thorough', label: 'Thorough', sites: 15, price_usd: 0.5, minutes: 8, analysis: 'more sites' },
                 { key: 'expert', label: 'Expert', sites: 30, price_usd: 1.2, minutes: 18, analysis: 'plus interactions, accessibility and speed' },
             ], capture: { enabled: true } };
         },
-        async deepDiveCreate({ question, depth, sites = [], subject }) {
-            deepDives.set('run_TEST', { id: 'run_TEST', run_id: 'run_TEST', question, depth, price_usd: 0.2, status: 'running', step: 'plan', progress: 0.03, steps: [], candidates: [], captures: [], report: null, error: null, owner: { type: 'user', id: subject || 'usr_TEST' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        async deepDiveCreate({ question, depth, sites = [], subject, kind = 'research' }) {
+            deepDiveCalls.push({ create: { question, depth, sites, kind } });
+            deepDives.set('run_TEST', { id: 'run_TEST', run_id: 'run_TEST', kind, question, depth, price_usd: kind === 'research' ? 0.1 : 0.2, status: 'running', step: 'plan', progress: 0.03, steps: [], plan: null, reads: [], candidates: [], captures: [], report: null, error: null, owner: { type: 'user', id: subject || 'usr_TEST' }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
             return { deep_dive: deepDives.get('run_TEST') };
         },
         async deepDiveGet(id) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); return { deep_dive: row }; },
-        async deepDiveState(id) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); return { deep_dive: { id: row.id, status: row.status, step: row.step, progress: row.progress, steps: row.steps, candidates: row.candidates, captures: row.captures, error: row.error } }; },
+        async deepDiveState(id) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); return { deep_dive: { id: row.id, kind: row.kind, status: row.status, step: row.step, progress: row.progress, steps: row.steps, plan: row.plan, reads: row.reads, candidates: row.candidates, captures: row.captures, error: row.error } }; },
+        async deepDiveList(subject) { return [...deepDives.values()].filter((d) => d.owner && d.owner.id === subject); },
         async deepDiveSites(id, body) { const row = deepDives.get(id); if (!row) throw Object.assign(new Error('not found'), { status: 404 }); deepDiveCalls.push({ id, body }); row.candidates = row.candidates.filter((c) => !(body.drop || []).includes(c.url)); for (const url of body.add || []) row.candidates.push({ id: 'site_x', url, title: url, reason: 'added' }); row.status = 'running'; return { deep_dive: row }; },
         async deepDiveCancel(id) { const row = deepDives.get(id); if (row) { row.status = 'cancelled'; } deepDiveCalls.push({ id, cancel: true }); return { deep_dive: row }; },
         async deepDiveShot() { return { buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'), contentType: 'image/png' }; },
