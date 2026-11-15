@@ -241,14 +241,17 @@
         f.setAttribute('aria-busy', 'true');
         const btn = e.submitter || f.querySelector('button[type=submit], button:not([type])');
         if (btn && window.OVMark && typeof window.OVMark.busy === 'function') { try { window.OVMark.busy(btn); } catch { /* the line below says it */ } }
-        let note = f.querySelector(':scope > .ex-working');
-        if (!note) { note = document.createElement('p'); note.className = 'ex-working'; note.setAttribute('role', 'status'); f.append(note); }
+        // A form may name where its line goes (data-working-in): /search's bar rides at the top, the form folds below.
+        const slot = (f.dataset.workingIn && document.querySelector(f.dataset.workingIn)) || f;
+        let note = slot.querySelector(':scope > .ex-working');
+        if (!note) { note = document.createElement('p'); note.className = 'ex-working'; note.setAttribute('role', 'status'); slot.append(note); }
         note.textContent = how[1];
         setTimeout(() => { if (f.isConnected && f.dataset.sending === '1') note.textContent = how[2]; }, 6000);
     }, true);
     // Back from the browser's cache, a form is ready again.
     window.addEventListener('pageshow', () => document.querySelectorAll('form[data-sending]').forEach((f) => {
         delete f.dataset.sending; f.removeAttribute('aria-busy');
-        const n = f.querySelector(':scope > .ex-working'); if (n) n.remove();
+        const slot = (f.dataset.workingIn && document.querySelector(f.dataset.workingIn)) || f;
+        const n = slot.querySelector(':scope > .ex-working'); if (n) n.remove();
     }));
 })();
