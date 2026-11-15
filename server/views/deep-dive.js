@@ -16,6 +16,8 @@ const { esc, raw } = require('../render/html');
 
 const STEP_LABELS = { plan: 'Planning', search: 'Searching', choose: 'Choosing sites', capture: 'Capturing', analyse: 'Analysing', synthesise: 'Writing it up', report: 'Writing it up' };
 const STEP_NOTES = { plan: 'The questions an expert would ask, and the searches that answer them.', search: 'MegaSource, the search engines, GitHub repositories through Exchange\'s Code search, and our own rules and components.', choose: 'The sites worth capturing, with a reason each. Add or drop any before Capture.', capture: 'Each site at 390 and 1280 px, light and dark where it supports dark, full page after a slow scroll.', analyse: 'A vision model reads each screenshot; a text model reads the DOM facts and the words.', synthesise: 'Patterns across sites, the gap, reference tokens, and recommendations checked against our rules.', report: 'The report, its evidence and the receipt.' };
+// A value inside an inline script: JSON, with < escaped so no value can close the script element.
+const jsLit = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const price = (n) => `$${Number(n || 0).toFixed(2)}`;
 const when = (iso) => { if (!iso) return '—'; try { return new Date(iso).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; } catch { return String(iso); } };
 const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return String(u || ''); } };
@@ -188,14 +190,25 @@ function runPage({ viewer, row, id }) {
     const title = row.question || 'Deep dive';
     const live = ['queued', 'running', 'choosing'].includes(row.status);
     const head = kit.head({ title, sub: `${row.depth} deep dive · ${price(row.price_usd)} held · started ${when(row.created_at)}`, back: { href: '/deep-dive', label: 'Deep dive' } });
-    const body = `<section class="dd-live"><div class="dd-live-head"><span class="ovk-badge">${esc(row.status)}</span>${row.step ? `<span class="ovk-note">${esc(STEP_LABELS[row.step] || row.step)}</span>` : ''}<span class="ovk-note" data-progress-text>${pct(row.progress)}%</span></div>`
+    // The time it has been running ticks every second, so a long step never looks frozen (11-15).
+    const since = row.started_at || row.created_at;
+    const body = `<section class="dd-live"><div class="dd-live-head"><span class="ovk-badge">${esc(row.status)}</span>${row.step ? `<span class="ovk-note">${esc(STEP_LABELS[row.step] || row.step)}</span>` : ''}<span class="ovk-note" data-progress-text>${pct(row.progress)}%</span>${live && since ? `<span class="ovk-note" data-dd-elapsed="${esc(String(since))}"></span>` : ''}</div>`
         + progressBar(row.progress) + stepList(row.steps, row.step)
         + (row.status === 'choosing' ? choosing(row, id) : `<p class="ovk-note">${esc((row.steps || []).find((s) => s.key === row.step)?.detail || '')}</p>`)
         + (row.error ? `<p class="dd-error" role="alert">${esc(row.error.detail || row.error.code)}</p>` : '')
         + (live ? `<form method="post" action="/deep-dive/${encodeURIComponent(id)}/cancel" class="dd-cancel">${kit.button({ label: 'Cancel the deep dive', type: 'submit', kind: 'danger' })}<span class="ovk-note">Cancelling stops the next model call and the next capture.</span></form>` : '')
         + (row.status === 'failed' || row.status === 'cancelled' ? `<p>${kit.button({ href: '/deep-dive', label: 'Start a new deep dive' })}</p>` : '')
         + `</section>`;
-    const poll = live ? `<script>(function(){var id=${JSON.stringify(id)};var status=${JSON.stringify(row.status)};var ticks=0;var t=setInterval(function(){ticks++;if(ticks>900){clearInterval(t);return;}fetch('/deep-dive/'+encodeURIComponent(id)+'/state',{headers:{Accept:'application/json'}}).then(function(r){if(!r.ok)return null;return r.json();}).then(function(j){if(!j||!j.deep_dive)return;var d=j.deep_dive;if(d.status!==status){location.reload();return;}var bar=document.querySelector('[role=progressbar]');if(bar){bar.setAttribute('aria-valuenow',Math.round((d.progress||0)*100));var fill=bar.firstElementChild;if(fill)fill.style.width=Math.round((d.progress||0)*100)+'%';}var txt=document.querySelector('[data-progress-text]');if(txt)txt.textContent=Math.round((d.progress||0)*100)+'%';}).catch(function(){});},2500);})();</script>` : '';
+    // The poll: a new step or status redraws the page (the step list and its note come from the server); one read at a
+    // time, each given up after 8 s, so a slow AI never stacks requests; it stops after an hour.
+    const poll = live ? `<script>(function(){var id=${jsLit(id)};var status=${jsLit(row.status)};var step=${jsLit(row.step || '')};var ticks=0,busy=false;`
+        + `var el=document.querySelector('[data-dd-elapsed]');var t0=el?Date.parse(el.getAttribute('data-dd-elapsed')):NaN;`
+        + `function clock(){if(!el||isNaN(t0))return;var s=Math.max(0,Math.floor((Date.now()-t0)/1000));el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+' so far';}clock();var c=setInterval(clock,1000);`
+        + `var t=setInterval(function(){ticks++;if(ticks>1440){clearInterval(t);clearInterval(c);return;}if(busy||document.hidden)return;busy=true;`
+        + `var ctl=typeof AbortController==='function'?new AbortController():null;var stop=ctl?setTimeout(function(){ctl.abort();},8000):0;`
+        + `fetch('/deep-dive/'+encodeURIComponent(id)+'/state',{headers:{Accept:'application/json'},signal:ctl?ctl.signal:undefined}).then(function(r){if(!r.ok)return null;return r.json();}).then(function(j){if(!j||!j.deep_dive)return;var d=j.deep_dive;`
+        + `if(d.status!==status||(d.step||'')!==step){location.reload();return;}var p=Math.round((d.progress||0)*100);var bar=document.querySelector('[role=progressbar]');if(bar){bar.setAttribute('aria-valuenow',p);var fill=bar.firstElementChild;if(fill)fill.style.width=p+'%';}var txt=document.querySelector('[data-progress-text]');if(txt)txt.textContent=p+'%';})`
+        + `.catch(function(){}).then(function(){busy=false;clearTimeout(stop);});},2500);})();</script>` : '';
     return `<div class="ex-wrap dd">${head}${body}${poll}</div>`;
 }
 
