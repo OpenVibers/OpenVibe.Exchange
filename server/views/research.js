@@ -77,7 +77,8 @@ function homePage({ viewer, depths = [], error = null, question = '', mine = [] 
         : kit.empty({ icon: 'person', title: 'Sign in to run a deep dive', text: 'A deep dive spends your allowance, so it needs your account. What it does is below.', action: { href: `/auth/login?next=${encodeURIComponent('/deep-dive')}`, label: 'Sign in with OpenVibe' } })
             + `<section class="ovk-section"><h2>The depths and their prices</h2><ul class="dd-depth-row dd-depth-list">${depthsOf(depths).map((d) => `<li class="dd-depth">${depthBody(d)}</li>`).join('')}</ul></section>`;
     const recent = signedIn && mine.length ? kit.section({ title: 'Your deep dives', count: mine.length, body: `<ul class="dd-mine">${mine.slice(0, 12).map((d) => `<li><a href="/deep-dive/${encodeURIComponent(d.id)}">${esc(d.question || 'Deep dive')}</a><span class="ovk-note">${esc(d.kind === 'design' ? 'design' : d.depth || '')} · ${esc(d.status)} · ${esc(when(d.created_at))}</span></li>`).join('')}</ul>` }) : '';
-    return `<div class="ex-wrap dd">${kit.head({ title: 'Deep dive', sub: 'Any question, researched like an expert would: we plan the questions, search everywhere, read the best pages in full, and answer with every source named.' })}${form}${recent}${whatItDoes()}</div>`;
+    // Code and tools: a deep dive about software cites repositories (GitHub, through Code's rankings and search).
+    return `<div class="ex-wrap dd">${kit.head({ title: 'Deep dive', sub: 'Any question, researched like an expert would: we plan the questions, search everywhere, read the best pages in full, and answer with every source named.' })}${form}${recent}${whatItDoes()}${require('./deep-dive').codeSources()}</div>`;
 }
 
 /** The pages read, numbered in the order the answer cites them. */
