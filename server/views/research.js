@@ -67,7 +67,7 @@ ${step('book', 'Reads the best pages in full.', 'Not snippets: each chosen page 
 ${step('check', 'Takes notes on each page.', 'What it says about each question, short exact quotes, and what kind of source it is (primary, reference, news, analysis, vendor, forum).')}
 ${step('eye', 'Answers with its sources.', 'A summary, the key points, an answer to each question with its confidence, a comparison when you compare, where the sources disagree, what is still open and what to do next. Every claim names the pages it rests on.')}
 </ol>
-<p class="ovk-note">Designing something? <a href="https://openvibe.design/create">OpenVibe.Design's design deep dive</a> builds on this one: it also photographs the best sites at phone and computer sizes and reads them as a designer.</p>` });
+<p class="ovk-note">Designing something? <a href="https://openvibe.design/deep-dive">OpenVibe.Design's design deep dive</a> builds on this one: it also photographs the best sites at phone and computer sizes and reads them as a designer.</p>` });
 }
 
 function homePage({ viewer, depths = [], error = null, question = '', mine = [] }) {

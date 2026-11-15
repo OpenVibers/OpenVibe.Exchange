@@ -80,8 +80,11 @@ function createDeepDiveRoutes({ config, ai, log = console }) {
                 if (row.status === 'succeeded' && row.report) return page(req, res, { title, description: 'A deep dive: the answer, with every page it read and what each said.', body: raw(research.reportPage({ row, id: row.id })) });
                 return page(req, res, { title, index: false, body: raw(research.runPage({ row, id: row.id })) });
             }
-            if (row.status === 'succeeded' && row.report) return page(req, res, { title, description: 'A deep dive report with its sources, captures, synthesis and receipts.', body: raw(views.reportPage({ viewer: req.viewer, row, id: row.id })) });
-            return page(req, res, { title, index: false, body: raw(views.runPage({ viewer: req.viewer, row, id: row.id })) });
+            // A design deep dive (sites captured): its views are kept here for the runs started before 11-15; the tool
+            // itself now lives on OpenVibe.Design, which says so first.
+            const moved = (html) => html.replace('<div class="ex-wrap dd">', '<div class="ex-wrap dd"><p class="dd-moved">Design deep dives now live on OpenVibe.Design. <a href="https://openvibe.design/deep-dive">Start your next one there</a>; this one stays readable here.</p>');
+            if (row.status === 'succeeded' && row.report) return page(req, res, { title, description: 'A deep dive report with its sources, captures, synthesis and receipts.', body: raw(moved(views.reportPage({ viewer: req.viewer, row, id: row.id }))) });
+            return page(req, res, { title, index: false, body: raw(moved(views.runPage({ viewer: req.viewer, row, id: row.id }))) });
         } catch (err) {
             const status = err.status === 404 ? 404 : 502;
             return page(req, res, { title: status === 404 ? 'Not found' : 'Deep dive', index: false, body: raw(`<div class="ex-wrap ex-narrow">${status === 404 ? require('openvibe-shared/kit').empty({ icon: 'search', title: 'No such deep dive', text: 'It may belong to another account, or the link is old.', action: { href: '/deep-dive', label: 'Deep dive' } }) : require('openvibe-shared/kit').empty({ title: 'OpenVibe.AI is unavailable', text: errorOf(err), action: { href: '/deep-dive', label: 'Try again' } })}</div>`) }, status);

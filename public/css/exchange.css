@@ -999,3 +999,4 @@ html[data-ov-motion="off"] .ddl-chip .ddl-dot, html[data-ov-motion="off"] .ddl-b
 html[data-ov-motion="off"] .rs-answer, html[data-ov-motion="off"] .rs-points li, html[data-ov-motion="off"] .rs-q p, html[data-ov-motion="off"] .rs-src:target, html[data-ov-motion="off"] .rs-live-qs li { animation: none; }
 html[data-ov-motion="off"] .rs-cite { transition: none; }
 @media (max-width: 640px) { .rs-answer { padding: 14px 14px 14px 18px; } .rs-summary { font-size: 1rem; } .rs-src { grid-template-columns: 28px minmax(0, 1fr); padding: 10px; } }
+.dd-moved { margin: 8px 0 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: .92rem; line-height: 1.5; }
