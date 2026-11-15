@@ -516,5 +516,31 @@ ${recent.length ? `<table class="ovk-table"><thead><tr><th scope="col">When</th>
 </div>`;
 }
 
-const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection, orientation: orientationSection };
-module.exports = { providersSection, modelsSection, pricebookSection, supplySection, gpuPolicySection, syncSection, orientationSection, creditPlansPanel, SECTIONS, CSS: marks.CSS };
+// ── Setup (plan §AD.9: "one API, two doors") ──
+// The control room's own state, read from AI's setup API (the one Network's /admin/ai/setup reads): every job, the
+// model it runs on, whether it is ready, this month's spend and its cap, and what each person may use free. The caps
+// and the pictures a day are saved here through the same API; keys, providers and the recommended set stay on
+// Network's setup, linked.
+const NETWORK_SETUP = 'https://openvibe.network/admin/ai/setup';
+function setupSection(data = {}) {
+    const steps = Array.isArray(data.steps) ? data.steps : [];
+    const sum = data.summary || {};
+    const free = data.free || null;
+    const now = (s) => {
+        const c = s.current || {};
+        const label = (s.recommended && s.recommended.provider === c.provider && s.recommended.model === c.model && s.recommended.label) || [c.provider, c.model].filter(Boolean).join(' / ');
+        return label || 'Not chosen yet';
+    };
+    const state = (s) => (s.ready ? '<span class="ovk-badge ovk-badge--ok">Ready</span>' : `<span class="ovk-badge">${esc(s.state === 'not_set' ? 'Needs a key' : String(s.state || 'Not ready').replace(/_/g, ' '))}</span>`);
+    const capForm = (s) => `<form method="post" action="/console/setup/caps/${encodeURIComponent(s.id)}" class="exc-inline"><label class="ovk-sr" for="cap-${esc(s.id)}">Most ${esc(s.name)} spends a month, in dollars</label><input id="cap-${esc(s.id)}" name="cap_usd" type="number" min="0" step="1" inputmode="decimal" value="${s.cap_usd == null ? '' : esc(String(s.cap_usd))}" placeholder="No cap"><button class="ovk-btn ovk-btn--quiet" type="submit">Save</button></form>`;
+    const rows = steps.map((s) => `<tr><td><b>${esc(s.name || s.id)}</b>${s.what ? `<br><small>${esc(s.what)}</small>` : ''}</td><td>${esc(now(s))}</td><td>${state(s)}</td><td>${esc(money(s.month_usd) || '$0')}</td><td>${esc(money(s.estimated_month_usd) || '$0')}</td><td>${capForm(s)}</td></tr>`).join('');
+    const pictures = free ? `<form method="post" action="/console/setup/free/pictures" class="exc-inline"><label for="free-pictures">Pictures each person may make a day</label><input id="free-pictures" name="per_day" type="number" min="0" max="1000" step="1" value="${esc(String(free.pictures_per_day == null ? '' : free.pictures_per_day))}"><button class="ovk-btn ovk-btn--primary" type="submit">Save</button>${free.pictures_set ? '' : `<small>The server's default is ${esc(String(free.pictures_default))}.</small>`}</form>`
+        : '<p class="ovk-note">OpenVibe.AI\'s next release adds the free pictures setting here.</p>';
+    return `<p class="ex-prose">${esc(String(sum.ready || 0))} of ${esc(String(sum.total || steps.length))} jobs are ready. Keys, providers and the recommended set are on <a href="${NETWORK_SETUP}">OpenVibe.Network's AI setup</a>; the same settings, one API.</p>
+<h2>Free use</h2>${pictures}
+<h2>Every job</h2>
+<table><caption>What each job runs on, this month's spend and its cap</caption><thead><tr><th>Job</th><th>Runs on</th><th>State</th><th>This month</th><th>Last 30 days</th><th>Monthly cap</th></tr></thead><tbody>${rows || '<tr><td colspan="6">OpenVibe.AI did not list its jobs.</td></tr>'}</tbody></table>`;
+}
+
+const SECTIONS = { providers: providersSection, models: modelsSection, pricebook: pricebookSection, supply: supplySection, sync: syncSection, orientation: orientationSection, setup: setupSection };
+module.exports = { providersSection, modelsSection, pricebookSection, supplySection, gpuPolicySection, syncSection, orientationSection, setupSection, creditPlansPanel, SECTIONS, CSS: marks.CSS };
