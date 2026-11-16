@@ -126,7 +126,7 @@ function createPageRoutes(ctx) {
             description: 'Every AI model, one account: live prices, speed and uptime of every offer, from the families on sale today and more as their providers join. Chat, or call one OpenAI-compatible endpoint.',
             jsonLd: homeJsonLd(config),
             head: COMPOSER_HEAD,
-            body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config, fresh })),
+            body: raw(platform.home({ catalog, usage, viewer: req.viewer, q, config, fresh, directory })),
         });
     });
 
