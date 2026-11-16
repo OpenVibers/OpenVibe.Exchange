@@ -460,7 +460,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
         const temperature = body.temperature == null || body.temperature === '' ? null : Math.max(0, Math.min(2, Number(body.temperature)));
         const strict = body.strict_privacy === true || body.strict_privacy === '1' || body.strict_privacy === 'on';
         try {
-            const out = await ai.chat({ model, messages, temperature, subject: owner(req), preset: strict ? 'private' : null });
+            const out = await ai.chat({ model, messages, temperature, subject: owner(req), clientIp: req.ip, preset: strict ? 'private' : null });
             return res.json({
                 answer: {
                     content: out.content || '(no text)', model: out.model, provider: out.provider, run_id: out.run_id,
@@ -677,7 +677,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
                 { role: 'user', content: text },
             ];
             try {
-                const out = await ai.chat({ model: modelId, messages, temperature, subject: owner(req), preset });
+                const out = await ai.chat({ model: modelId, messages, temperature, subject: owner(req), clientIp: req.ip, preset });
                 await chats.append(owner(req), chat.id, {
                     role: 'assistant', model: slug, content: out.content || '(no text)',
                     meta: {
@@ -777,7 +777,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
             return page(req, res, { index: false, title: 'Why this model', body: raw(views.whyPage({ catalog, viewer: req.viewer, problem: 'Write something to send.', text })) }, 422);
         }
         try {
-            const result = await ai.chat({ model: 'openvibe/auto', messages: [{ role: 'user', content: text }], subject: owner(req), maxTokens: 512 });
+            const result = await ai.chat({ model: 'openvibe/auto', messages: [{ role: 'user', content: text }], subject: owner(req), clientIp: req.ip, maxTokens: 512 });
             return page(req, res, {
                 index: false, title: 'Why this model',
                 description: 'One real run, with the router’s own explanation of the offer it chose.',

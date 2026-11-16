@@ -156,7 +156,7 @@ function createArenaRoutes(ctx) {
         const answer = async (candidate) => {
             const out = await ai.chat({
                 model: candidate.modelId, messages: [{ role: 'user', content: prompt }],
-                subject: owner(req), maxTokens: config.arena.maxTokens,
+                subject: owner(req), clientIp: req.ip, maxTokens: config.arena.maxTokens,
             });
             return {
                 slug: candidate.model.slug, name: candidate.model.name, family: candidate.model.family,

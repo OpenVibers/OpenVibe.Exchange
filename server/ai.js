@@ -221,7 +221,12 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     }
 
     /** One completion, as the person: the run's quota and free allowance are theirs (on_behalf_of). */
-    async function chat({ model, messages, temperature = null, maxTokens = 1024, subject, signal = null, policy = null, preset = null, max_cost_usd = null }) {
+    /**
+     * clientIp: the person's own address (req.ip behind the proxy). AI judges a person's trust tier by the network they
+     * come from, and Exchange's own server is a hosting address, so without it every person here was "new" (11-16, the
+     * gaps log). AI takes X-OV-Client-IP from a first-party service only (AI_FIRST_PARTY_SERVICES: exchange).
+     */
+    async function chat({ model, messages, temperature = null, maxTokens = 1024, subject, signal = null, policy = null, preset = null, max_cost_usd = null, clientIp = null }) {
         if (!tokens) throw Object.assign(new Error('AI is not configured for this service'), { code: 'ai.not_configured', status: 503 });
         const token = await tokens.getToken();
         const body = {
@@ -242,7 +247,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         };
         const res = await fetchImpl(`${config.ai.url}/api/v1/runs?wait=${config.ai.waitMs}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}`, ...clientIpHeader(clientIp) },
             body: JSON.stringify(body),
             signal: signal || AbortSignal.timeout(config.ai.timeoutMs),
         });
@@ -521,4 +526,11 @@ function withDisplayNames(body) {
     return { ...body, models: body.models.map((m) => (m && typeof m.name === 'string' ? { ...m, name: displayName(m.name) } : m)) };
 }
 
-module.exports = { createAi, displayName };
+/** The person's address for AI's trust tier, only when it is a well-formed IPv4 or IPv6 address (never a forwarded list). */
+function clientIpHeader(ip) {
+    const v = String(ip || '').trim().replace(/^::ffff:/, '');
+    if (!v || v.length > 45 || !/^[0-9a-fA-F:.]+$/.test(v) || v === '127.0.0.1' || v === '::1') return {};
+    return { 'X-OV-Client-IP': v };
+}
+
+module.exports = { clientIpHeader, createAi, displayName };
