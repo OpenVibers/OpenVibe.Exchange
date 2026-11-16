@@ -650,7 +650,7 @@ html[data-ov-motion="off"] .xs-out { animation: none; }
     .xh .ovk-list > li:nth-child(2) { border-top: 0; }
     .xh .ovk-list > li:nth-child(even) { border-left: 1px solid var(--ovk-line); }
 }
-@media (max-width: 420px) { .xh-code-h code { display: none; } }
+@media (max-width: 420px) { .xh-code-h code { display: none; } .xh .xh-code-h { grid-template-columns: auto minmax(0, 1fr) auto; } }
 
 /* Buttons and counts at the size of their place (the owner, 11-16: "the icons are still tiny on the buttons … the text
    isn't the right size"): the hero's 48 px buttons carry 22 px glyphs and 1rem words; a count's words are readable. */
@@ -663,3 +663,80 @@ html[data-ov-motion="off"] .xs-out { animation: none; }
 /* The search: a soft lift on focus, in the theme's accent. */
 .xh #home-model-search { transition: box-shadow var(--ov-dur-2, .2s) var(--ov-ease-out, ease), border-color var(--ov-dur-2, .2s) var(--ov-ease-out, ease); }
 .xh #home-model-search:focus-within { border-color: color-mix(in srgb, var(--ovk-accent) 60%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovk-accent) 16%, transparent), 0 14px 32px -18px color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
+
+/* Round two (the owner, 11-16: the copy button "off", the search button "improve", the counts "compact … add icons … improve",
+   icons offset "fix this forever"). Every icon sits in a grid cell of its own size and is centred by place-items, never by
+   padding or a nudge. */
+.xh .xh-code-h { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px; min-height: 52px; padding: 0 6px 0 12px; }
+.xh .xh-code-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xh .xh-code-h code { margin: 0; max-width: none; }
+.xh .xh-copy { display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid transparent; border-radius: 12px; background: none; color: var(--ovk-muted); cursor: pointer; transition: background var(--ov-dur-2, .2s), color var(--ov-dur-2, .2s), transform var(--ov-dur-1, .12s); }
+.xh .xh-copy[hidden] { display: none; }
+.xh .xh-copy svg { display: block; width: 20px; height: 20px; }
+.xh .xh-copy:hover { color: var(--ovk-text); background: var(--ovk-panel-2, rgba(148, 163, 184, .12)); }
+.xh .xh-copy:active { transform: scale(.92); }
+.xh .xh-copy.is-done { color: var(--ovk-ok-text, #22c55e); }
+.xh .xh-code .ovk-snip > .ovk-icon-btn { display: none !important; }
+.xh .xh-code-ic { flex: none; }
+.xh .xh-code-ic svg { display: block; }
+/* The search button: the accent, a magnifier, centred; never the grey of a disabled send. */
+.xh #home-model-search .ovt-send { position: relative; background: var(--ovk-accent); color: var(--ovk-on-fill, #fff); opacity: 1; }
+.xh #home-model-search .ovt-send:disabled { opacity: 1; filter: saturate(.85); }
+.xh #home-model-search .ovt-send .ovt-ic { display: none; }
+.xh #home-model-search .ovt-send::before { content: ""; width: 20px; height: 20px; background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/svg%3E") center / contain no-repeat; }
+.xh #home-model-search .ovt-send:hover { filter: brightness(1.08); }
+.xh #home-model-search .ovt-send:active { transform: scale(.94); }
+.xh #home-model-search .ovt-c-row { display: flex; align-items: center; }
+/* The counts: compact tiles, a mark and the number with its words beside it. */
+.xh-stats { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.xh-stats > li { min-width: 0; max-width: none; }
+.xh-stats a, .xh-stats li > span { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 60px; padding: 8px 12px 8px 10px; border: 1px solid var(--ovk-line); border-radius: 14px; background: var(--ovk-panel); color: var(--ovk-text); text-decoration: none; transition: border-color var(--ov-dur-2, .2s), transform var(--ov-dur-2, .2s); }
+.xh-stats a:hover { border-color: var(--ovk-accent); transform: translateY(calc(-1px * var(--ov-move, 1))); }
+.xh-st-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: var(--ovk-accent); background: color-mix(in srgb, var(--ovk-accent) 14%, transparent); }
+.xh-st-ic svg { display: block; width: 22px; height: 22px; }
+.xh-st-t { display: grid; min-width: 0; line-height: 1.15; }
+.xh-st-t b { font-size: 1.25rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.xh-st-t small { color: var(--ovk-muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 1000px) { .xh-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* New this week: a mark per row (spark on sale, eye when only spotted), the day at the end. */
+.xh-new-ic { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 12px; color: var(--ovk-accent); background: color-mix(in srgb, var(--ovk-accent) 14%, transparent); }
+.xh-new-ic.is-spotted { color: var(--ovk-muted); background: var(--ovk-panel-2, rgba(148, 163, 184, .12)); }
+.xh-new-ic svg { display: block; width: 22px; height: 22px; }
+/* Icons in the model rows' round buttons: centred in their own box. */
+.xh .xm-acts .ovk-btn { display: inline-grid; place-items: center; }
+.xh .xm-acts .ovk-btn .ovk-i { display: block; }
+
+/* The questions as folds that move (the owner, 11-16: "improve background … anim … effects"; openvibe.design Folds): the
+   panel is quiet shut and lit open (an accent edge and a soft wash), the summary answers the hover, the chevron turns with
+   a little spring, and the answer opens to its height (::details-content, interpolate-size) and rises in. Calm keeps it
+   shorter; Off opens it at once. */
+:root { interpolate-size: allow-keywords; }
+.ov-base .xp-q { position: relative; background: var(--ovk-panel); transition: border-color var(--ov-dur-2, .2s) var(--ov-ease-out, ease), background var(--ov-dur-3, .3s) var(--ov-ease-out, ease), box-shadow var(--ov-dur-3, .3s) var(--ov-ease-out, ease); }
+.ov-base .xp-q::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--ovk-accent); transform: scaleY(0); transform-origin: top; transition: transform var(--ov-dur-3, .32s) var(--ov-ease-spring, cubic-bezier(.2, .9, .25, 1.15)); }
+.ov-base .xp-q:hover { border-color: color-mix(in srgb, var(--ovk-accent) 40%, var(--ovk-line)); }
+.ov-base .xp-q[open] { border-color: color-mix(in srgb, var(--ovk-accent) 45%, var(--ovk-line)); background: linear-gradient(160deg, color-mix(in srgb, var(--ovk-accent) 11%, var(--ovk-panel)), var(--ovk-panel) 70%); box-shadow: 0 16px 34px -24px color-mix(in srgb, var(--ovk-accent) 80%, transparent); }
+.ov-base .xp-q[open]::before { transform: scaleY(1); }
+.xp-q > summary { min-height: 56px; padding: 8px 14px 8px 10px; font-size: 1rem; font-weight: 650; letter-spacing: -.005em; transition: background var(--ov-dur-2, .2s); }
+.xp-q > summary:hover { background: color-mix(in srgb, var(--ovk-accent) 6%, transparent); }
+.xp-q > summary:focus-visible { outline: 2px solid var(--ovk-accent); outline-offset: -2px; border-radius: 13px; }
+.xh .xp-q .xp-q-ic { transition: transform var(--ov-dur-3, .3s) var(--ov-ease-spring, cubic-bezier(.2, .9, .25, 1.15)), background var(--ov-dur-2, .2s); }
+.xp-q[open] .xp-q-ic { transform: scale(1.06); background: color-mix(in srgb, var(--ovk-accent) 22%, transparent); }
+.xp-q-chev { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; transition: transform var(--ov-dur-3, .34s) var(--ov-ease-spring, cubic-bezier(.2, .9, .25, 1.2)), background var(--ov-dur-2, .2s), color var(--ov-dur-2, .2s); }
+.xp-q[open] .xp-q-chev { color: var(--ovk-accent); background: color-mix(in srgb, var(--ovk-accent) 14%, transparent); }
+.xp-q::details-content { block-size: 0; overflow: clip; transition: block-size var(--ov-dur-3, .32s) var(--ov-ease-out, cubic-bezier(.2, .8, .2, 1)), content-visibility var(--ov-dur-3, .32s) allow-discrete; }
+.xp-q[open]::details-content { block-size: auto; }
+.xp-q-a { padding: 2px 16px 16px 60px; line-height: 1.55; }
+.xp-q[open] .xp-q-a { animation: xpQIn var(--ov-dur-3, .32s) var(--ov-ease-out, ease) both; }
+@keyframes xpQIn { from { opacity: 0; transform: translateY(calc(-6px * var(--ov-move, 1))); } }
+.xp-q-a a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--ovk-accent); text-decoration: none; }
+.xp-q-a a::after { content: "→"; transition: transform var(--ov-dur-2, .2s); }
+.xp-q-a a:hover::after { transform: translateX(calc(3px * var(--ov-move, 1))); }
+html[data-ov-motion=off] .xp-q::details-content, html[data-ov-motion=off] .xp-q-chev, html[data-ov-motion=off] .ov-base .xp-q::before { transition: none; }
+html[data-ov-motion=off] .xp-q[open] .xp-q-a { animation: none; }
+html[data-ov-motion=reduced] .xp-q::details-content { transition-duration: .2s; }
+.xh-stats > li { display: grid; }
+.xh-stats > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.xh-st-t small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; }
+@media (min-width: 1000px) { .xh-stats > li:last-child:nth-child(odd) { grid-column: auto; } }

@@ -17,7 +17,7 @@ const contracts = require('openvibe-contracts');
             const r = await t.get('/'); assert.strictEqual(r.status,200);
             assert.ok(r.text.includes('One API for every model.') && r.text.includes('Pay what the model costs.'));
             assert.ok(r.text.includes('Get a key') && r.text.includes('api.openvibe.exchange/v1/chat/completions'));
-            assert.ok(r.text.includes('tokens routed this week'), 'the week\'s tokens are in the first row');
+            assert.ok(r.text.includes('tokens this week'), 'the week\'s tokens are in the first row');
             // A figure nobody has measured is left out of the first row, never shown as "Not measured" (11-14 review).
             assert.ok(!r.text.includes('median time to first token') && !r.text.includes('Not measured'), 'no unmeasured hero figure');
             const platform = require('../server/views/platform');
@@ -75,7 +75,7 @@ const contracts = require('openvibe-contracts');
             const withFresh = platformView.home({ catalog: homeCatalog, usage: null, viewer: null,
                 fresh: [{ id: 'openrouter/google/gemini-4-hydrogen', name: 'google/gemini-4-hydrogen', provider: 'openrouter', status: 'spotted', first_seen_at: '2026-11-13T10:02:00Z' }] });
             assert.ok(withFresh.includes('New this week') && withFresh.includes('href="/models/openrouter%2Fgoogle%2Fgemini-4-hydrogen"'), 'a new model links to its page');
-            assert.ok(withFresh.includes('OpenRouter · spotted, not on sale yet · first seen Nov 13'), 'its maker, that it is not on sale yet, and the day');
+            assert.ok(withFresh.includes('Gemini 4 Hydrogen') && withFresh.includes('OpenRouter · not on sale yet') && withFresh.includes('Spotted') && withFresh.includes('>Nov 13<'), 'its name as a person reads it, its maker, that it is not on sale yet (Spotted), and the day');
             assert.ok(!platformView.home({ catalog: homeCatalog, usage: null, viewer: null, fresh: [] }).includes('New this week'), 'nothing new: no section');
             const spotPage = await t.get('/models/arena%2Fanonymous-silver');
             assert.ok(spotPage.text.includes('lmarena.ai') && spotPage.text.includes('2026-11-11'));

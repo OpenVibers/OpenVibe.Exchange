@@ -943,7 +943,9 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
         const isAdult = signedIn(req) ? await adult.confirmed(owner(req)) : false;
         return page(req, res, {
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
-            title: 'Uncensored', description: 'Abliterated models for adults, with the floor: no minors, no non-consensual content, no mass harm.',
+            title: 'Uncensored & abliterated AI models (18+)',
+            description: 'Uncensored and abliterated LLMs (also spelled “obliterated”) that don’t over-refuse, through one OpenAI-compatible API, for adults who opt in. The floor still applies: no minors, no non-consensual content, no mass harm.',
+            jsonLd: [views.uncensoredFaqLd()],
             body: raw(views.uncensoredPage({ catalog, adult: isAdult, signedIn: signedIn(req) })),
         });
     });
