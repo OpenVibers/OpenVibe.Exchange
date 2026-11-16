@@ -56,7 +56,8 @@ async function startNetwork() {
     }
     function userToken(u, { ttl = 3600, iat = null } = {}) {
         const now = iat != null ? iat : Math.floor(Date.now() / 1000);
-        return signJwt({ iss: issuer, sub: u.id, subject_id: u.subject, username: u.username, display_name: u.display_name, role: u.role, aud: ['openvibe.network'], iat: now, exp: now + ttl }, privatePem);
+        return signJwt({ iss: issuer, sub: u.id, subject_id: u.subject, username: u.username, display_name: u.display_name, // As Network signs it (auth/staff-claims.js): the owner is role admin with is_owner: true, never role owner.
+            role: u.role === 'owner' ? 'admin' : u.role, ...(u.role === 'owner' ? { is_owner: true } : {}), aud: ['openvibe.network'], iat: now, exp: now + ttl }, privatePem);
     }
     function userFrom(req) {
         const h = String(req.headers.authorization || '');
