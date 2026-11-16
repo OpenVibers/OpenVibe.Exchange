@@ -78,7 +78,8 @@ function load(env = process.env) {
             searchTimeoutMs: Math.max(2000, int(env.EXCHANGE_SEARCH_TIMEOUT_MS, 15_000)),
             // The last good answers from AI, kept on disk so a restarted Exchange starts warm (11-15: the pages waited
             // on AI after every deploy). Empty turns it off; tests leave it off.
-            cacheFile: env.EXCHANGE_AI_CACHE_FILE != null ? String(env.EXCHANGE_AI_CACHE_FILE) : (env.NODE_ENV === 'test' ? '' : require('path').join(process.cwd(), 'data', 'ai-cache.json')),
+            // The unit's StateDirectory (writable) by default; the code tree is read-only under ProtectSystem=strict.
+            cacheFile: env.EXCHANGE_AI_CACHE_FILE != null ? String(env.EXCHANGE_AI_CACHE_FILE) : (env.NODE_ENV === 'test' ? '' : require('path').join(env.STATE_DIRECTORY ? String(env.STATE_DIRECTORY).split(':')[0] : require('path').join(process.cwd(), 'data'), 'ai-cache.json')),
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 

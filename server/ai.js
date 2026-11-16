@@ -61,6 +61,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         }
     } catch (err) { log.warn(`[exchange] the kept AI answers could not be read: ${String((err && err.message) || err).slice(0, 120)}`); }
     let saveTimer = null;
+    let keepWarnedAt = -Infinity;
     const keep = () => {
         if (!cacheFile || saveTimer) return;
         saveTimer = setTimeout(() => {
@@ -70,7 +71,10 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
                 const body = JSON.stringify({ catalog: catalogHit, directory: directoryHit, community: communityHit, engines: enginesHit, usage: Object.fromEntries(usageHit) });
                 fs.writeFileSync(`${cacheFile}.tmp`, body);
                 fs.renameSync(`${cacheFile}.tmp`, cacheFile);
-            } catch (err) { log.warn(`[exchange] the AI answers could not be kept: ${String((err && err.message) || err).slice(0, 120)}`); }
+            } catch (err) {
+                // Once per ten minutes: a path that cannot be written fails on every save (every few seconds).
+                if (now() - keepWarnedAt >= 600_000) { keepWarnedAt = now(); log.warn(`[exchange] the AI answers could not be kept: ${String((err && err.message) || err).slice(0, 120)}`); }
+            }
         }, (config.ai && config.ai.keepMs) || 5000);
         if (saveTimer.unref) saveTimer.unref();
     };

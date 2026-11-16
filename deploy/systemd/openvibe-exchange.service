@@ -26,6 +26,10 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 # OpenVibe.Exchange's own database is PostgreSQL on the host's data role; the code tree stays read-only.
+# The last good AI answers (server/ai.js: a restart answers at once from them) are kept in /var/lib/openvibe-exchange.
+# Before 2026-11-16 they went to the read-only code tree and every save failed (3,250 warnings a day).
+StateDirectory=openvibe-exchange
+Environment=EXCHANGE_AI_CACHE_FILE=/var/lib/openvibe-exchange/ai-cache.json
 
 [Install]
 WantedBy=multi-user.target
