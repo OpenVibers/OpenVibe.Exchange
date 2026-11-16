@@ -130,7 +130,24 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
             return catalogHit.value ? { ...catalogHit.value, stale: true } : empty('catalog');
         }
     }
-    async function catalog() { return served(catalogHit, CATALOG_MS, 'catalog', loadCatalog); }
+    // 2026-11-16: the catalog over another window (?window=24h, 30d, all; AI #627), one cached read per window. The
+    // week is the catalog above, unchanged.
+    const windowHits = new Map();
+    async function loadWindow(window) {
+        const hit = windowHits.get(window) || {};
+        try {
+            const body = withDisplayNames(await get(`/api/v1/exchange/catalog?window=${encodeURIComponent(window)}`, 'catalog'));
+            windowHits.set(window, { at: now(), value: body });
+            return body;
+        } catch (err) {
+            warned('catalog', err);
+            return hit.value ? { ...hit.value, stale: true } : empty('catalog');
+        }
+    }
+    async function catalog(window = '7d') {
+        if (!window || window === '7d') return served(catalogHit, CATALOG_MS, 'catalog', loadCatalog);
+        return served(windowHits.get(window), CATALOG_MS, `catalog:${window}`, () => loadWindow(window));
+    }
 
     async function directory() { return served(directoryHit, CATALOG_MS, 'directory', loadDirectory); }
     async function loadDirectory() {

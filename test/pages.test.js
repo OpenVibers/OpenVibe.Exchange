@@ -231,6 +231,29 @@ const contracts = require('openvibe-contracts');
             assert.ok(r.text.includes('99.0%') && r.text.includes('no traffic'));
         });
 
+        await check('status and a model over a window: 24 h first, the week by default, labelled (?window=)', async () => {
+            // The owner, 11-16: "maybe 30 days, 7 days … all time … be transparent".
+            const week = await t.get('/status');
+            assert.match(week.text, /aria-label="Measured over"/);
+            assert.ok(week.text.indexOf('24 h') < week.text.indexOf('7 days') && week.text.indexOf('7 days') < week.text.indexOf('30 days'), '24 h first');
+            assert.match(week.text, /href="\/status#uptime" aria-current="page"/, 'the week is the plain address, and open by default');
+            assert.match(week.text, /Requests, 7 days/);
+            const month = await t.get('/status?window=30d');
+            assert.strictEqual(month.status, 200);
+            assert.match(month.text, /href="\/status\?window=30d#uptime" aria-current="page"/);
+            assert.match(month.text, /real requests in the last 30 days/);
+            assert.match(month.text, /Requests, 30 days/);
+            assert.ok(month.text.includes('50.0%') && month.text.includes('400'), 'the window\'s uptime and requests');
+            const odd = await t.get('/status?window=1y');
+            assert.match(odd.text, /Requests, 7 days/, 'an unknown window is the week');
+            const slug = ai.catalogData.models[0].slug;
+            const day = await t.get(`/m/${slug}?window=24h`);
+            assert.strictEqual(day.status, 200);
+            assert.match(day.text, /uptime, 24 h/);
+            assert.match(day.text, /from the last 24 hours of real requests/);
+            assert.match(day.text, /\?window=24h#offers" aria-current="page"/);
+        });
+
         await check('status is measured: down and degraded carry a plain reason and since when', async () => {
             const offer = ai.catalogData.models[0].offers[0];
             try {
