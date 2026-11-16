@@ -92,7 +92,6 @@ client-credentials token work. See [.env.example](.env.example).
 AGPL-3.0-only. See [LICENSE](LICENSE).
 
 <!-- versions:start -->
-- openvibe-contracts: v0.419.0
 - openvibe-publishing: v1.7.0
 <!-- versions:end -->
 
