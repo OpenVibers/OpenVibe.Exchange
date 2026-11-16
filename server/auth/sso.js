@@ -85,7 +85,9 @@ function createSso({ config, keys, fetchImpl = globalThis.fetch, now = () => Dat
     /** The person, in the shape this site's pages read (req.viewer). */
     function viewerFrom(claims, token) {
         const subject = typeof claims.subject_id === 'string' ? claims.subject_id : null;
-        const role = typeof claims.role === 'string' ? claims.role : 'user';
+        // The owner is admin by role and owner by claim: Network signs `is_owner: true` (auth/staff-claims.js) and keeps the
+        // role it has (the owner, 11-16: "it shows this even though I am a owner" on /console).
+        const role = claims.is_owner === true ? 'owner' : typeof claims.role === 'string' ? claims.role : 'user';
         const username = typeof claims.username === 'string' ? claims.username.slice(0, 64) : null;
         return {
             kind: 'user',

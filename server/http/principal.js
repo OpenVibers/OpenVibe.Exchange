@@ -31,6 +31,7 @@ function decodePayload(token) {
 }
 
 function roleClaim(claims) {
+    if (claims.is_owner === true) return 'owner';   // Network: the owner's role is admin, with is_owner: true
     return typeof claims.role === 'string' && claims.role ? claims.role.slice(0, 32) : 'user';
 }
 function usernameClaim(claims) {
