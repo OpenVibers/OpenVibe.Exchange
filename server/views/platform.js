@@ -32,7 +32,7 @@ const best = (m) =>
 const chat = (m) =>
     `https://openvibe.chat/vibe?models=${encodeURIComponent(id(m))}`;
 const rank = (m) =>
-    `https://openvibe.compare/things/${encodeURIComponent(id(m))}`;
+    `https://openvibe.compare/ai/models/${encodeURIComponent(id(m))}`;
 const section = (title, body) => kit.section({ title, body });
 const modelSearch = (query = {}, filters = false, suggest = null) => {
     const field = (name, label, placeholder = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(placeholder)}"></label>`;
@@ -106,7 +106,7 @@ function pricing() {
 const REASONS = [
     ['route', 'The cheapest route', 'Every call goes to the cheapest provider that is up, among every offer of the model you name.', '/models', 'Compare the offers'],
     ['chart', 'Measured, not guessed', 'Prices come from the live catalogue; speed and uptime from real requests. A number nobody has measured stays unknown.', '/status', 'See the status'],
-    ['shield', 'Uncensored, 18+', 'Uncensored models for adults who opt in. The content floor applies on every request.', '/uncensored', 'What the floor covers'],
+    ['shield', 'Uncensored & abliterated, 18+', 'Abliterated and uncensored models that answer what filtered models refuse, through the same API, for adults who opt in. The floor applies on every request.', '/uncensored', 'Uncensored models'],
 ];
 function reasons() {
     return `<section class="xp-features" aria-label="Why OpenVibe.Exchange">${REASONS.map(([icon, title, text, href, label]) =>
@@ -163,14 +163,26 @@ function computePage({ prices = [], checked_at, now = Date.now() }) {
 function pricingPage() {
     return `<div class="ex-wrap xp">${kit.head({ title: 'Pricing', sub: 'What a call costs, before you make it.' })}<section class="xpr">${pricingRows()}</section></div>`;
 }
+/** A model's name as a person reads it: a raw id ("qwen/qwen4-max") becomes "Qwen4 Max"; a real name is kept. */
+const UPPER = new Set(['gpt', 'oss', 'glm', 'ai', 'vl', 'tts', 'asr', 'llm', 'xl']);
+function readable(name) {
+    const n = String(name || '');
+    if (!/^[a-z0-9._-]+\/[a-z0-9._:-]+$/.test(n)) return n;
+    return n.split('/').pop().replace(/[-_]+/g, ' ').split(' ').filter(Boolean)
+        .map((w) => (UPPER.has(w) ? w.toUpperCase() : /^\d/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
 /** New this week (plan §AB.37): each model first seen in the last seven days, its maker and the day, to its page. */
 function freshSection(fresh) {
     const rows = (Array.isArray(fresh) ? fresh : []).filter((m) => m && m.id && m.name);
     if (!rows.length) return '';
     const PROVIDERS = { gemini: 'Google', openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', arena: 'LMArena', deepseek: 'DeepSeek', mistral: 'Mistral', xai: 'xAI', meta: 'Meta' };
     const day = (t) => { const d = Date.parse(t || ''); return Number.isFinite(d) ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ''; };
-    const list = kit.list(rows.map((m) => kit.row({ href: `/models/${encodeURIComponent(m.id)}`, title: m.name,
-        sub: [PROVIDERS[m.provider] || m.provider, m.status === 'spotted' ? 'spotted, not on sale yet' : '', day(m.first_seen_at) ? `first seen ${day(m.first_seen_at)}` : ''].filter(Boolean).join(' · ') })));
+    const iso = (t) => { const d = Date.parse(t || ''); return Number.isFinite(d) ? new Date(d).toISOString() : ''; };
+    const list = kit.list(rows.map((m) => kit.row({ href: `/models/${encodeURIComponent(m.id)}`, title: readable(m.name),
+        mark: `<span class="xh-new-ic${m.status === 'spotted' ? ' is-spotted' : ''}" aria-hidden="true">${glyph(m.status === 'spotted' ? 'eye' : 'spark')}</span>`,
+        badge: m.status === 'spotted' ? ` ${kit.badge('Spotted')}` : '',
+        meta: day(m.first_seen_at), metaIso: iso(m.first_seen_at),
+        sub: [PROVIDERS[m.provider] || m.provider, m.status === 'spotted' ? 'not on sale yet' : 'on sale'].filter(Boolean).join(' · ') })));
     return homeSection('New this week', list, { href: '/models?status=spotted', label: 'Every model spotted' });
 }
 /**
@@ -192,7 +204,9 @@ function homeSection(title, body, more = null) {
     const link = more ? `<a class="xh-more" href="${esc(more.href)}">${esc(more.label)}<span aria-hidden="true">${glyph('arrow-right')}</span></a>` : '';
     return `<section class="xh-sec" aria-labelledby="${idOf}" data-ov-reveal><header class="xh-sec-h"><h2 id="${idOf}">${esc(title)}</h2>${link}</header>${body}</section>`;
 }
-const codeCard = () => `<div class="xh-code"><p class="xh-code-h"><span class="xh-code-ic" aria-hidden="true">${glyph('code')}</span><span>Call any model</span><code>openvibe/auto</code></p>${code()}</div>`;
+// The copy button is the bar's own (kit.js copies any [data-ovk-copy]; it shows once copying works), centred in the bar.
+const codeCard = () => `<div class="xh-code"><div class="xh-code-h"><span class="xh-code-ic" aria-hidden="true">${glyph('code')}</span><span class="xh-code-t">Call any model</span><code>openvibe/auto</code>`
+    + `<button type="button" class="xh-copy" data-ovk-copy="#platform-curl" aria-label="Copy the call" title="Copy" hidden>${glyph('copy')}</button></div>${code()}</div>`;
 function home({ catalog, usage, viewer, fresh = [], directory = null }) {
     const models = listed(catalog);
     const tracked = Array.isArray(directory?.models) ? directory.models : [];
@@ -200,21 +214,21 @@ function home({ catalog, usage, viewer, fresh = [], directory = null }) {
     const tokens = usage?.totals ? Number(usage.totals.tokens_in || 0) + Number(usage.totals.tokens_out || 0) : null;
     const keyHref = viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new';
     const popular = [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 6);
-    const numbers = kit.stats([
-        [models.length || null, 'ready to call', '/models'],
-        [tracked.length || null, providers ? `tracked from ${providers} providers` : 'models tracked', '/models#directory-more'],
-        [tokens ? compact(tokens) : null, 'tokens routed this week'],
-        // A figure nobody has measured is left out (kit.stats drops an empty value), never shown as "Not measured".
-        [catalog.median_reply_ms == null ? null : metric(catalog.median_reply_ms, ' ms'), 'median reply', '/status'],
-    ], { label: 'Exchange in numbers' })
-        // A whole number counts up to itself when seen (motion.js data-ov-ticker; the text written is the end state).
-        .replace(/<dd>([\d,]+)<\/dd>/g, (m, n) => `<dd data-ov-ticker="${n.replace(/,/g, '')}">${n}</dd>`);
+    const count = (v) => (typeof v === 'number' ? `<b data-ov-ticker="${v}">${v.toLocaleString('en-US')}</b>` : `<b>${esc(v)}</b>`);
+    const stat = ([v, label, icon, href]) => (v == null || v === 0 || v === '' ? '' : `<li>${href ? `<a href="${href}">` : '<span>'}<span class="xh-st-ic" aria-hidden="true">${glyph(icon)}</span><span class="xh-st-t">${count(v)}<small>${esc(label)}</small></span>${href ? '</a>' : '</span>'}</li>`);
+    // A figure nobody has measured is left out, never shown as "Not measured".
+    const numbers = `<ul class="xh-stats" aria-label="Exchange in numbers" data-ov-reveal>${[
+        [models.length || null, 'ready to call', 'check', '/models'],
+        [tracked.length || null, providers ? `tracked · ${providers} providers` : 'models tracked', 'layers', '/models#directory-more'],
+        [tokens ? compact(tokens) : null, 'tokens this week', 'chart', null],
+        [catalog.median_reply_ms == null ? null : metric(catalog.median_reply_ms, ' ms'), 'median reply', 'clock', '/status'],
+    ].map(stat).join('')}</ul>`;
     const suggest = [...new Set([...popular.map((m) => m.name), ...models.map((m) => legacy.familyLabel(m))].filter(Boolean))];
     return `<div class="ex-wrap xp xh">${unavailable(catalog)}`
         + `<section class="xp-hero"><div class="xh-hero-main"><h1>One API for every model.<br>Pay what the model costs.</h1>${modelSearch({}, false, suggest)}`
         + `<p class="xh-cta">${kit.button({ href: keyHref, label: 'Get a key', icon: 'key' })}${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet', icon: 'book' })}</p></div>`
         + `${codeCard()}</section>`
-        + numbers.replace('<dl class="ovk-stats"', '<dl class="ovk-stats" data-ov-reveal')
+        + numbers
         + homeSection('Popular models', table(popular), models.length > popular.length ? { href: '/models', label: `All ${models.length}` } : null)
         + freshSection(fresh)
         + reasons()

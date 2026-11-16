@@ -21,11 +21,24 @@ const catalog = {
 const directory = { models: [{ provider: 'openai' }, { provider: 'google' }, { provider: 'openai' }, { provider: 'xai' }] };
 const html = platform.home({ catalog, usage: { totals: { tokens_in: 15000000, tokens_out: 569721 } }, viewer: { kind: 'anonymous' }, directory });
 
-assert.ok(/tracked from 3 providers/.test(html) && /<dd data-ov-ticker="4">4<\/dd>/.test(html), 'the tracked count and its providers, counting up when seen');
+assert.ok(/tracked · 3 providers/.test(html) && /<b data-ov-ticker="4">4<\/b>/.test(html), 'the tracked count and its providers, counting up when seen');
+assert.ok((html.match(/class="xh-st-ic"/g) || []).length === 4, 'each count has its mark (the owner: "compact … add icons")');
+assert.ok(/data-ovk-copy="#platform-curl"/.test(html) && /class="xh-copy"/.test(html), "the call's copy button sits in its bar");
+assert.ok(!html.includes('openvibe.compare/things/') && html.includes('https://openvibe.compare/ai/models/a%2Fone'), 'How it ranks opens Compare\'s model page (/things/<id> was a 404: "broke")');
 assert.ok(/data-ov-trending-items="\[&quot;One&quot;,&quot;Two&quot;/.test(html), "the search rotates this page's own models (openvibe-shared ov-trending)");
 assert.ok((html.match(/data-ov-reveal/g) || []).length >= 6, 'sections and cards rise in as they are seen (motion.js)');
-assert.ok(/15\.6M/.test(html) && /tokens routed this week/.test(html), "the week's tokens, short");
+assert.ok(/15\.6M/.test(html) && /tokens this week/.test(html), "the week's tokens, short");
 assert.ok(/1,840 ms/.test(html) && /median reply/.test(html), 'a measured median reply');
+assert.ok(/Uncensored &amp; abliterated, 18\+|Uncensored & abliterated, 18\+/.test(html), 'the 18+ card uses the words people search');
+{
+    const ex = require('../server/views/exchange');
+    const un = ex.uncensoredPage({ catalog: { models: [] }, adult: false, signedIn: false });
+    assert.ok(/abliterated/i.test(un) && /obliterated/.test(un) && /over-refuse/.test(un) && /OpenAI-compatible/.test(un), 'the uncensored page answers the words people search');
+    const ld = ex.uncensoredFaqLd();
+    assert.ok(ld['@type'] === 'FAQPage' && ld.mainEntity.length === ex.UNCENSORED_TERMS.length, 'and marks them up as an FAQ');
+    const fresh = platform.home({ catalog, usage: {}, viewer: { kind: 'anonymous' }, fresh: [{ id: 'qwen/qwen4-max', name: 'qwen/qwen4-max', provider: 'openrouter', status: 'spotted', first_seen_at: '2026-11-14T00:00:00Z' }] });
+    assert.ok(fresh.includes('Qwen4 Max') && fresh.includes('Spotted') && fresh.includes('xh-new-ic is-spotted'), 'a new model reads as a name, with Spotted as a badge and a mark');
+}
 assert.ok(!/<dd>–/.test(html) && !/– \/ –/.test(html), 'no dashes for what nobody measured');
 assert.ok(!html.includes('0% fee on your own key'), 'the 0% key is said once, in Pricing');
 assert.ok(html.includes('Your own provider key') && html.includes('Measured, not guessed'), 'Pricing keeps it; a reason of its own takes the card');

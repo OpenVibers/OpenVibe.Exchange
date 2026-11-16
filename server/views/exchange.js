@@ -424,7 +424,7 @@ ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${measuredPanel(measured)}
 ${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
-<p class="ex-more"><a href="https://openvibe.compare/things/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model ${GO}</a></p>
+<p class="ex-more"><a href="https://openvibe.compare/ai/models/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model ${GO}</a></p>
 ${activityPanel(model.activity)}
 ${require('./analysis').modelFacts(analysis)}
 ${panel({ title: 'Presets', note: 'A preset fixes the router’s floor, ceiling and policy, and you name it as the model.', id: 'presets', body: presetsBox() })}
@@ -842,6 +842,12 @@ ${example ? '<span class="ex-badge-note">Example</span>' : ''}
 }
 
 // ── Uncensored ─────────────────────────────────────────────
+const UNCENSORED_TERMS = [['What is an abliterated model?', "Abliteration removes a model's refusal behaviour from its weights without retraining it, so it answers what the filtered model declines. People also spell it “obliterated”. On Exchange every abliterated model is marked 18+ and the floor still applies."], ['Uncensored, abliterated, unfiltered: what is the difference?', "An abliterated model has its refusals removed from the weights. An uncensored fine-tune (Dolphin, Hermes and the like) is retrained on data without refusals. An unfiltered API adds no filter of its own on top of the model, but the model's own training still refuses. Exchange lists all three and says which is which on each model."], ['Will these models refuse?', 'They are built not to over-refuse: they answer questions, fiction and research that filtered models turn down. They still never cross the floor: no sexual content involving minors, no non-consensual sexual content, no help with weapons of mass harm. A request that does is refused, and a breach ends the account.'], ['How do I call an uncensored model through the API?', "Confirm you are 18 or over on your account, then send the model's exact id to the same OpenAI-compatible endpoint as any other model (api.openvibe.exchange/v1/chat/completions). No second key, no other SDK."]];
+/** The words people search for this tier, answered (FAQ markup on the page; uncensoredFaqLd for JSON-LD). */
+const uncensoredTerms = () => panel({ title: 'Abliterated, uncensored, unfiltered: the words', id: 'words',
+    body: `<div class="ex-faq">${UNCENSORED_TERMS.map(([q, a]) => kit.fold({ title: q, body: `<p class="ex-prose">${esc(a)}</p>` })).join('')}</div>` });
+const uncensoredFaqLd = () => ({ '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: UNCENSORED_TERMS.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) });
 function uncensoredPage({ catalog, adult, signedIn }) {
     const models = (catalog.models || []).filter((m) => m.uncensored);
     const gate = !signedIn
@@ -850,11 +856,12 @@ function uncensoredPage({ catalog, adult, signedIn }) {
             ? kit.section({ title: 'Confirm you are 18 or over', body: `<p class="ex-prose">Uncensored models are abliterated builds. They will answer what a filtered model refuses. The floor below applies to every request, and a breach ends the account.</p>${floorText()}<form method="post" action="/uncensored/confirm" class="ovk-form ex-confirm"><label class="ex-check ovk-check"><input type="checkbox" name="adult" value="yes" required> <span>I am 18 or over and I accept the floor.</span></label>${kit.button({ label: 'Confirm', type: 'submit' })}</form>` })
             : '';
     return `<div class="ex-wrap ex-page">
-${kit.head({ title: 'Uncensored', sub: 'Abliterated models, for adults. The same floor, always.', actions: [kit.badge('18+', 'bad')] })}
+${kit.head({ title: 'Uncensored & abliterated models', sub: 'Models that answer what filtered models refuse, through one OpenAI-compatible API. For adults who opt in, with the same floor on every request.', actions: [kit.badge('18+', 'bad')] })}
 ${gate || ''}
 ${panel({ title: 'The floor on every offer, uncensored or not', id: 'floor', body: floorText(true) })}
 ${adult ? panel({ title: 'Uncensored models', id: 'models', body: modelList(models, { empty: 'No uncensored model is live right now. Featherless and Refuseless offers appear here when their keys are on.' }) }) : ''}
 ${panel({ title: 'How to use it', body: '<p class="ex-prose">Pick an uncensored model in <a href="https://openvibe.chat/vibe">chat</a>, or send its exact id to the API. Your 18+ confirmation sits on your account, so it follows you here; the floor applies to every request on this tier, and a breach ends the account.</p>' })}
+${uncensoredTerms()}
 ${companionsPolicy()}
 ${changelogPanel()}
 </div>`;
@@ -1286,4 +1293,4 @@ ${panel({ title: 'Still building', id: 'next', body: `<p>${kit.button({ href: '/
 </div>`;
 }
 
-module.exports = { audienceDefaults, home, modelsPage, modelPage, apiPage, startPage, whyPage, faqPage, FAQ, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
+module.exports = { uncensoredFaqLd, UNCENSORED_TERMS, audienceDefaults, home, modelsPage, modelPage, apiPage, startPage, whyPage, faqPage, FAQ, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
