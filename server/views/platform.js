@@ -34,7 +34,7 @@ const chat = (m) =>
 const rank = (m) =>
     `https://openvibe.compare/things/${encodeURIComponent(id(m))}`;
 const section = (title, body) => kit.section({ title, body });
-const modelSearch = (query = {}, filters = false) => {
+const modelSearch = (query = {}, filters = false, suggest = null) => {
     const field = (name, label, placeholder = '') => `<label>${esc(label)} <input name="${name}" value="${esc(query[name] || '')}" placeholder="${esc(placeholder)}"></label>`;
     const options = filters ? { label: 'Search filters', html: [
         field('provider', 'Provider'), field('capability', 'Capability', 'vision'),
@@ -46,7 +46,10 @@ const modelSearch = (query = {}, filters = false) => {
         id: filters ? 'model-search' : 'home-model-search', label: 'Search models',
         placeholder: 'Find a model or a provider', sendLabel: 'Search models', maxlength: 120,
         // A model search takes words (typed or spoken), never a camera, photos or files: no + and no file chips (11-14).
-        options, attrs: { 'data-ovc-no-draft': '', 'data-ovc-no-more': '', 'data-ovc-no-files': '', style: '--ovt-line:var(--border,#1f2d47);--ovt-accent:var(--accent,#3b82f6)' },
+        options, attrs: { 'data-ovc-no-draft': '', 'data-ovc-no-more': '', 'data-ovc-no-files': '', style: '--ovt-line:var(--border,#1f2d47);--ovt-accent:var(--accent,#3b82f6)',
+            // What rotates in the box (openvibe-shared ov-trending, 4.284.0): this page's own models, never the network's
+            // trending people (the owner, 11-16: "the suggestions … animated … shared with the other sites").
+            ...(Array.isArray(suggest) && suggest.length ? { 'data-ov-trending-items': JSON.stringify(suggest.slice(0, 12)) } : {}) },
         commands: [{ name: 'gemini', hint: 'Find Gemini models', insert: 'gemini' },
             { name: 'gpt', hint: 'Find GPT models', insert: 'gpt' }],
     });
@@ -77,7 +80,8 @@ function table(models, searchMeta = null) {
             m.uncensored ? kit.badge('18+', 'bad') : '',
             o.fixed_price ? kit.badge('Fixed price') : '',
         ].filter(Boolean).join(' ');
-        const fact = (label, value) => `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;
+        // Only what was measured: a fact with no value is left out, never a dash (the owner, 11-16).
+        const fact = (label, value) => (value == null || value === '–' || value === '– / –' ? '' : `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`);
         return `<li class="xm-row"><div class="xm-name"><a href="/models/${encodeURIComponent(id(m))}">${esc(m.name)}</a><span class="xm-maker">${esc(legacy.familyLabel(m))}</span>${badges ? `<span class="xm-badges">${badges}</span>` : ''}</div>`
             + `<dl class="xm-facts">${fact('In / out per M', `${perM(o.price?.in)} / ${perM(o.price?.out)}`)}${fact('Uptime', o.uptime == null ? '–' : `${dash(o.uptime * 100)}%`)}${fact('Speed', o.speed?.tokens_per_second != null ? `${dash(o.speed.tokens_per_second)} tok/s` : o.speed?.p50_ms == null ? '–' : `${dash(o.speed.p50_ms)} ms`)}${found ? fact('Quality', found.quality ? `${dash(found.quality.elo)} Elo · ${found.quality.games} games` : 'Not measured') : ''}${found ? fact('Provider', found.provider) : ''}${found?.task_match ? fact('Task match', found.task_match) : ''}</dl>`
             + `<p class="xm-acts">${kit.button({ href: chat(m), label: 'Try in Chat', icon: 'chat', kind: 'quiet', small: true, attrs: { 'aria-label': `Try ${m.name} in Chat`, title: 'Try in Chat' } })} ${kit.button({ href: rank(m), label: 'How it ranks', icon: 'trophy', kind: 'quiet', small: true, attrs: { 'aria-label': `How ${m.name} ranks`, title: 'How it ranks' } })}</p></li>`;
@@ -100,22 +104,22 @@ function pricing() {
 // Why Exchange: three cards, each with its mark, its words and the page that says more (the owner, 11-12: the
 // reasons read as bare text flush against their boxes).
 const REASONS = [
-    ['key', '0% fee on your own key', "Bring your provider key and pay the provider's price, nothing more. No cap, no end date.", '/dashboard/keys', 'Add a key'],
-    ['route', 'The cheapest route', "Every call goes to the cheapest provider that is up. Open models on OpenVibe's own GPUs, at a fixed price per million tokens, are coming next.", '/compute', 'Compute prices'],
+    ['route', 'The cheapest route', 'Every call goes to the cheapest provider that is up, among every offer of the model you name.', '/models', 'Compare the offers'],
+    ['chart', 'Measured, not guessed', 'Prices come from the live catalogue; speed and uptime from real requests. A number nobody has measured stays unknown.', '/status', 'See the status'],
     ['shield', 'Uncensored, 18+', 'Uncensored models for adults who opt in. The content floor applies on every request.', '/uncensored', 'What the floor covers'],
 ];
 function reasons() {
     return `<section class="xp-features" aria-label="Why OpenVibe.Exchange">${REASONS.map(([icon, title, text, href, label]) =>
-        `<article class="xp-feature"><span class="xp-feature-ic" aria-hidden="true">${glyph(icon)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p><a class="xp-feature-a" href="${href}">${esc(label)}<span aria-hidden="true">${glyph('arrow-right')}</span></a></article>`).join('')}</section>`;
+        `<article class="xp-feature" data-ov-reveal><span class="xp-feature-ic" aria-hidden="true">${glyph(icon)}</span><h3>${esc(title)}</h3><p>${esc(text)}</p><a class="xp-feature-a" href="${href}">${esc(label)}<span aria-hidden="true">${glyph('arrow-right')}</span></a></article>`).join('')}</section>`;
 }
 const QUESTIONS = [
     ['code', 'Can I use my existing client?', 'Yes. Point any OpenAI-compatible client at the Exchange endpoint with your Exchange key; Anthropic-style clients work through /v1/messages.', '/docs', 'Read the docs'],
     ['chat', 'Where can I talk to a model?', 'In Vibe on OpenVibe.Chat: talk to any model here, or two side by side.', 'https://openvibe.chat/vibe', 'Open Vibe'],
-    ['chart', 'Where do the numbers come from?', 'Prices come from the live catalogue. Speed and reliability come from measured requests. A number nobody has measured stays unknown, never guessed.', '/status', 'See the status'],
+    ['server', 'What does my own endpoint cost?', 'An hourly price for the computer it runs on, quoted before it starts; it stops when idle. Compute prices lists what each provider charges.', '/compute', 'Compute prices'],
 ];
+const question = ([icon, q, a, href, label]) => `<details class="xp-q"><summary><span class="xp-q-ic" aria-hidden="true">${glyph(icon)}</span><span class="xp-q-t">${esc(q)}</span><span class="xp-q-chev" aria-hidden="true">${glyph('chevron')}</span></summary><div class="xp-q-a"><p>${esc(a)}</p><a href="${href}">${esc(label)}</a></div></details>`;
 function questions() {
-    return section('Questions', `<div class="xp-faq">${QUESTIONS.map(([icon, q, a, href, label]) =>
-        `<details class="xp-q"><summary><span class="xp-q-ic" aria-hidden="true">${glyph(icon)}</span><span class="xp-q-t">${esc(q)}</span><span class="xp-q-chev" aria-hidden="true">${glyph('chevron')}</span></summary><div class="xp-q-a"><p>${esc(a)}</p><a href="${href}">${esc(label)}</a></div></details>`).join('')}</div>`);
+    return section('Questions', `<div class="xp-faq">${QUESTIONS.map(question).join('')}</div>`);
 }
 
 // /compute: what an hour of a computer or a GPU costs at each provider (the owner, 11-12: the raw table ran off a
@@ -167,33 +171,56 @@ function freshSection(fresh) {
     const day = (t) => { const d = Date.parse(t || ''); return Number.isFinite(d) ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : ''; };
     const list = kit.list(rows.map((m) => kit.row({ href: `/models/${encodeURIComponent(m.id)}`, title: m.name,
         sub: [PROVIDERS[m.provider] || m.provider, m.status === 'spotted' ? 'spotted, not on sale yet' : '', day(m.first_seen_at) ? `first seen ${day(m.first_seen_at)}` : ''].filter(Boolean).join(' · ') })));
-    return section('New this week', `${list}<p class="xp-more"><a href="/models?status=spotted">Every model spotted</a></p>`);
+    return homeSection('New this week', list, { href: '/models?status=spotted', label: 'Every model spotted' });
 }
-function home({ catalog, usage, viewer, fresh = [] }) {
+/**
+ * The home (the owner, 11-16, /ov-gui-polish on a phone): the promise, one line to find a model, a key and the docs, the
+ * call itself in a card with its copy button in its own bar; the real counts (ready to call, tracked, providers, the
+ * week's tokens, the median reply); the popular models full width with only the numbers that were measured; what is
+ * new; why; what it costs; questions. Sections are headings with a "more" link, never a card around cards.
+ */
+const compact = (n) => {
+    const v = Number(n) || 0;
+    if (v >= 1e9) return `${(v / 1e9).toFixed(v >= 1e10 ? 0 : 1)}B`;
+    if (v >= 1e6) return `${(v / 1e6).toFixed(v >= 1e8 ? 0 : 1)}M`;
+    if (v >= 1e4) return `${Math.round(v / 1e3)}K`;
+    return v.toLocaleString('en-US');
+};
+const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function homeSection(title, body, more = null) {
+    const idOf = `xh-${slug(title)}`;
+    const link = more ? `<a class="xh-more" href="${esc(more.href)}">${esc(more.label)}<span aria-hidden="true">${glyph('arrow-right')}</span></a>` : '';
+    return `<section class="xh-sec" aria-labelledby="${idOf}" data-ov-reveal><header class="xh-sec-h"><h2 id="${idOf}">${esc(title)}</h2>${link}</header>${body}</section>`;
+}
+const codeCard = () => `<div class="xh-code"><p class="xh-code-h"><span class="xh-code-ic" aria-hidden="true">${glyph('code')}</span><span>Call any model</span><code>openvibe/auto</code></p>${code()}</div>`;
+function home({ catalog, usage, viewer, fresh = [], directory = null }) {
     const models = listed(catalog);
-    return `<div class="ex-wrap xp">${unavailable(catalog)}<section class="xp-hero"><h1>One API for every model.<br>Pay what the model costs.</h1>${modelSearch()}<p>${kit.button({ href: viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new', label: 'Get a key' })} ${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet' })} ${kit.button({ href: '/compute', label: 'Compute prices', kind: 'quiet' })}</p>${code()}</section>${kit.stats(
-        [
-            [models.length, 'models'],
-            [
-                usage?.totals
-                    ? metric(Number(usage.totals.tokens_in || 0) + Number(usage.totals.tokens_out || 0))
-                    : null,
-                'tokens routed this week',
-            ],
-            // A figure nobody has measured yet is left out (kit.stats drops an empty value), not shown as "Not measured"
-            // in the page's first row (11-14 review).
-            [
-                catalog.median_ttft_ms == null ? null : metric(catalog.median_ttft_ms, ' ms'),
-                'median time to first token',
-            ],
-            // The whole answer's time, which every answered call measures (AI's median_reply_ms; a first token needs a
-            // streamed answer and is rarely recorded).
-            [
-                catalog.median_reply_ms == null ? null : metric(catalog.median_reply_ms, ' ms'),
-                'median reply',
-            ],
-        ],
-    )}${section('Popular models', table([...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 10)))}${freshSection(fresh)}${reasons()}${pricing()}${questions()}</div>`;
+    const tracked = Array.isArray(directory?.models) ? directory.models : [];
+    const providers = new Set(tracked.map((m) => m.provider).filter(Boolean)).size;
+    const tokens = usage?.totals ? Number(usage.totals.tokens_in || 0) + Number(usage.totals.tokens_out || 0) : null;
+    const keyHref = viewer?.kind === 'user' ? '/dashboard/keys#new' : '/auth/login?next=%2Fdashboard%2Fkeys%23new';
+    const popular = [...models].sort((a, b) => (b.requests_7d || 0) - (a.requests_7d || 0)).slice(0, 6);
+    const numbers = kit.stats([
+        [models.length || null, 'ready to call', '/models'],
+        [tracked.length || null, providers ? `tracked from ${providers} providers` : 'models tracked', '/models#directory-more'],
+        [tokens ? compact(tokens) : null, 'tokens routed this week'],
+        // A figure nobody has measured is left out (kit.stats drops an empty value), never shown as "Not measured".
+        [catalog.median_reply_ms == null ? null : metric(catalog.median_reply_ms, ' ms'), 'median reply', '/status'],
+    ], { label: 'Exchange in numbers' })
+        // A whole number counts up to itself when seen (motion.js data-ov-ticker; the text written is the end state).
+        .replace(/<dd>([\d,]+)<\/dd>/g, (m, n) => `<dd data-ov-ticker="${n.replace(/,/g, '')}">${n}</dd>`);
+    const suggest = [...new Set([...popular.map((m) => m.name), ...models.map((m) => legacy.familyLabel(m))].filter(Boolean))];
+    return `<div class="ex-wrap xp xh">${unavailable(catalog)}`
+        + `<section class="xp-hero"><div class="xh-hero-main"><h1>One API for every model.<br>Pay what the model costs.</h1>${modelSearch({}, false, suggest)}`
+        + `<p class="xh-cta">${kit.button({ href: keyHref, label: 'Get a key', icon: 'key' })}${kit.button({ href: '/docs', label: 'Read the docs', kind: 'quiet', icon: 'book' })}</p></div>`
+        + `${codeCard()}</section>`
+        + numbers.replace('<dl class="ovk-stats"', '<dl class="ovk-stats" data-ov-reveal')
+        + homeSection('Popular models', table(popular), models.length > popular.length ? { href: '/models', label: `All ${models.length}` } : null)
+        + freshSection(fresh)
+        + reasons()
+        + homeSection('Pricing', pricingRows(), { href: '/pricing', label: 'Pricing' })
+        + homeSection('Questions', `<div class="xp-faq">${QUESTIONS.map(question).join('')}</div>`)
+        + '</div>';
 }
 function modelsPage({ catalog, query = {}, searchResults = null }) {
     const all = listed(catalog);

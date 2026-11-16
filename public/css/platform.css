@@ -587,3 +587,79 @@ html[data-ov-motion="off"] .xs-out { animation: none; }
 .xd-pair > div { display: grid; align-content: start; gap: 6px; min-width: 0; }
 .xd-pair h3 { margin: 0; font-size: .95rem; }
 @media (max-width: 900px) { .xd-types, .xd-pair { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── The home (the owner, 11-16, /ov-gui-polish on a phone) ──
+   One line to find a model; the call in a card with its own bar; the counts as an even grid; sections as headings with a
+   "more" link (never a card around cards); model rows full width (the shared reading measure capped each li at 687 px);
+   icons at the size of their place (openvibe.design icons-fill-their-place). Desktop: the promise and the call side by
+   side, four counts in a row. */
+.xh { gap: 32px; }
+.xh .xm-row, .xh .xm-facts dd, .xh .xpr-list li, .xh .ovk-list li, .xm-row, .xm-facts dd { max-width: none; }
+.xh .xp-hero { display: grid; gap: 18px; max-width: none; }
+.xh-hero-main { display: grid; gap: 16px; min-width: 0; }
+.xh .xp-hero h1 { margin: 0; font-size: clamp(2.05rem, 7.4vw, 3.4rem); text-wrap: balance; }
+/* The search: one line in a pill, the mic and the search button inside it. */
+.xh #home-model-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; max-width: none; margin: 0; padding: 5px 5px 5px 18px; border-radius: 999px; }
+.xh #home-model-search textarea { height: 46px; min-height: 46px; max-height: 46px; margin: 0; padding: 12px 0; resize: none; overflow: hidden; white-space: pre; overflow-wrap: normal; line-height: 22px; font-size: 1rem; }
+.xh #home-model-search .ovt-c-row { margin: 0; gap: 4px; }
+.xh #home-model-search .ovt-send { width: 46px; min-width: 46px; height: 46px; min-height: 46px; padding: 0; border-radius: 999px; display: grid; place-items: center; }
+.xh #home-model-search .ovt-send .ovt-ic { width: 20px; height: 20px; }
+.xh #home-model-search { row-gap: 0; }
+.xh #home-model-search > .ovt-sr { position: absolute; }
+.xh #home-model-search > textarea { grid-area: 1 / 1; }
+.xh #home-model-search > .ovt-c-row { grid-area: 1 / 2; }
+.xh #home-model-search .ovt-c-note { grid-area: 2 / 1 / 3 / -1; margin: 0; }
+.xh #home-model-search .ovt-c-note:empty { display: none; }
+.xh-cta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.xh-cta .ovk-btn { width: 100%; min-height: 48px; }
+/* The call: a bar with what it is and its copy button, then the code, scrolling inside its own box. */
+.xh-code { position: relative; min-width: 0; border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); overflow: hidden; }
+.xh-code-h { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0; padding: 0 60px 0 14px; border-bottom: 1px solid var(--ovk-line); font-weight: 700; font-size: .95rem; }
+.xh-code-h code { margin-left: auto; max-width: 40%; overflow: hidden; text-overflow: ellipsis; padding: 3px 8px; border-radius: 8px; background: var(--ovk-panel-2, rgba(148, 163, 184, .1)); color: var(--ovk-muted); font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.xh-code-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: var(--ovk-accent); background: color-mix(in srgb, var(--ovk-accent) 14%, transparent); }
+.xh-code-ic svg { width: 20px; height: 20px; }
+.xh .xh-code .ovk-snip { position: static; margin: 0; border: 0; border-radius: 0; background: none; }
+.xh .xh-code .ovk-snip > .ovk-icon-btn { position: absolute; top: 6px; right: 6px; width: 40px; height: 40px; }
+.xh .xh-code pre { margin: 0; padding: 14px 16px 16px; border: 0; border-radius: 0; background: none; font-size: .84rem; line-height: 1.6; }
+/* The counts: an even grid (two by two on a phone), each one a link where it has a page. */
+.xh .ovk-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; overflow: visible; }
+.xh .ovk-stats > div { min-width: 0; justify-content: flex-end; padding: 12px 14px; border-radius: 14px; }
+.xh .ovk-stats > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.xh .ovk-stats dd { font-size: 1.45rem; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.xh .ovk-stats dt { font-size: .84rem; }
+/* A section: its heading and its "more" link; the list is the only card. */
+.xh-sec { display: grid; gap: 12px; min-width: 0; }
+.xh-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.xh-sec-h h2 { margin: 0; font-size: 1.3rem; letter-spacing: -.015em; }
+.xh .xh-more { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--ovk-accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.xh-more svg { width: 18px; height: 18px; transition: transform var(--ov-dur-2, .2s) var(--ov-ease-out, ease); }
+.xh-more:hover svg { transform: translateX(calc(3px * var(--ov-move, 1))); }
+.xh .ovk-list { margin: 0; }
+.xh .xp-faq { padding: 0; }
+.xh .xp-features { margin: 0; }
+/* Icons fill their place: 40 px tiles, 22 px glyphs. */
+.xh .xp-feature-ic, .xh .xpr-list .xpr-ic, .xh .xp-q .xp-q-ic { width: 40px; height: 40px; border-radius: 12px; }
+.xh .xp-feature-ic svg, .xh .xpr-ic svg, .xh .xp-q-ic svg { width: 22px; height: 22px; }
+.xh .xm-facts dt { font-size: .78rem; }
+@media (min-width: 1000px) {
+    .xh .xp-hero { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); align-items: center; gap: 40px; }
+    .xh .xp-hero h1 { font-size: clamp(2.4rem, 3.7vw, 3.15rem); }
+    .xh .ovk-stats { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+    .xh .ovk-stats > div:last-child:nth-child(odd) { grid-column: auto; }
+    .xh .ovk-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .xh .ovk-list > li:nth-child(2) { border-top: 0; }
+    .xh .ovk-list > li:nth-child(even) { border-left: 1px solid var(--ovk-line); }
+}
+@media (max-width: 420px) { .xh-code-h code { display: none; } }
+
+/* Buttons and counts at the size of their place (the owner, 11-16: "the icons are still tiny on the buttons … the text
+   isn't the right size"): the hero's 48 px buttons carry 22 px glyphs and 1rem words; a count's words are readable. */
+.xh .xh-cta .ovk-btn { gap: 10px; font-size: 1rem; font-weight: 700; }
+.xh .xh-cta .ovk-btn .ovk-i { width: 22px; height: 22px; }
+.xh .xm-acts .ovk-btn .ovk-i { width: 20px; height: 20px; }
+.xh .ovk-stats > div { gap: 2px; padding: 14px 16px; }
+.xh .ovk-stats dd { font-size: 1.6rem; line-height: 1.1; }
+.xh .ovk-stats dt { font-size: .9rem; line-height: 1.3; }
+/* The search: a soft lift on focus, in the theme's accent. */
+.xh #home-model-search { transition: box-shadow var(--ov-dur-2, .2s) var(--ov-ease-out, ease), border-color var(--ov-dur-2, .2s) var(--ov-ease-out, ease); }
+.xh #home-model-search:focus-within { border-color: color-mix(in srgb, var(--ovk-accent) 60%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ovk-accent) 16%, transparent), 0 14px 32px -18px color-mix(in srgb, var(--ovk-accent) 70%, transparent); }
