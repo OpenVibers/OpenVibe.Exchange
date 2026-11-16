@@ -365,7 +365,22 @@ function measuredPanel(row) {
     return panel({ title, note, id: 'measured', body: metrics.block(parts, fallback) });
 }
 
-function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null, analysis = null, measured = null }) {
+// The windows a measured figure covers (AI's catalog ?window=): the switch puts the rolling day first; the week is the
+// default, since most offers see too few calls in a day to measure (null below 20 attempts).
+const WINDOWS = [['24h', '24 h', 'the last 24 hours'], ['7d', '7 days', 'the last seven days'], ['30d', '30 days', 'the last 30 days'], ['all', 'All time', 'every request since the catalog began']];
+const WINDOW_KEYS = WINDOWS.map((w) => w[0]);
+/** The window in a query (?window=), else the week. */
+const windowOf = (query) => { const w = query && query.window != null ? String(query.window).toLowerCase() : ''; return WINDOW_KEYS.includes(w) ? w : '7d'; };
+const windowShort = (w) => (WINDOWS.find((x) => x[0] === w) || WINDOWS[1])[1];
+const windowSaid = (w) => (WINDOWS.find((x) => x[0] === w) || WINDOWS[1])[2];
+/** 24 h · 7 days · 30 days · All time, as links to the same page and section (the week is the plain address). */
+function windowSwitch(path, current, hash) {
+    return kit.tabs({ items: WINDOWS.map(([key, label]) => ({ key, label, href: `${path}${key === '7d' ? '' : `?window=${key}`}#${hash}` })), active: current, label: 'Measured over' });
+}
+/** An offer's real attempts in the window: requests on every window, requests_7d from an AI before ?window=. */
+const requestsOf = (o) => (o.requests != null ? o.requests : o.requests_7d);
+
+function modelPage({ model, viewer, result = null, problem = null, text = '', adult = false, community = null, analysis = null, measured = null, window = '7d', path = '' }) {
     const offers = model.offers || [];
     const best = cheapest(model);
     const badges = [model.uncensored ? kit.badge('18+', 'bad') : '', model.community ? kit.badge('Community', 'accent') : '', offers.some(freeTier) ? kit.badge('Free to try') : (offers.some(freePaused) ? kit.badge('Free paused') : '')].join('');
@@ -374,7 +389,7 @@ function modelPage({ model, viewer, result = null, problem = null, text = '', ad
         best ? [money(best.price.out), 'cheapest out, per M'] : null,
         model.context ? [count(model.context), 'context, tokens'] : null,
         best ? [ms(best.speed.p50_ms), 'typical first answer'] : null,
-        best ? [pct(best.uptime), 'uptime, 7 days'] : null,
+        best ? [pct(best.uptime), `uptime, ${windowShort(window).toLowerCase()}`] : null,
     ].filter(Boolean);
 
     const columns = [
@@ -423,7 +438,7 @@ ${kit.head({ title: model.name, sub: `${familyLabel(model)}${model.variant ? ` �
 ${stats.length ? kit.stats(stats) : ''}
 ${model.description ? `<p class="ex-prose">${esc(model.description)}</p>` : ''}
 ${measuredPanel(measured)}
-${panel({ title: 'Every offer that serves it', note: 'Price in, out and cached per million tokens; speed and uptime from the last seven days of real requests; the privacy label and the provider’s own data policy.', id: 'offers', body: kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
+${panel({ title: 'Every offer that serves it', note: `Price in, out and cached per million tokens; speed and uptime from ${windowSaid(window)} of real requests; the privacy label and the provider’s own data policy.`, id: 'offers', body: (path ? windowSwitch(path, window, 'offers') : '') + kit.table({ columns, rows, label: `Offers for ${model.name}`, empty: 'No live offer serves this model right now.' }) })}
 <p class="ex-more"><a href="https://openvibe.compare/ai/models/${encodeURIComponent(model.slug)}">Compare ${esc(model.name)} with another model ${GO}</a></p>
 ${activityPanel(model.activity)}
 ${require('./analysis').modelFacts(analysis)}
@@ -964,30 +979,30 @@ function changelogBody(changes) {
     return `<p class="ex-muted">Between ${esc(changes.from)} and ${esc(changes.to)}, from the daily catalogue snapshot.</p>${body}`;
 }
 
-function statusPage({ catalog, usage, changes = null }) {
+function statusPage({ catalog, usage, changes = null, window = '7d' }) {
     const offers = chatModels(catalog).flatMap((m) => m.offers.map((o) => ({ m, o })));
-    offers.sort((a, b) => (b.o.requests_7d || 0) - (a.o.requests_7d || 0));
+    offers.sort((a, b) => (requestsOf(b.o) || 0) - (requestsOf(a.o) || 0));
     const rows = offers.slice(0, 40).map(({ m, o }) => ({
         model: `<a href="${hrefOf(m)}">${esc(m.name)}</a>`,
         provider: esc(providerLabel(o)),
         status: statusCell(o),
         uptime: o.uptime == null ? '<span class="ex-muted">no traffic</span>' : pct(o.uptime),
-        traffic: count(o.requests_7d),
+        traffic: count(requestsOf(o)),
         speed: o.speed.p95_ms == null ? '–' : ms(o.speed.p95_ms),
         updated: o.updated_at ? String(o.updated_at).slice(0, 10) : '–',
     }));
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'Status', sub: 'Uptime per offer, the model changelog, and incidents.', actions: [kit.button({ href: '/models', label: 'Models', kind: 'quiet' })] })}
 ${unavailable(catalog, 'The status board')}
-${panel({ title: 'Uptime per offer', note: 'Status is measured: down while an offer\'s circuit is open (with the plain reason), degraded when more than 5% of at least 10 requests in the last hour failed, up otherwise. Uptime is measured from real requests in the last seven days; an offer with no traffic has no uptime to show, and says so.', id: 'uptime', body: rows.length ? kit.table({ columns: [
+${panel({ title: 'Uptime per offer', note: `Status is measured: down while an offer's circuit is open (with the plain reason), degraded when more than 5% of at least 10 requests in the last hour failed, up otherwise. Uptime is measured from real requests in ${windowSaid(window)}; an offer with no traffic has no uptime to show, and says so.`, id: 'uptime', body: windowSwitch('/status', window, 'uptime') + (rows.length ? kit.table({ columns: [
         { key: 'model', label: 'Model', primary: true, html: true },
         { key: 'provider', label: 'Offer' },
         { key: 'status', label: 'Status', html: true },
         { key: 'uptime', label: 'Uptime', html: true },
-        { key: 'traffic', label: 'Requests, 7 d' },
+        { key: 'traffic', label: `Requests, ${windowShort(window)}` },
         { key: 'speed', label: 'p95' },
         { key: 'updated', label: 'Changed', hide: 'sm' },
-    ], rows, label: 'Uptime per offer' }) : kit.empty({ icon: 'spark', title: 'No offers yet', text: 'Offers appear here when a provider key or a machine running Link is on.' }) })}
+    ], rows, label: 'Uptime per offer' }) : kit.empty({ icon: 'spark', title: 'No offers yet', text: 'Offers appear here when a provider key or a machine running Link is on.' })) })}
 ${panel({ title: 'Model changelog', note: 'Models that arrived, left or changed their price, from a daily snapshot of the catalogue. Never a guessed date.', id: 'changelog', body: changelogBody(changes) })}
 ${panel({ title: 'Incidents', id: 'incidents', body: catalog.unavailable || catalog.stale ? kit.notice({ kind: 'error', text: 'OpenVibe.AI is not answering right now, so these numbers are not live. Live prices and the catalog on the other pages say so too.' }) : '<p class="ex-prose">No incident recorded. When an offer goes down, a failover is used and the answer says so; here is where an outage is written down.</p>' })}
 ${panel({ title: 'Requests today', body: usage.unavailable ? '<p class="ex-prose">Usage is not reachable right now.</p>' : `<p class="ex-prose">${count(usage.today ? usage.today.requests : 0)} requests today, ${count(usage.today ? (usage.today.tokens_in || 0) + (usage.today.tokens_out || 0) : 0)} tokens.</p>` })}
@@ -1293,4 +1308,4 @@ ${panel({ title: 'Still building', id: 'next', body: `<p>${kit.button({ href: '/
 </div>`;
 }
 
-module.exports = { uncensoredFaqLd, UNCENSORED_TERMS, audienceDefaults, home, modelsPage, modelPage, apiPage, startPage, whyPage, faqPage, FAQ, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };
+module.exports = { windowOf, WINDOWS, uncensoredFaqLd, UNCENSORED_TERMS, audienceDefaults, home, modelsPage, modelPage, apiPage, startPage, whyPage, faqPage, FAQ, sellPage, uncensoredPage, aiPage, ownPage, statusPage, retired, sealedChat, privacyOf, answerPrivacy, providerLabel, familyLabel, chatModels, ENDPOINT };

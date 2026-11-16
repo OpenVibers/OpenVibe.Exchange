@@ -69,11 +69,14 @@ function createPageRoutes(ctx) {
     const communityOffers = async () => (typeof ai.communityOffers === 'function' ? ai.communityOffers() : null);
     // The catalogue is also the day's changelog row: the first read of a UTC day records what every model
     // costs, so /status can say what is new, gone or repriced without keeping a second catalogue.
-    const catalogOf = async () => {
+    const catalogOf = async (window = '7d') => {
+        if (window !== '7d') return ai.catalog(window);   // the daily snapshot is the week's catalog only
         const catalog = await ai.catalog();
         await history.capture(catalog).catch((err) => log.warn('[OpenVibe.Exchange] catalogue snapshot failed:', err.message));
         return catalog;
     };
+    // The window a model's offers and the Status board are measured over (?window=; the week by default).
+    const windowOf = (req) => views.windowOf(req.query);
     const directoryOf = async () => typeof ai.directory === 'function' ? ai.directory() : { models: [] };
 
     r.get('/compute', (req, res) => {
@@ -165,7 +168,8 @@ function createPageRoutes(ctx) {
     const modelPath = (m) => `/m/${m.slug.split('/').map(encodeURIComponent).join('/')}`;
 
     async function renderModel(req, res, { result = null, problem = null, text = '', status = 200 } = {}) {
-        const [catalog, community] = await Promise.all([catalogOf(), communityOffers()]);
+        const window = windowOf(req);
+        const [catalog, community] = await Promise.all([catalogOf(window), communityOffers()]);
         const model = await modelFrom(catalog, req.params.org, req.params.model);
         if (!model) {
             const directory = await directoryOf();
@@ -203,7 +207,7 @@ function createPageRoutes(ctx) {
             jsonLd: [jsonLd, { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: model.name,
                 url: `${config.baseUrl}${modelPath(model)}`, description: `${model.name}: context, model limits, price and available providers.`,
                 applicationCategory: 'DeveloperApplication' }], head: metricsView.HEAD,
-            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis, measured })),
+            body: raw(views.modelPage({ model, viewer: req.viewer, result, problem, text, adult: isAdult, community, analysis, measured, window, path: modelPath(model) })),
         }, status);
     }
 
@@ -979,7 +983,8 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
 
     // ── Status ───────────────────────────────────────────────
     r.get('/status', async (req, res) => {
-        const catalog = await catalogOf();
+        const window = windowOf(req);
+        const catalog = await catalogOf(window);
         const [usage, changes] = await Promise.all([
             ai.usage(30),
             history.changes().catch((err) => { log.warn('[OpenVibe.Exchange] changelog failed:', err.message); return null; }),
@@ -987,7 +992,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
         return page(req, res, {
             index: true, cache: PUBLIC_CACHE, agentLayer: true,
             title: 'Status', description: 'Uptime per offer, the model changelog and incidents on OpenVibe.Exchange.',
-            body: raw(views.statusPage({ catalog, usage, changes })),
+            body: raw(views.statusPage({ catalog, usage, changes, window })),
         });
     });
 

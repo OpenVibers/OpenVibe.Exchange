@@ -118,7 +118,13 @@ function createFakeAi({ chat = null, community = [] } = {}) {
         async deepDiveCancel(id) { const row = deepDives.get(id); if (row) { row.status = 'cancelled'; } deepDiveCalls.push({ id, cancel: true }); return { deep_dive: row }; },
         async deepDiveShot() { return { buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'), contentType: 'image/png' }; },
         deepDives, deepDiveCalls,
-        async catalog() { return catalog; },
+        // 2026-11-16: another window (?window=; AI #627) answers with that window's figures: here, every offer at half
+        // uptime and four times the week's requests, and no _7d fields (as AI leaves them out).
+        async catalog(window) {
+            if (!window || window === '7d') return catalog;
+            return { ...catalog, window, models: catalog.models.map((m) => ({ ...m, requests: (m.requests_7d || 0) * 4, requests_7d: undefined,
+                offers: m.offers.map((o) => ({ ...o, uptime: 0.5, requests: (o.requests_7d || 0) * 4, requests_7d: undefined })) })) };
+        },
         async usage() { return usage; },
         async communityOffers() { return communityData; },
         async ownStatus() { return { enabled: false, reason: 'The owner has not added a GPU provider key yet, so no endpoint can start.', models: [], idle_minutes: 10, public_base: 'https://ai.openvibe.services/api/v1/own-endpoints' }; },
