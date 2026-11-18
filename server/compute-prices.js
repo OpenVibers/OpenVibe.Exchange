@@ -2,15 +2,15 @@
 // The compute price book: provider tariffs, read by hand from each provider's own public price page.
 //
 //   provider   page                                  read on      what was read there
-//   baseten    https://www.baseten.co/pricing        2026-11-13   CPU $0.0655/vCPU/hr, memory $0.0211 GB RAM/hr, storage $0.20 GB/month;
-//                                                                 no promotion shown on the page (it showed none on 11-13)
-//   daytona    https://www.daytona.io/pricing         2026-11-13   vCPU $0.0504/h, memory $0.0162/GiB/h, storage $0.000108/GiB/h (5 GiB free);
+//   baseten    https://www.baseten.co/pricing        2026-11-18   CPU $0.0655/vCPU/hr, memory $0.0211 GB RAM/hr, storage $0.20 GB/month;
+//                                                                 no promotion shown on the page (none on 11-13 or 11-18)
+//   daytona    https://www.daytona.io/pricing         2026-11-18   vCPU $0.0504/h, memory $0.0162/GiB/h, storage $0.000108/GiB/h (5 GiB free);
 //                                                                 Windows adds $0.0858/vCPU/h; GPU preemptible RTX 4090 $0.57/h,
 //                                                                 on-demand RTX 4090 $0.99/h; $200 in free compute included
-//   e2b        https://e2b.dev/pricing                2026-11-13   vCPU $0.000014/s, memory $0.0000045/GiB/s; Hobby free with $100 in credits,
+//   e2b        https://e2b.dev/pricing                2026-11-18   vCPU $0.000014/s, memory $0.0000045/GiB/s; Hobby free with $100 in credits,
 //                                                                 sessions up to 1 hour, 10 concurrent sandboxes
-//   fly        https://docs.fly.io/about/pricing      2026-11-13   shared-cpu-2x with 2 GB RAM $13.39/month in iad and ewr (30 days of runtime)
-//   runpod     https://www.runpod.io/pricing          2026-11-13   RTX 4090 pod $0.89/hr (Secure Cloud); the page also publishes a Community
+//   fly        https://docs.fly.io/about/pricing      2026-11-18   shared-cpu-2x with 2 GB RAM $13.39/month in iad and ewr (30 days of runtime)
+//   runpod     https://www.runpod.io/pricing          2026-11-18   RTX 4090 pod $0.89/hr (Secure Cloud); the page also publishes a Community
 //                                                                 Cloud RTX 4090 at $0.34/hr, which is not published here: the page does
 //                                                                 not say whether a community pod can be stopped, and a price without
 //                                                                 that answer is not one to offer
@@ -18,16 +18,16 @@
 // Every row keeps the page it was read from (source) and the day it was read (checked_at); expires_at is the day it
 // must be read again. A price that cannot be read from the provider's page is never published: the row is left out
 // rather than guessed, and the page says the list is past its review date. No automatic stale-price purchases.
-const checked_at = '2026-11-13T00:00:00Z';
-const expires_at = Date.parse('2026-11-20T00:00:00Z');
+const checked_at = '2026-11-18T00:00:00Z';
+const expires_at = Date.parse('2026-11-25T00:00:00Z');
 const cpu = (provider, region, hourly, source, extra = {}) => ({ id: `${provider}-${region}-2x4`, provider, region,
     kind: 'cpu', cpu: 2, ram_mb: 4096, gpu_mb: 0, currency: 'USD', hourly, per_second: hourly / 3600,
     billing_seconds: 1, checked_at, expires_at, source, ...extra });
 const prices = [
-    // Baseten's prices are read from its page. Its page showed no promotion on 2026-11-13, so the offer is kept
-    // with its end date and marked as unconfirmed rather than restated as a fact.
-    cpu('baseten', 'us-pdx-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing', { promotion: 'Free until November 16; not on the price page on 2026-11-13, owner must confirm', promotion_expires: '2026-11-16T00:00:00Z' }),
-    cpu('baseten', 'eu-lon-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing', { promotion_expires: '2026-11-16T00:00:00Z' }),
+    // Baseten's prices are read from its page. Its "free until November 16" offer has ended and its page shows no
+    // promotion (2026-11-18), so none is listed.
+    cpu('baseten', 'us-pdx-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing'),
+    cpu('baseten', 'eu-lon-1', 2 * .0655 + 4 * .0211, 'https://www.baseten.co/pricing'),
     cpu('daytona', 'us', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5, promotion: '$200 in free compute included; expiry must be confirmed in the account' }),
     cpu('daytona', 'eu', 2 * .0504 + 4 * .0162, 'https://www.daytona.io/pricing', { disk_gb: 5 }),
     cpu('e2b', 'provider-default', 3600 * (2 * .000014 + 4 * .0000045), 'https://e2b.dev/pricing', { promotion: 'Hobby is free with $100 in credits; sessions up to 1 hour, 10 concurrent sandboxes' }),
