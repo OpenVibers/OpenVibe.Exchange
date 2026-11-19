@@ -264,6 +264,10 @@ async function createApp(opts = {}) {
     });
     arenaApi.use(createArenaRoutes(ctx));
     app.use('/api/v1/arena', arenaApi);
+    // "Was this written by an AI?" for openvibe.compare/ai/detect (server/detect): a person's token runs the judges.
+    app.use('/api/v1/detect', require('./http/detect').createDetectRoutes({
+        detector: require('./detect').createDetector({ ai, config, log }), principal, config,
+    }));
     // Chat imports only the signed-in person's unsealed history. The service token must carry
     // the narrow export capability; Chat supplies the subject it just authenticated.
     app.get('/internal/exchange/chat/export', principal.middleware, async (req, res) => {

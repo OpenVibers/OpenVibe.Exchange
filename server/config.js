@@ -127,6 +127,15 @@ function load(env = process.env) {
 
         // The Arena (/arena): one prompt, two models, one vote. A round is two runs on the person's own
         // allowance, and a vote is rate-limited per person so a ballot cannot be stuffed from one account.
+        // "Was this written by an AI?" (server/detect): the panel's size, its models when named, its caps.
+        detect: {
+            perDay: Math.max(1, int(env.EXCHANGE_DETECT_PER_DAY, 30)),
+            maxChars: Math.max(500, int(env.EXCHANGE_DETECT_MAX_CHARS, 12000)),
+            panelSize: Math.max(1, Math.min(6, int(env.EXCHANGE_DETECT_PANEL_SIZE, 4))),
+            panel: String(env.EXCHANGE_DETECT_PANEL || '').split(',').map((s) => s.trim()).filter(Boolean),
+            maxPrice: Math.max(0.1, Number(env.EXCHANGE_DETECT_MAX_PRICE) || 8),
+            maxCostPerJudge: Math.max(0.001, Number(env.EXCHANGE_DETECT_MAX_COST_PER_JUDGE) || 0.03),
+        },
         arena: {
             perDay: Math.max(1, int(env.EXCHANGE_ARENA_PER_DAY, 10)),
             votesPerHour: Math.max(1, int(env.EXCHANGE_ARENA_VOTES_PER_HOUR, 30)),
