@@ -748,9 +748,9 @@ html[data-ov-motion=reduced] .xp-q::details-content { transition-duration: .2s; 
 .xs-depths input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .xs-depths span { display: grid; gap: 1px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 10px; align-content: center; transition: background .15s, transform .15s; }
 .xs-depths b { font-size: .9rem; }
-.xs-depths small { font-size: .74rem; color: var(--ovk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xs-depths small { font-size: .76rem; color: var(--ovk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* What the depth cost and took lately (AI's measurements): the list's numbers, or with the answer switch on, the answer's. */
-.xs-dm { font-style: normal; font-size: .72rem; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--ovk-accent) 70%, var(--ovk-text, currentColor)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xs-dm { font-style: normal; font-size: .76rem; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--ovk-accent) 70%, var(--ovk-text, currentColor)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .xs-deep:not(.is-answer) .xs-dm-a, .xs-deep.is-answer .xs-dm:not(.xs-dm-a) { display: none; }
 .xs-depths input:checked + span { background: color-mix(in srgb, var(--ovk-accent) 20%, transparent); }
 .xs-depths input:focus-visible + span { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
@@ -802,8 +802,9 @@ html[data-ov-motion="off"] #xs-live .xs-hit.is-new, html[data-ov-motion="off"] .
 .xs-code > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; cursor: pointer; font-weight: 650; }
 .xs-code > summary small { margin-left: auto; color: var(--ovk-muted); font-weight: 400; font-size: .8rem; }
 .xs-code-body { padding: 0 16px 14px; display: grid; gap: 6px; min-width: 0; }
-.xs-code-k { margin: 6px 0 0; font-size: .74rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
+.xs-code-k { margin: 6px 0 0; font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
 .xs-code pre { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--ovk-panel-2); overflow-x: auto; font-size: .8rem; line-height: 1.5; }
+.xs-code pre code { font-size: inherit; }
 @media (max-width: 40rem) {
   .xs-depths { grid-template-columns: repeat(2, minmax(0, 1fr)); flex-basis: 100%; }
   .xs-depths small { white-space: normal; }
