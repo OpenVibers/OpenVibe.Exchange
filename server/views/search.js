@@ -182,7 +182,10 @@ function multiResults(out, engines, { pending = null, answering = false } = {}) 
         return `<div class="xs-multi is-streaming">${answer}<p class="xs-receipt xs-now" role="status">${esc(`${(out.results || []).length} results so far · ${pending}`)}</p>`
             + (rows ? `<ol class="xs-hits">${rows}</ol>` : '') + '</div>';
     }
-    return `<div class="xs-multi">${answer}<p class="xs-receipt">${esc(line)}</p>`
+    // Watch for new results (plan AD.34 item 6): the same words, once a day, the person told of what is new.
+    const asked = (q.asked || [])[0];
+    const watch = asked ? `<form method="post" action="/search/watch" class="xs-watch"><input type="hidden" name="q" value="${esc(asked)}">${kit.button({ label: 'Watch for new results', type: 'submit', icon: 'bell', kind: 'quiet' })}<small>Once a day, you are told of results not shown before.</small></form>` : '';
+    return `<div class="xs-multi">${answer}<p class="xs-receipt">${esc(line)}</p>${watch}`
         + (also.length ? `<p class="xs-also"><span>Also searched</span>${also.map((x) => `<em>${esc(x)}</em>`).join('')}</p>` : '')
         + (rows ? `<ol class="xs-hits">${rows}</ol>` : '<p class="xs-note">Nothing found.</p>')
         + `<details class="xs-attempts"><summary>Every call, read and step</summary><ul>${calls}${reads}${steps}</ul></details></div>`;

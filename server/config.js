@@ -83,6 +83,10 @@ function load(env = process.env) {
             waitMs: Math.max(1000, int(env.EXCHANGE_AI_WAIT_MS, 25_000)),
         },
 
+        // OpenVibe.Search: web watches ("Watch for new results" on /search, plan AD.34 item 6) are saved there with the
+        // person's own Network session, never a service token.
+        searchService: { url: trim(env.OV_SEARCH_URL || 'https://search.openvibe.network'), timeoutMs: 10_000 },
+
         // OpenVibe.Sources (server/code.js): the GitHub repositories it keeps (source `github`, category
         // `code`) for /code and the public code API. The token is Exchange's own client-credentials grant
         // (sources.item.read); the read is over loopback and the public API caches it.
