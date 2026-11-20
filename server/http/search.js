@@ -218,6 +218,9 @@ function createSearchRoutes({ config, ai }) {
             max_cost_usd: req.query.max_cost_usd == null ? '' : one(req.query.max_cost_usd, 30),
             note: req.query.chosen === '1' ? 'The Unsplash download event was recorded once for that picture.' : one(req.query.note, 240),
             noteOk: req.query.ok === '1',
+            // A linked web search runs itself for a signed-in person (the stream script reads data-autorun); a crawler
+            // or a signed-out visitor gets the form with the words in it and never starts a paid search.
+            autorun: req.viewer?.kind === 'user' && Boolean(one(req.query.q, 500).trim()) && (req.query.kind || 'web') === 'web' && req.query.mode !== 'compare' && req.query.run === '1',
         }).catch((err) => res.status(500).end(String((err && err.message) || err)));
     });
     r.post('/search', async (req, res) => {
@@ -262,7 +265,7 @@ function createSearchRoutes({ config, ai }) {
         const q = one(req.body && req.body.q, 300).trim();
         if (!q) return res.redirect(303, '/search');
         const note = await saveWebWatch({ config, token: req.viewer.token, q });
-        res.redirect(303, `/search?q=${encodeURIComponent(q)}&note=${encodeURIComponent(note.text)}${note.ok ? '&ok=1' : ''}`);
+        res.redirect(303, `/search?q=${encodeURIComponent(q)}&run=1&note=${encodeURIComponent(note.text)}${note.ok ? '&ok=1' : ''}`);
     });
     // A person choosing an Unsplash picture is the moment for its required download event, not search.
     r.post('/search/unsplash', async (req, res) => {

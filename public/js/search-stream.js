@@ -13,6 +13,8 @@
     if (!form || !live || !form.dataset.stream || typeof ReadableStream === 'undefined' || typeof TextDecoder === 'undefined') return;
     let running = null;
     let bypass = false;
+    // A success line the page came back with (a watch saved) stays above the results while the linked search reruns.
+    let pinned = (() => { const n = typeof live.querySelector === 'function' ? live.querySelector('.xs-note.is-ok') : null; return n && n.outerHTML ? n.outerHTML : ''; })();
 
     const streamable = (data) => (data.get('kind') || 'web') === 'web' && (data.get('mode') || 'single') === 'single';
 
@@ -37,7 +39,7 @@
         }
     }
     function put(html, before) {
-        live.innerHTML = html;
+        live.innerHTML = pinned + html;
         live.classList.add('is-streamed');
         bringIntoView();
         for (const li of live.querySelectorAll('.xs-hit')) {
@@ -51,8 +53,21 @@
         if (button) button.disabled = on;
     }
 
+    /** The search in the address bar (q, depth, answer, more, sites, date), so it can be linked, refreshed or shared. */
+    function remember(data) {
+        if (typeof history === 'undefined' || typeof history.replaceState !== 'function' || typeof location === 'undefined') return;
+        const u = new URLSearchParams();
+        u.set('q', String(data.get('q') || '').trim());
+        const depth = data.get('depth');
+        if (depth && depth !== 'fast') u.set('depth', depth);
+        if (data.get('answer')) u.set('answer', '1');
+        u.set('run', '1');
+        try { history.replaceState(null, '', `${location.pathname}?${u.toString()}`); } catch { /* the address stays */ }
+    }
+
     async function run(data, button) {
         if (running) running.abort();
+        remember(data);
         const ctl = new AbortController();
         running = ctl;
         busy(true, button);
@@ -107,12 +122,19 @@
         answerSwitch.addEventListener('change', () => deep.classList.toggle('is-answer', answerSwitch.checked));
     }
 
+    // A linked search (/search?q=…&run=1, the server set data-autorun for a signed-in person) runs itself once.
+    if (form.dataset.autorun === '1' && typeof FormData !== 'undefined') {
+        const data = new FormData(form);
+        if (String(data.get('q') || '').trim() && streamable(data)) run(data, document.querySelector('button[type=submit][form="xs-form"]'));
+    }
+
     // Capture on window: before exchange.js's document-level "Searching…" handler, which then sees the default prevented.
     window.addEventListener('submit', (e) => {
         if (e.target !== form || bypass) { bypass = false; return; }
         const data = new FormData(form, e.submitter || undefined);
         if (!streamable(data) || !String(data.get('q') || '').trim()) return;
         e.preventDefault();
+        pinned = '';   // a new search of the person's own: the old line has said its piece
         run(data, e.submitter || document.querySelector('button[type=submit][form="xs-form"]'));
     }, true);
 })();
