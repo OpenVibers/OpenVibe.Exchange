@@ -100,5 +100,31 @@ const views = require('../server/views/search');
     assert.match(streamedPage, /search-stream[^"]*\.js/);
     ok('streamed: something at once, results as the engines answer, the passages, the answer in its kept place, the receipt; failures in words');
 
+    // What each depth cost and took lately (AI's measurements, plan AD.34 item 5): words under each depth, the list's
+    // numbers or the answer's with the switch on; nothing until a handful were measured.
+    assert.strictEqual(views.measuredWords({ n: 40, cost_usd: { p50: 0.00075, p90: 0.001 }, time_ms: { p50: 1240, p90: 2100 } }), '~1.2 s · $0.0008');
+    assert.strictEqual(views.measuredWords({ n: 40, cost_usd: { p50: 0.0234, p90: 0.03 }, time_ms: { p50: 13700, p90: 20000 } }), '~14 s · $0.023');
+    assert.strictEqual(views.measuredWords({ n: 40, cost_usd: { p50: 0, p90: 0 }, time_ms: { p50: 900, p90: 900 } }), '~0.9 s · no fee');
+    assert.strictEqual(views.measuredWords({ n: 2, cost_usd: { p50: 0.001, p90: 0.001 }, time_ms: { p50: 900, p90: 900 } }), '', 'two searches say nothing yet');
+    const measured = [{ depth: 'fast', measured: { results: { n: 12, cost_usd: { p50: 0.00075, p90: 0.001 }, time_ms: { p50: 1200, p90: 1900 } }, answer: { n: 5, cost_usd: { p50: 0.0021, p90: 0.003 }, time_ms: { p50: 3400, p90: 5000 } } } }, { depth: 'deep', measured: { results: null, answer: null } }];
+    const priced = views.searchPage({ engines: [], query: { q: 'x', kind: 'web', depth: 'fast' }, depths: measured });
+    assert.match(priced, /<b>Fast<\/b><small>Two engines, merged<\/small><em class="xs-dm">~1\.2 s · \$0\.0008<\/em><em class="xs-dm xs-dm-a">~3\.4 s · \$0\.0021<\/em>/, 'the list and the answer numbers under the depth');
+    assert.ok(!/<b>Deep<\/b><small>[^<]*<\/small><em/.test(priced), 'nothing measured, nothing said');
+    assert.match(views.searchPage({ engines: [], query: { q: 'x', kind: 'web', answer: true }, depths: measured }), /class="xs-deep is-answer"/, 'with the answer on, the answer numbers show');
+    // The page never waits for the measurements: the first view draws without them and asks AI behind it.
+    const { createAi } = require('../server/ai');
+    let depthAsks = 0;
+    const fetchImpl = async (url) => {
+        if (String(url).endsWith('/oauth/token')) return new Response(JSON.stringify({ access_token: 'svc', expires_in: 300, token_type: 'Bearer' }), { status: 200, headers: { 'content-type': 'application/json' } });
+        if (String(url).includes('/search/depths')) { depthAsks++; return new Response(JSON.stringify({ depths: measured }), { status: 200, headers: { 'content-type': 'application/json' } }); }
+        return new Response('{}', { status: 404, headers: { 'content-type': 'application/json' } });
+    };
+    const client = createAi({ config: { ai: { url: 'http://ai.test', timeoutMs: 5000, waitMs: 1000, audience: 'ai', scope: '' }, oauth: { clientId: 'exchange', clientSecret: 's' }, networkInternalUrl: 'http://network.test', baseUrl: 'https://openvibe.exchange' }, fetchImpl, log: { warn() {}, log() {} } });
+    assert.deepStrictEqual(client.searchDepths(), [], 'the first view draws without waiting');
+    for (let i = 0; i < 50 && !client.searchDepths().length; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.strictEqual(client.searchDepths()[0].depth, 'fast', 'then the measurements are there');
+    assert.strictEqual(depthAsks, 1, 'asked once a minute at most');
+    ok('each depth says what it cost and took lately, the answer numbers with the switch on; the page never waits for them');
+
     console.log(`search-v2-page: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });

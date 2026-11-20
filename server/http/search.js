@@ -182,7 +182,7 @@ function createSearchRoutes({ config, ai }) {
             path: req.originalUrl,
             title: 'Search',
             description: 'One search API for people and agents: set how deep, run several searches at once, get every engine\'s answers merged and deduplicated, or a sourced answer. One key, a receipt with every answer.',
-            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null, multi: query.multi || null, apiBase: config.api && config.api.publicUrl })),
+            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null, multi: query.multi || null, apiBase: config.api && config.api.publicUrl, depths: typeof ai.searchDepths === 'function' ? ai.searchDepths() : [] })),
         });
     r.get('/search', (req, res) => {
         const kind = ['web', 'images', 'icons'].includes(req.query.kind) ? req.query.kind : 'web';

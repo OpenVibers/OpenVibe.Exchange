@@ -224,7 +224,19 @@ function liveBlock({ q = '', kind = 'web', dive = null, out = '' } = {}) {
         + (q && kind === 'web' ? diveCard(q, dive && dive.depths) : '');
 }
 
-function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null } = {}) {
+/**
+ * What a depth really cost and took lately, in a few words ("~1.2 s · $0.0008"), from AI's measurements of its recent
+ * searches; nothing until a handful were measured. One line for a list, one for a list with an answer.
+ */
+function measuredWords(m) {
+    if (!m || !(m.n >= 3) || !m.time_ms || !m.cost_usd) return '';
+    const s = m.time_ms.p50 / 1000;
+    const c = m.cost_usd.p50;
+    const cost = c <= 0 ? 'no fee' : c < 0.0001 ? 'under $0.0001' : `$${c < 0.01 ? c.toFixed(4).replace(/0+$/, '') : c.toFixed(3)}`;
+    return `~${s < 10 ? s.toFixed(1) : Math.round(s)} s · ${cost}`;
+}
+
+function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null, depths = [] } = {}) {
     const kind = KINDS.some(([k]) => k === query.kind) ? query.kind : 'web';
     const mode = query.mode === 'compare' ? 'compare' : 'single';
     const forKind = engines.filter((e) => Array.isArray(e.kinds) && e.kinds.includes(kind));
@@ -299,7 +311,12 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         // How deep, and whether to write an answer (web, one search): the two choices that matter most, right under the
         // bar. Outside it, so what rides along while results scroll is only the box and the kind (on a phone the
         // whole set took 40 % of the screen, 11-20).
-        + (kind === 'web' && mode === 'single' ? `<div class="xs-deep"><fieldset class="xs-depths"><legend class="ex-sr">How deep</legend>${DEPTHS.map(([d, l, hint]) => `<label title="${esc(hint)}"><input ${F} type="radio" name="depth" value="${d}"${d === depth ? ' checked' : ''}><span><b>${l}</b><small>${esc(hint)}</small></span></label>`).join('')}</fieldset>`
+        + (kind === 'web' && mode === 'single' ? `<div class="xs-deep${query.answer ? ' is-answer' : ''}"><fieldset class="xs-depths"><legend class="ex-sr">How deep</legend>${DEPTHS.map(([d, l, hint]) => {
+            const m = (Array.isArray(depths) ? depths : []).find((x) => x && x.depth === d);
+            const list = measuredWords(m && m.measured && m.measured.results), answered = measuredWords(m && m.measured && m.measured.answer);
+            const lately = list || answered ? `<em class="xs-dm"${list ? '' : ' hidden'}>${esc(list)}</em><em class="xs-dm xs-dm-a">${esc(answered || list)}</em>` : '';
+            return `<label title="${esc(hint)}"><input ${F} type="radio" name="depth" value="${d}"${d === depth ? ' checked' : ''}><span><b>${l}</b><small>${esc(hint)}</small>${lately}</span></label>`;
+        }).join('')}</fieldset>`
             + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label></div>` : '')
         + `<div id="xs-working" class="xs-working"></div>`
         + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
@@ -318,4 +335,4 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         + `<p class="xs-note">The words matter: “No provider fee” is open data; “Your instance” is a SearXNG you run; “Included allowance” is a provider free tier; “Your key” is your own key and the provider may charge. Nothing here is labelled free. Pictures come with their licence and author: keep the attribution line with each one.</p></div>`;
 }
 
-module.exports = { searchPage, ENGINES, multiResults, codeCard, liveBlock, DEPTHS };
+module.exports = { searchPage, ENGINES, multiResults, codeCard, liveBlock, measuredWords, DEPTHS };
