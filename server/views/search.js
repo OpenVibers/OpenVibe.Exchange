@@ -325,7 +325,7 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         + `<div id="xs-working" class="xs-working"></div>`
         + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? (query.noteOk ? `<p class="xs-note is-ok" role="status">${kit.icon('check')}<span>${esc(query.note)}</span></p>` : `<p class="xs-note">${esc(query.note)}</p>`) : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
         + (kind === 'web' ? `<div id="xs-code">${codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase)}</div>` : '')
-        + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working" data-stream="/search/stream">`
+        + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working" data-stream="/search/stream"${query.autorun ? ' data-autorun="1"' : ''}>`
         + (kind === 'web' ? `<script src="${asset('js/search-stream.js')}" defer></script>` : '')
         + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`
         + `<fieldset class="xs-modes"><legend class="ex-sr">How many engines</legend><label><input type="radio" name="mode" value="single"${mode === 'single' ? ' checked' : ''}><span>One engine</span></label><label><input type="radio" name="mode" value="compare"${mode === 'compare' ? ' checked' : ''}><span>Compare 2 or 3 engines</span></label></fieldset>`

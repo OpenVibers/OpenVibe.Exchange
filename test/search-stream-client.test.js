@@ -9,7 +9,7 @@ const vm = require('vm');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'search-stream.js'), 'utf8');
 
-function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf-8', ok = true }) {
+function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf-8', ok = true, autorun = false, pinnedNote = null }) {
     const listeners = [];
     const writes = [];
     const hits = [];
@@ -20,14 +20,17 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
         classList: { add(c) { live.classes.add(c); } },
         toggleAttribute(n, on) { if (on) this.attrs.add(n); else this.attrs.delete(n); },
         querySelectorAll(sel) { return sel === '.xs-hit > a' ? hits.map((h) => h.a) : sel === '.xs-hit' ? hits.slice() : []; },
-        querySelector(sel) { return sel === '.xs-hit' ? hits[0] || null : null; },
+        querySelector(sel) { if (sel === '.xs-note.is-ok') return pinnedNote ? { outerHTML: pinnedNote } : null; return sel === '.xs-hit' ? hits[0] || null : null; },
     };
     function hitOf(href) {
         const li = { cls: new Set(), classList: { add(c) { li.cls.add(c); } }, a: { getAttribute: () => href }, querySelector: () => li.a };
         return li;
     }
     let submitted = 0;
-    const form = { dataset: { stream: '/search/stream' }, toggleAttribute() {}, requestSubmit() { submitted++; } };
+    const form = { dataset: { stream: '/search/stream', ...(autorun ? { autorun: '1' } : {}) }, toggleAttribute() {}, requestSubmit() { submitted++; } };
+    const urls = [];
+    const history = { replaceState: (a, b, url) => urls.push(url) };
+    const location = { pathname: '/search' };
     const code = { innerHTML: '' };
     const document = {
         getElementById: (id) => ({ 'xs-form': form, 'xs-live': live, 'xs-code': code, 'xs-working': { replaceChildren() {} } }[id] || null),
@@ -47,7 +50,8 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
         return { ok, headers: { get: () => contentType }, body };
     };
     const window = { addEventListener: (type, fn, capture) => listeners.push({ type, fn, capture }) };
-    vm.runInNewContext(SRC, { window, document, fetch, FormData: FormDataStub, URLSearchParams, ReadableStream, TextDecoder, AbortController, setTimeout, console });
+    vm.runInNewContext(SRC, { window, document, fetch, FormData: FormDataStub, URLSearchParams, ReadableStream, TextDecoder, AbortController, setTimeout, console, history, location });
+    const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
     const submit = async () => {
         let prevented = false;
         const handler = listeners.find((l) => l.type === 'submit');
@@ -55,7 +59,7 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
         for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
         return prevented;
     };
-    return { listeners, writes, live, code, requests, submit, hits, submitted: () => submitted };
+    return { listeners, writes, live, code, requests, submit, hits, submitted: () => submitted, urls, settle };
 }
 
 const hit = (n, url) => `<li id="xs-r${n}" class="xs-hit"><a href="${url}">t</a></li>`;
@@ -93,6 +97,19 @@ const ev = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
     await html.submit();
     assert.strictEqual(html.submitted(), 1, 'no stream: the form is posted the plain way');
     ok('a stream that cannot open falls back to the plain form post');
+
+    // Linkable: a search goes into the address; a linked one (data-autorun, set for a signed-in person) runs itself;
+    // a success line the page came back with stays above the results of that run.
+    assert.deepStrictEqual(h.urls, ['/search?q=lanterns&run=1'], 'the search is in the address, ready to link or refresh');
+    const linked = harness({ fields: { q: 'lanterns', kind: 'web', mode: 'single', depth: 'standard', answer: 'true' }, chunks: [stream], autorun: true, pinnedNote: '<p class="xs-note is-ok">Watching</p>' });
+    await linked.settle();
+    assert.strictEqual(linked.requests.length, 1, 'a linked search runs once, by itself');
+    assert.deepStrictEqual(linked.urls, ['/search?q=lanterns&depth=standard&answer=1&run=1']);
+    assert.ok(linked.writes.every((w) => w.startsWith('<p class="xs-note is-ok">Watching</p>')), 'the success line stays above every step');
+    const quiet = harness({ fields: { q: 'lanterns', kind: 'web' }, chunks: [] });
+    await quiet.settle();
+    assert.strictEqual(quiet.requests.length, 0, 'without data-autorun nothing runs by itself');
+    ok('a search is linkable: in the address, rerun when linked, a success line kept above it');
 
     console.log(`search-stream-client: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });

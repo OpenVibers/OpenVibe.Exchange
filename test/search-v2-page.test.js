@@ -150,5 +150,10 @@ const views = require('../server/views/search');
     assert.match(okPage, /<p class="xs-note is-ok" role="status"><svg[^>]*>.*<\/svg><span>Watching the web/s, 'a success reads as one');
     ok('Watch: under a finished search, saved with the person\'s session, every outcome in words');
 
+    // A linked search runs itself only when the server says so (a signed-in person, ?run=1, a web search).
+    assert.match(views.searchPage({ engines: [], query: { q: 'x', kind: 'web', autorun: true } }), /data-stream="\/search\/stream" data-autorun="1">/);
+    assert.ok(!/data-autorun/.test(views.searchPage({ engines: [], query: { q: 'x', kind: 'web' } })), 'never by default');
+    ok('a linked search runs itself only when the server allows it');
+
     console.log(`search-v2-page: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });
