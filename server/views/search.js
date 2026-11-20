@@ -145,6 +145,12 @@ const DEPTHS = [
     ['deep', 'Deep', 'A second round for what is missing'],
 ];
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+// What the search box suggests while it is empty (openvibe-shared ov-trending's data-ov-trending-items): questions that
+// show what a web search here does. Without a list of its own the box suggested the page's headings, and one came out as
+// "The engines35" (the heading with its count badge, 11-20).
+const BOX_EXAMPLES = ['When does the Louvre close on Wednesdays?', 'The current Node.js LTS version', 'Who won the 2024 Nobel Prize in Physics?', 'Cheapest H100 per hour this month', 'Best open-source search engines for agents'];
+const PICTURE_EXAMPLES = ['Mountain lake at sunrise', 'Open-licence city skyline', 'Vintage robot illustration'];
+const ICON_EXAMPLES = ['home', 'search', 'settings', 'arrow right'];
 /** An answer's text with its [n] markers as links to the numbered sources below it. */
 const cited = (text) => esc(text).replace(/\[(\d{1,2})\]/g, (m, n) => `<a class="xs-cite" href="#xs-r${n}">[${n}]</a>`);
 
@@ -308,7 +314,7 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
     const F = 'form="xs-form"';
     return `<div class="ex-wrap xs">${kit.head({ title: 'Search', sub: 'Web, pictures and icons from many engines, with the same key as your models.', sticky: false, actions: [kit.button({ href: query.q ? `/deep-dive?q=${encodeURIComponent(query.q)}` : '/deep-dive', label: 'Deep dive', icon: 'spark', kind: 'quiet' })] })}`
         + `<div class="xs-bar" role="search">`
-        + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
+        + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for" data-ov-trending-items="${esc(JSON.stringify(kind === 'images' ? PICTURE_EXAMPLES : kind === 'icons' ? ICON_EXAMPLES : BOX_EXAMPLES))}">`
         + `${kit.button({ label: 'Search', type: 'submit', icon: 'search', attrs: { form: 'xs-form' } })}</div>`
         + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input ${F} type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
         + `</div>`
