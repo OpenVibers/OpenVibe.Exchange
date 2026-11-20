@@ -155,5 +155,11 @@ const views = require('../server/views/search');
     assert.ok(!/data-autorun/.test(views.searchPage({ engines: [], query: { q: 'x', kind: 'web' } })), 'never by default');
     ok('a linked search runs itself only when the server allows it');
 
+    // The box suggests questions a web search answers, never the page's headings (11-20: "The engines35").
+    const items = (html) => JSON.parse(((html.match(/data-ov-trending-items="([^"]+)"/) || [])[1] || '[]').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+    assert.ok(items(views.searchPage({ engines: [], query: { kind: 'web' } })).some((x) => /Louvre/.test(x)));
+    assert.ok(items(views.searchPage({ engines: [], query: { kind: 'icons' } })).includes('home'));
+    ok('the search box has its own examples for each kind');
+
     console.log(`search-v2-page: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });
