@@ -29,6 +29,7 @@ function rightsLine(r) {
 const ENGINES = {
     openvibe: ['OpenVibe Search', "OpenVibe's own index of the network's pages."],
     searxng: ['SearXNG', 'Many search engines at once, through our own instance.'],
+    wikipedia: ['Wikipedia', "Wikipedia's own search over its articles: facts, with the article linked."],
     openverse: ['Openverse', 'Openly licensed pictures, with their licence and author.'],
     commons: ['Wikimedia Commons', "Wikimedia's open media, with the attribution line."],
     iconify: ['Iconify', 'Open icon sets, as SVG with their licence.'],
