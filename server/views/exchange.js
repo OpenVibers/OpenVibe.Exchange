@@ -557,7 +557,36 @@ function resultCard(result) {
 }
 
 // ── API ────────────────────────────────────────────────────
-function apiPage({ catalog, usage, viewer = null, keyPrivacy = null }) {
+const SEARCH_ENDPOINT = 'https://api.openvibe.exchange/v1/search';
+/**
+ * Search the web, on the API page (plan AD.34; the owner sent Linkup's "3 lines of code" ad, 11-20): the call, the four
+ * depths with what their recent searches really cost and took, the three outputs, the filters, streaming and the MCP
+ * tools, so a builder can choose without leaving the page.
+ */
+function searchPanel(depths = []) {
+    const { DEPTHS, measuredWords } = require('./search');
+    const PLAN = { instant: 'One engine', fast: 'Two engines of different kinds, merged and deduplicated', standard: 'Three engines, two rewritten queries, ranked by meaning, the top 3 pages read for the passage that answers', deep: 'Standard, then a second round for what is missing, 6 pages read' };
+    const rows = DEPTHS.map(([d, label]) => {
+        const m = (Array.isArray(depths) ? depths : []).find((x) => x && x.depth === d);
+        return { depth: `<code>${esc(d)}</code>`, does: PLAN[d] || label, list: measuredWords(m && m.measured && m.measured.results) || '–', answer: measuredWords(m && m.measured && m.measured.answer) || '–' };
+    });
+    return panel({ title: 'Search the web', id: 'search', note: 'One call: many engines, merged and deduplicated, with a sourced answer when you ask for one.', body: `
+${kit.snippet({ code: `curl ${SEARCH_ENDPOINT} \
+  -H "Authorization: Bearer $OPENVIBE_KEY" \
+  -d '{"q":"When does the Louvre close on Wednesdays?","depth":"standard","output":"answer"}'`, id: 'search-curl' })}
+<p class="ex-prose">The plainest call is <code>{"q": "…"}</code>: one engine, its results. Every other field is optional.</p>
+${kit.table({ columns: [{ key: 'depth', label: 'depth', primary: true, html: true }, { key: 'does', label: 'What it does' }, { key: 'list', label: 'Lately, a list' }, { key: 'answer', label: 'With an answer' }], rows, label: 'Search depths', caption: 'The median time and cost of each depth\'s recent searches, from their receipts. Fast is the default.', stack: true })}
+<p class="ex-prose"><b>output</b>: <code>results</code> (the default: one merged list; each result names the engines that found it, and at standard and deep the passage of the page that answers), <code>answer</code> (a short answer that cites its sources as <code>[n]</code>, and says first when sources disagree or something changed) or <code>structured</code> (JSON shaped by the <code>schema</code> you send, filled from the sources only).</p>
+<p class="ex-prose"><b>More</b>: <code>queries</code> (up to 5 more searches merged into the same list), <code>include_domains</code> and <code>exclude_domains</code> (up to 20 sites each), <code>from</code> (YYYY-MM-DD), <code>freshness</code>, <code>limit</code> (1–50), <code>engines</code> (name up to 5 instead of the automatic pick) and <code>max_cost_usd</code>: what a search may cost is held before it starts and never passed; you pay what the calls really cost, and the <code>receipt</code> lists every engine call, page read and model step.</p>
+<p class="ex-prose"><b>Streaming</b>: <code>"stream": true</code> answers as Server-Sent Events, sources first: <code>results</code> as soon as the engines answer (again as the list grows: <code>stage</code> is <code>first</code>, <code>merged</code>, <code>second_round</code> or <code>read</code>, each a whole list), then <code>answer</code> or <code>structured</code>, then <code>done</code> with everything and the receipt. A bad request is still a plain error before the stream opens.</p>
+<p class="ex-prose"><b>From code and agents</b>: <code>exchange.search(q, { depth, output })</code> in <code>openvibe-sdk/exchange</code>; <code>exchange_search</code> and <code>exchange_fetch</code> in the Exchange MCP server; <code>POST /v1/fetch { url }</code> reads one page as text. Try it on <a href="/search">Search</a>, which streams the same call.</p>
+${kit.snippet({ code: `const { createExchangeClient } = require('openvibe-sdk/exchange');
+const exchange = createExchangeClient({ developerKey: process.env.OPENVIBE_KEY });
+const { answer, results, receipt } = await exchange.search('When does the Louvre close on Wednesdays?', { depth: 'standard', output: 'answer' });`, id: 'search-sdk' })}
+` });
+}
+
+function apiPage({ catalog, usage, viewer = null, keyPrivacy = null, depths = [] }) {
     const models = chatModels(catalog).filter((m) => !m.uncensored).slice(0, 12);
     const rows = models.map((m) => ({ model: `<code>${esc(m.slug)}</code>`, context: m.context || null }));
     const byDay = (usage.by_day || []).slice(-14).reverse();
@@ -577,6 +606,7 @@ ${keyPrivacy && keyPrivacy.note ? kit.notice({ kind: 'info', text: keyPrivacy.no
 </form>`);
     return `<div class="ex-wrap ex-page">
 ${kit.head({ title: 'The API', sub: 'One endpoint. OpenAI and Anthropic compatible.', actions: [kit.button({ href: CHAT, label: 'Chat', icon: 'chat', kind: 'quiet' })] })}
+${searchPanel(depths)}
 ${panel({ title: 'Batches, at half price', body: `<p class="ex-prose">Half price. Answered within your deadline when spare low-cost capacity is free; if none comes free in time, the prompt expires and you pay nothing.</p>` })}
 ${panel({ title: 'Code repositories', id: 'code', body: `
 <p class="ex-prose"><code>GET /api/v1/code/repos?list=trending|week|month|hot|new|top&lang=&topic=&limit=</code> is the cached GitHub repository ranking read through OpenVibe.Sources: <code>trending</code> is repositories created today by stars, <code>week</code> and <code>month</code> the same for 7 and 30 days, <code>hot</code> the most stars gained in 24 hours and 7 days (never totals), <code>new</code> the newest repositories and <code>top</code> the all-time most starred. <code>lang</code> and <code>topic</code> filter exactly; <code>limit</code> is 1–100 (default 30).</p>

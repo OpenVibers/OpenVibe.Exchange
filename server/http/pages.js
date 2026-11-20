@@ -495,7 +495,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
             keyPrivacy = { on: !on, available: true, error: `The switch could not be saved: ${err.message || 'OpenVibe.AI did not answer'}` };
         }
         const [catalog, usage] = await Promise.all([catalogOf(), ai.usage(30)]);
-        return page(req, res, { title: 'The API', index: false, body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })) });
+        return page(req, res, { title: 'The API', index: false, body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy, depths: typeof ai.searchDepths === 'function' ? ai.searchDepths() : [] })) });
     });
 
     r.get('/api/ai/choices', async (req,res) => {
@@ -745,7 +745,7 @@ ${m.meta && m.meta.cached_input_percent != null ? `<dt>Cached input</dt><dd>${Nu
             index: true, cache: signedIn(req) ? null : PUBLIC_CACHE, agentLayer: true,
             title: 'The API',
             description: 'One OpenAI- and Anthropic-compatible endpoint for every model on OpenVibe.Exchange: keys, model ids, usage.',
-            body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy })),
+            body: raw(views.apiPage({ catalog, usage, viewer: req.viewer, keyPrivacy, depths: typeof ai.searchDepths === 'function' ? ai.searchDepths() : [] })),
         });
     });
 
