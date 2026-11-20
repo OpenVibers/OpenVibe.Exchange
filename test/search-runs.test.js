@@ -15,26 +15,29 @@ const engines = [card('openvibe'), card('deepseek'), card('brave'), card('openve
         },
     };
 
-    // One engine by default: the router's pick, not two engines paid twice.
+    // A web search is one search v2 call (AI #669, 11-20): fast by default (two engines of different kinds side by
+    // side, merged by AI), never two calls paid twice from here.
     let out = await runSearch({ ai, token: 't', body: { q: 'x' }, kind: 'web', engines });
     assert.equal(out.mode, 'single');
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].body.engine, 'auto');
+    assert.equal(calls[0].path, '/v1/search');
+    assert.equal(calls[0].body.depth, 'fast');
+    assert.equal(calls[0].body.engines, undefined, 'auto: AI chooses the engines');
     assert.equal(out.spent, 0.003);
-    assert.equal(calls[0].timeoutMs, undefined, 'no limit given: the default one');
-    // 11-15: the route's search limit reaches each engine's call (a slow engine costs seconds, not half a minute).
+    assert.equal(calls[0].timeoutMs, 20000, 'no limit given: the depth\'s own wait');
+    // 11-15: the route's search limit reaches the call, never shorter than the depth needs.
     calls.length = 0;
-    await runSearch({ ai, token: 't', body: { q: 'x' }, kind: 'web', engines, timeoutMs: 15000 });
-    assert.equal(calls[0].timeoutMs, 15000);
+    await runSearch({ ai, token: 't', body: { q: 'x', depth: 'instant' }, kind: 'web', engines, timeoutMs: 30000 });
+    assert.equal(calls[0].timeoutMs, 30000);
     // A call that timed out says so in plain words.
     const slow = { async meRequest() { throw Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' }); } };
     const timedOut = await runSearch({ ai: slow, token: 't', body: { q: 'x' }, kind: 'web', engines, timeoutMs: 15000 });
-    assert.match(timedOut.results[0].error, /took too long/);
+    assert.match(timedOut.note, /took too long/);
 
-    // An explicit engine is still one call.
+    // An explicit engine is still one call, to that engine.
     calls.length = 0;
     out = await runSearch({ ai, token: 't', body: { q: 'x', first: 'deepseek' }, kind: 'web', engines });
-    assert.deepEqual(calls.map((c) => c.body.engine), ['deepseek']);
+    assert.deepEqual(calls.map((c) => c.body.engines), [['deepseek']]);
 
     // Compare is explicit, sequential, and every call gets what is left of ONE combined cap.
     calls.length = 0;

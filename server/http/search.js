@@ -27,6 +27,28 @@ function filterBody(body, kind) {
     }
     return out;
 }
+// Search v2 (AI #669; the owner, 11-20: depth you can set, several searches at once, deduplicated, sourced answers).
+const DEPTHS = ['instant', 'fast', 'standard', 'deep'];
+// How long the page waits for each depth: a deep search reads pages and asks a model twice.
+const DEPTH_WAIT_MS = { instant: 15_000, fast: 20_000, standard: 45_000, deep: 55_000 };   // under nginx's 60 s on openvibe.exchange; the API host gives 120 s
+const listOf = (value, max, re) => String(value == null ? '' : value).split(/[\s,]+/).map((x) => x.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')).filter((x) => x && re.test(x)).slice(0, max);
+const SITE = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+/** The page's form as a search v2 request (web only): depth, the answer, more searches, sites in and out, a date. */
+function v2Body(body, filters) {
+    const depth = DEPTHS.includes(body.depth) ? body.depth : 'fast';
+    const more = String(body.more || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).map((x) => x.slice(0, 500)).slice(0, 5);
+    const include = listOf(body.include, 20, SITE), exclude = listOf(body.exclude, 20, SITE);
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(String(body.from || '')) ? body.from : null;
+    const named = body.engine || body.first;
+    const engine = named && named !== 'auto' ? one(named) : null;
+    return {
+        q: one(body.q, 500), depth, limit: depth === 'deep' ? 15 : 10,
+        ...(body.answer === 'true' || body.answer === 'on' || body.answer === '1' ? { output: 'answer' } : {}),
+        ...(more.length ? { queries: more } : {}), ...(include.length ? { include_domains: include } : {}),
+        ...(exclude.length ? { exclude_domains: exclude } : {}), ...(from ? { from } : {}),
+        ...(engine ? { engines: [engine] } : {}), ...filters,
+    };
+}
 /** One engine by default; compare is explicit and runs two or three distinct engines. */
 function selectedEngines(body, engines, kind) {
     const mode = body.mode === 'compare' ? 'compare' : 'single';
@@ -55,6 +77,19 @@ async function runSearch({ ai, token, body, kind, engines = [], timeoutMs = null
     const chosen = selectedEngines(body, engines, kind);
     const cap = capOf(body.max_cost_usd);
     const filters = filterBody(body, kind);
+    // A web search on the page is one search v2 call: its engines side by side, merged, and an answer when asked.
+    // Compare stays what it was: two or three engines, each its own list, to see how they differ.
+    if (kind === 'web' && chosen.mode === 'single') {
+        const payload = v2Body(body, filters);
+        if (cap != null) payload.max_cost_usd = cap;
+        try {
+            const multi = await ai.meRequest(token, '/v1/search', { method: 'POST', body: payload, timeoutMs: Math.max(timeoutMs || 0, DEPTH_WAIT_MS[payload.depth]) });
+            return { mode: 'single', engines: chosen.engines, cap, spent: Number(multi.receipt?.cost_usd) || 0, results: [], multi, depth: payload.depth, note: '' };
+        } catch (err) {
+            console.warn('[exchange] search v2', payload.depth, err && err.status, err && err.code, (err && err.message) || '');
+            return { mode: 'single', engines: chosen.engines, cap, spent: 0, results: [], multi: null, depth: payload.depth, note: why(err) };
+        }
+    }
     const results = [];
     let spent = 0;
     let note = '';
@@ -93,13 +128,14 @@ function createSearchRoutes({ config, ai }) {
             config,
             path: req.originalUrl,
             title: 'Search',
-            description: 'One search API for the web, pictures and icons: many engines, one key, a receipt with every answer.',
-            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null })),
+            description: 'One search API for people and agents: set how deep, run several searches at once, get every engine\'s answers merged and deduplicated, or a sourced answer. One key, a receipt with every answer.',
+            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null, multi: query.multi || null, apiBase: config.api && config.api.publicUrl })),
         });
     r.get('/search', (req, res) => {
         const kind = ['web', 'images', 'icons'].includes(req.query.kind) ? req.query.kind : 'web';
         return render(req, res, [], {
             q: one(req.query.q, 500), kind, mode: req.query.mode === 'compare' ? 'compare' : 'single',
+            depth: DEPTHS.includes(req.query.depth) ? req.query.depth : 'fast', answer: req.query.answer === '1',
             engine: one(req.query.engine), first: one(req.query.first), second: one(req.query.second), third: one(req.query.third),
             max_cost_usd: req.query.max_cost_usd == null ? '' : one(req.query.max_cost_usd, 30),
             note: req.query.chosen === '1' ? 'The Unsplash download event was recorded once for that picture.' : one(req.query.note, 240),
@@ -113,7 +149,9 @@ function createSearchRoutes({ config, ai }) {
         const body = req.body || {};
         const out = await runSearch({ ai, token: req.viewer.token, body, kind, engines: await ai.searchEngines(), timeoutMs: config.ai.searchTimeoutMs });
         await render(req, res, out.results, {
-            q: one(body.q, 500), kind, mode: out.mode,
+            q: one(body.q, 500), kind, mode: out.mode, multi: out.multi || null,
+            depth: out.depth || (DEPTHS.includes(body.depth) ? body.depth : 'fast'), answer: body.answer === 'true' || body.answer === 'on' || body.answer === '1',
+            more: String(body.more || '').slice(0, 2600), include: one(body.include, 600), exclude: one(body.exclude, 600), from: one(body.from, 10),
             engine: one(body.engine), first: one(body.first), second: one(body.second), third: one(body.third),
             max_cost_usd: capOf(body.max_cost_usd) == null ? '' : String(capOf(body.max_cost_usd)),
             spent: out.spent, note: out.note,
@@ -136,4 +174,4 @@ function createSearchRoutes({ config, ai }) {
     });
     return r;
 }
-module.exports = { createSearchRoutes, selectedEngines, runSearch, filterBody };
+module.exports = { createSearchRoutes, selectedEngines, runSearch, filterBody, v2Body, DEPTHS };
