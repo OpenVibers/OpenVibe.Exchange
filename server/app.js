@@ -159,6 +159,8 @@ async function createApp(opts = {}) {
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://openvibe.network', 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
                 fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
                 imgSrc: ["'self'", 'data:', 'https:', 'https://openvibe.network', 'https://openvibe.media', 'https://avatars.githubusercontent.com'],
+                // The feed's preview videos (ov-home.js watchPreview, the menu's Feed): without media-src, default-src 'self' refused them (2026-11-20).
+                mediaSrc: ["'self'", 'blob:', 'https:'],
                 connectSrc: ["'self'", 'https://openvibe.network', 'https://openvibe.chat', 'https://cloudflareinsights.com', 'https://openvibe.events', 'https://ai.openvibe.services'],
                 frameSrc: ["'self'", 'https://openvibe.network'],
                 frameAncestors: ["'none'"],
