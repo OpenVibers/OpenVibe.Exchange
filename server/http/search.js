@@ -1,7 +1,7 @@
 'use strict';
 const express = require('express');
 const views = require('../views/search');
-const { raw } = require('../render/html');
+const { raw, esc } = require('../render/html');
 const { send } = require('../render/layout');
 const { sameOrigin } = require('./principal');
 
@@ -119,6 +119,59 @@ async function runSearch({ ai, token, body, kind, engines = [], timeoutMs = null
     return { mode: chosen.mode, engines: chosen.engines, cap, spent, results, note };
 }
 
+/**
+ * A web search streamed to the page (plan AD.34 item 4, the owner: "faster responses … dynamic loading"): the page's
+ * script posts the form here and gets Server-Sent Events of ready HTML, rendered by the same views as the full page:
+ * `html` { live, code? } each time the list grows (round one, the merged list, the passages) or the answer arrives,
+ * then `done` with the final view, or `failed` with the reason in words. Without the script the form posts to /search
+ * as before.
+ */
+async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) {
+    const filters = filterBody(body, 'web');
+    const payload = { ...v2Body(body, filters), stream: true };
+    const cap = capOf(body.max_cost_usd);
+    if (cap != null) payload.max_cost_usd = cap;
+    const wantsAnswer = payload.output === 'answer';
+    const reads = payload.depth === 'standard' || payload.depth === 'deep';
+    const live = (out) => views.liveBlock({ q: payload.q, kind: 'web', dive, out });
+    const code = views.codeCard(payload.q, payload.depth === 'instant' ? 'fast' : payload.depth, wantsAnswer, apiBase);
+    const state = { results: [], answer: undefined, queries: {} };
+    const pendingWords = (stage) => {
+        if (stage === 'first') return 'searching the question from other angles';
+        if (stage === 'merged' && payload.depth === 'deep') return 'planning a second round';
+        if ((stage === 'merged' || stage === 'second_round') && reads) return 'reading the top pages';
+        return wantsAnswer ? 'writing the answer' : 'finishing';
+    };
+    write('html', { live: live(views.multiResults({ results: [] }, engines, { pending: `searching ${payload.depth === 'instant' ? 'one engine' : 'several engines at once'}`, answering: wantsAnswer })), code });
+    let ended = false;
+    try {
+        await ai.meStream(token, '/v1/search', {
+            body: payload, timeoutMs: DEPTH_WAIT_MS[payload.depth],
+            onEvent: (event, data) => {
+                if (event === 'results' && data && Array.isArray(data.results)) {
+                    state.results = data.results;
+                    if (data.queries) state.queries = { ...state.queries, ...data.queries };
+                    write('html', { live: live(views.multiResults(state, engines, { pending: pendingWords(data.stage), answering: wantsAnswer })) });
+                } else if (event === 'answer' && data) {
+                    state.answer = data.answer || null;
+                    write('html', { live: live(views.multiResults(state, engines, { pending: 'finishing', answering: false })) });
+                } else if (event === 'done' && data) {
+                    ended = true;
+                    write('done', { live: live(views.multiResults(data, engines)), spent: Number(data.receipt && data.receipt.cost_usd) || 0 });
+                } else if (event === 'error') {
+                    ended = true;
+                    const note = why({ status: data && data.status, message: data && data.detail });
+                    write('failed', { live: live(`<p class="xs-note">${esc(note)}</p>${state.results.length ? views.multiResults(state, engines, { pending: 'stopped' }) : ''}`) });
+                }
+            },
+        });
+        if (!ended) write('failed', { live: live(`<p class="xs-note">${esc('The search stopped before it finished. Try again.')}</p>`) });
+    } catch (err) {
+        console.warn('[exchange] search stream', payload.depth, err && err.status, err && err.code, (err && err.message) || '');
+        if (!ended) write('failed', { live: live(`<p class="xs-note">${esc(why(err))}</p>${state.results.length ? views.multiResults(state, engines, { pending: 'stopped' }) : ''}`) });
+    }
+}
+
 function createSearchRoutes({ config, ai }) {
     const r = express.Router();
     r.use(express.urlencoded({ extended: false, limit: '8kb' }));
@@ -158,6 +211,23 @@ function createSearchRoutes({ config, ai }) {
             ...Object.fromEntries(Object.entries(filterBody(body, kind)).map(([key, value]) => [key, String(value)])),
         });
     });
+    r.post('/search/stream', async (req, res) => {
+        if (req.viewer?.kind !== 'user') return res.status(401).json({ error: 'Sign in to search' });
+        if (!sameOrigin(req, config.baseUrl)) return res.sendStatus(403);
+        if (typeof ai.meStream !== 'function') return res.status(503).json({ error: 'Streaming is not available' });
+        const body = req.body || {};
+        const [engines, dive] = await Promise.all([
+            ai.searchEngines().catch(() => []),
+            typeof ai.deepDiveDepths === 'function' ? ai.deepDiveDepths('research').catch(() => null) : null,
+        ]);
+        res.status(200).set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
+        res.flushHeaders();
+        let open = true;
+        res.on('close', () => { open = false; });
+        const write = (event, data) => { if (open && !res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
+        await streamSearch({ ai, token: req.viewer.token, body, engines, apiBase: config.api && config.api.publicUrl, dive, write });
+        res.end();
+    });
     // A person choosing an Unsplash picture is the moment for its required download event, not search.
     r.post('/search/unsplash', async (req, res) => {
         if (req.viewer?.kind !== 'user')
@@ -174,4 +244,4 @@ function createSearchRoutes({ config, ai }) {
     });
     return r;
 }
-module.exports = { createSearchRoutes, selectedEngines, runSearch, filterBody, v2Body, DEPTHS };
+module.exports = { createSearchRoutes, selectedEngines, runSearch, streamSearch, filterBody, v2Body, DEPTHS };

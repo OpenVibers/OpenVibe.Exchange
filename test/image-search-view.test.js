@@ -77,7 +77,7 @@ assert.match(result, /<div class="xs-bar" role="search"><div class="xs-q"><input
 assert.match(result, /<button[^>]*form="xs-form"/, 'the bar\'s button sends the form');
 assert.match(result, /<input form="xs-form" type="radio" name="kind" value="images" checked>/);
 assert.ok(result.indexOf('class="xs-out"') > result.indexOf('class="xs-bar"') && result.indexOf('class="xs-out"') < result.indexOf('class="xs-opts"'), 'the answer sits between the bar and the settings');
-assert.match(result, /<form id="xs-form" method="post" action="\/search" class="xs-form" data-working-in="#xs-working">/);
+assert.match(result, /<form id="xs-form" method="post" action="\/search" class="xs-form" data-working-in="#xs-working"[ >]/);
 assert.match(result, /ovk-head--static/, 'the title scrolls away; the bar is what stays');
 const routed = searchPage({ engines, query: { q: 'x', spent: 0 }, found: [{ engine: 'auto', receipt: { engine: 'openverse', cost_usd: 0, time_ms: 5 }, results: [] }] });
 assert.match(routed, /<h3>Openverse<\/h3>/);

@@ -8,6 +8,7 @@
  */
 const kit = require('openvibe-shared/kit');
 const { esc } = require('../render/html');
+const { asset } = require('../render/layout');
 
 // What a picture's reuse rights say, in plain words, from the result's rights (OpenVibe.AI, plan §W.2 step 1). A web
 // discovery result grants nothing; a provider's licence is not an open licence; an open licence names its conditions.
@@ -151,7 +152,7 @@ const cited = (text) => esc(text).replace(/\[(\d{1,2})\]/g, (m, n) => `<a class=
  * deduplicated, each saying which engines found it and, read from the page, the passage that answers the question.
  * One line says what it cost and what was folded away; the receipt (every call, read and model step) folds below.
  */
-function multiResults(out, engines) {
+function multiResults(out, engines, { pending = null, answering = false } = {}) {
     if (!out) return '';
     const rec = out.receipt || {};
     const names = (ids) => (ids || []).map((id) => nameOf({ id })).join(', ');
@@ -165,7 +166,10 @@ function multiResults(out, engines) {
         ? `<section class="xs-answer" aria-labelledby="xs-answer-h"><h3 id="xs-answer-h">${kit.icon('spark')}<span>Answer</span></h3><p>${cited(out.answer.text)}</p>`
             + ((out.answer.citations || []).length ? `<ol class="xs-cites">${out.answer.citations.map((c) => `<li value="${Number(c.n)}"><a href="${esc(c.url)}" rel="noopener noreferrer">${esc(c.title || c.url)}</a> <span>${esc(hostOf(c.url))}</span></li>`).join('')}</ol>` : '')
             + '</section>'
-        : (out.answer === null ? '<p class="xs-note">The sources did not give an answer this time; the results are below.</p>' : '');
+        : answering
+            // Streaming: the answer's place is kept at the top while the model writes it from the sources below.
+            ? `<section class="xs-answer is-pending" aria-labelledby="xs-answer-h" aria-busy="true"><h3 id="xs-answer-h">${kit.icon('spark')}<span>Answer</span></h3><p class="xs-pending"><span></span><span></span><span></span></p></section>`
+            : (out.answer === null ? '<p class="xs-note">The sources did not give an answer this time; the results are below.</p>' : '');
     const rows = (out.results || []).map((r, i) => `<li id="xs-r${i + 1}" class="xs-hit"><a href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.title || r.url)}</a>`
         + `<span class="xs-hit-meta">${esc(hostOf(r.url))}${r.published ? ` · ${esc(String(r.published).slice(0, 10))}` : ''}</span>`
         + (r.excerpt ? `<blockquote class="xs-excerpt">${esc(r.excerpt)}</blockquote>` : r.snippet ? `<p>${esc(r.snippet)}</p>` : '')
@@ -173,6 +177,11 @@ function multiResults(out, engines) {
     const calls = (rec.calls || []).map((c) => `<li>${esc(nameOf({ id: c.engine }))}: “${esc(c.query)}” · ${esc(c.status)}${c.reason ? ` (${esc(c.reason)})` : ''} · ${Number(c.results) || 0} results${Number(c.cost_usd) ? ` · ${money(c.cost_usd)}` : ''} · ${Number(c.time_ms) || 0} ms${c.cache ? ' · kept answer' : ''}</li>`).join('');
     const reads = (rec.reads || []).map((x) => `<li>Read ${esc(hostOf(x.url))} · ${esc(x.status)}${x.reason ? ` (${esc(x.reason)})` : ''}</li>`).join('');
     const steps = (rec.steps || []).map((x) => `<li>${esc({ variants: 'Rewrote the question', follow_ups: 'Planned a second round', answer: 'Wrote the answer', structured: 'Filled the shape' }[x.step] || x.step)} · ${esc(x.status)}${x.model ? ` · ${esc(x.model)}` : ''}${Number(x.cost_usd) ? ` · ${money(x.cost_usd)}` : ''}</li>`).join('');
+    if (pending) {
+        // Streaming: what is being done now instead of the receipt, which only the end knows.
+        return `<div class="xs-multi is-streaming">${answer}<p class="xs-receipt xs-now" role="status">${esc(`${(out.results || []).length} results so far · ${pending}`)}</p>`
+            + (rows ? `<ol class="xs-hits">${rows}</ol>` : '') + '</div>';
+    }
     return `<div class="xs-multi">${answer}<p class="xs-receipt">${esc(line)}</p>`
         + (also.length ? `<p class="xs-also"><span>Also searched</span>${also.map((x) => `<em>${esc(x)}</em>`).join('')}</p>` : '')
         + (rows ? `<ol class="xs-hits">${rows}</ol>` : '<p class="xs-note">Nothing found.</p>')
@@ -204,6 +213,15 @@ function diveCard(q, depths) {
         + `<form method="post" action="/deep-dive" class="xs-dive-form"><input type="hidden" name="question" value="${esc(q)}">`
         + `<fieldset class="xs-dive-depths"><legend class="ex-sr">How deep</legend>${list.map((d, i) => `<label><input type="radio" name="depth" value="${esc(d.key)}"${i === 0 ? ' checked' : ''}><span><b>${esc(d.label || d.key)}</b><small>${esc(String(d.pages || ''))} pages · ${esc(dollars(d.price_usd))}</small></span></label>`).join('')}</fieldset>`
         + `${kit.button({ label: 'Deep dive', type: 'submit', icon: 'spark' })}</form></section>`;
+}
+
+/**
+ * The part of the page a search changes: the results first (on a phone the offer above them pushed every result off
+ * the screen, 11-20), then the deep dive offer for the same question.
+ */
+function liveBlock({ q = '', kind = 'web', dive = null, out = '' } = {}) {
+    return (out ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${out}</section>` : '')
+        + (q && kind === 'web' ? diveCard(q, dive && dive.depths) : '');
 }
 
 function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null } = {}) {
@@ -277,15 +295,17 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
         + `${kit.button({ label: 'Search', type: 'submit', icon: 'search', attrs: { form: 'xs-form' } })}</div>`
         + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input ${F} type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
-        // How deep, and whether to write an answer (web, one search): the two choices that matter most, always in view.
+        + `</div>`
+        // How deep, and whether to write an answer (web, one search): the two choices that matter most, right under the
+        // bar. Outside it, so what rides along while results scroll is only the box and the kind (on a phone the
+        // whole set took 40 % of the screen, 11-20).
         + (kind === 'web' && mode === 'single' ? `<div class="xs-deep"><fieldset class="xs-depths"><legend class="ex-sr">How deep</legend>${DEPTHS.map(([d, l, hint]) => `<label title="${esc(hint)}"><input ${F} type="radio" name="depth" value="${d}"${d === depth ? ' checked' : ''}><span><b>${l}</b><small>${esc(hint)}</small></span></label>`).join('')}</fieldset>`
             + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label></div>` : '')
-        + `</div>`
         + `<div id="xs-working" class="xs-working"></div>`
-        + (query.q && kind === 'web' ? diveCard(query.q, dive && dive.depths) : '')
-        + (searched || query.note ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}</section>` : '')
-        + (kind === 'web' ? codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase) : '')
-        + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working">`
+        + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
+        + (kind === 'web' ? `<div id="xs-code">${codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase)}</div>` : '')
+        + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working" data-stream="/search/stream">`
+        + (kind === 'web' ? `<script src="${asset('js/search-stream.js')}" defer></script>` : '')
         + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`
         + `<fieldset class="xs-modes"><legend class="ex-sr">How many engines</legend><label><input type="radio" name="mode" value="single"${mode === 'single' ? ' checked' : ''}><span>One engine</span></label><label><input type="radio" name="mode" value="compare"${mode === 'compare' ? ' checked' : ''}><span>Compare 2 or 3 engines</span></label></fieldset>`
         + `${single}${compare}`
@@ -298,4 +318,4 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         + `<p class="xs-note">The words matter: “No provider fee” is open data; “Your instance” is a SearXNG you run; “Included allowance” is a provider free tier; “Your key” is your own key and the provider may charge. Nothing here is labelled free. Pictures come with their licence and author: keep the attribution line with each one.</p></div>`;
 }
 
-module.exports = { searchPage, ENGINES, multiResults, codeCard, DEPTHS };
+module.exports = { searchPage, ENGINES, multiResults, codeCard, liveBlock, DEPTHS };

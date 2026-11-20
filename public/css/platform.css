@@ -780,6 +780,19 @@ html[data-ov-motion=reduced] .xp-q::details-content { transition-duration: .2s; 
 .xs-hit:target { animation: xs-flash 1.2s ease-out; }
 @keyframes xs-flash { from { background: color-mix(in srgb, var(--ovk-accent) 18%, transparent); } to { background: transparent; } }
 html[data-ov-motion="off"] .xs-hit:target { animation: none; }
+/* Streamed (search-stream.js): the section enters once; after that only results that were not there before slide in,
+   so a list redrawn as it grows never flashes. The answer's place holds three shimmering lines until it is written. */
+#xs-live.is-streamed .xs-out { animation: none; }
+#xs-live .xs-hit.is-new { animation: xs-in .28s cubic-bezier(.2, .8, .2, 1) both; }
+.xs-now { display: flex; align-items: center; gap: 8px; }
+.xs-multi.is-streaming .xs-now::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ovk-accent); animation: xs-pulse 1.1s ease-in-out infinite; }
+.xs-pending { display: grid; gap: 8px; margin: 2px 0 0; }
+.xs-pending span { display: block; height: .8em; border-radius: 6px; background: linear-gradient(90deg, var(--ovk-panel-2) 0%, color-mix(in srgb, var(--ovk-accent) 16%, var(--ovk-panel-2)) 50%, var(--ovk-panel-2) 100%); background-size: 200% 100%; animation: xs-shimmer 1.4s linear infinite; }
+.xs-pending span:nth-child(2) { width: 88%; }
+.xs-pending span:nth-child(3) { width: 62%; }
+@keyframes xs-pulse { 50% { opacity: .35; transform: scale(.8); } }
+@keyframes xs-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+html[data-ov-motion="off"] #xs-live .xs-hit.is-new, html[data-ov-motion="off"] .xs-pending span, html[data-ov-motion="off"] .xs-multi.is-streaming .xs-now::before { animation: none; }
 .xs-code { border: 1px solid var(--ovk-line); border-radius: var(--ov-radius-2, 16px); background: var(--ovk-panel); }
 .xs-code > summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; cursor: pointer; font-weight: 650; }
 .xs-code > summary small { margin-left: auto; color: var(--ovk-muted); font-weight: 400; font-size: .8rem; }

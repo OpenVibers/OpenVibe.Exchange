@@ -523,12 +523,49 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         if (!res.ok) throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.status, code: out && out.code });
         return out || {};
     }
+    /**
+     * A streamed search v2 call (stream: true) on the person's own session: each Server-Sent Event goes to onEvent(name,
+     * data) as it arrives. A refusal before the stream opens throws like meRequest; the stream's own `error` event is
+     * handed to onEvent like any other.
+     */
+    async function meStream(token, path, { body, timeoutMs = null, onEvent, signal = null } = {}) {
+        if (!token) throw Object.assign(new Error('Sign in is required'), { status: 401 });
+        const timeout = AbortSignal.timeout(Number(timeoutMs) > 0 ? Number(timeoutMs) : config.ai.timeoutMs);
+        const res = await fetchImpl(`${config.ai.url}${path}`, {
+            method: 'POST',
+            headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, Origin: config.baseUrl },
+            body: JSON.stringify(body),
+            signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+        });
+        if (!res.ok || !/^text\/event-stream/.test(res.headers.get('content-type') || '')) {
+            const out = await jsonOf(res);
+            // An AI that does not stream yet answers the whole search at once: that is the end of the stream.
+            if (res.ok && out && Array.isArray(out.results)) { onEvent('done', out); return; }
+            throw Object.assign(new Error((out && (out.detail || out.title)) || `AI answered ${res.status}`), { status: res.ok ? 502 : res.status, code: out && out.code });
+        }
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const flush = (block) => {
+            const event = (block.match(/^event: ?(.*)$/m) || [])[1] || 'message';
+            const data = block.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.replace(/^data: ?/, '')).join('\n');
+            if (!data) return;
+            let value = null;
+            try { value = JSON.parse(data); } catch { return; }
+            onEvent(event, value);
+        };
+        for await (const chunk of res.body) {
+            buffer += decoder.decode(chunk, { stream: true });
+            let at;
+            while ((at = buffer.indexOf('\n\n')) !== -1) { flush(buffer.slice(0, at)); buffer = buffer.slice(at + 2); }
+        }
+        if (buffer.trim()) flush(buffer);
+    }
     function credentialsFor(token) {
         const client = { json: ({ method, path, body }) => meRequest(token, path, { method, body }) };
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveList, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
+    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, meStream, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveList, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
 }
 
 /**
