@@ -790,6 +790,10 @@ html[data-ov-motion="off"] .xs-hit:target { animation: none; }
 .xs-now { display: flex; align-items: center; gap: 8px; }
 .xs-watch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; }
 .xs-watch small { color: var(--ovk-muted); font-size: .8rem; }
+/* A note that says something worked (a watch saved) reads as a success, not as the grey of a refusal. */
+.xs-note.is-ok { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; border-radius: 12px; color: var(--ovk-text, inherit);
+    background: color-mix(in srgb, var(--ovk-accent) 10%, var(--ovk-panel)); border: 1px solid color-mix(in srgb, var(--ovk-accent) 35%, var(--ovk-line)); }
+.xs-note.is-ok .ovk-i { flex: none; width: 20px; height: 20px; color: var(--ovk-accent); margin-top: 1px; }
 .xs-multi.is-streaming .xs-now::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ovk-accent); animation: xs-pulse 1.1s ease-in-out infinite; }
 .xs-pending { display: grid; gap: 8px; margin: 2px 0 0; }
 .xs-pending span { display: block; height: .8em; border-radius: 6px; background: linear-gradient(90deg, var(--ovk-panel-2) 0%, color-mix(in srgb, var(--ovk-accent) 16%, var(--ovk-panel-2)) 50%, var(--ovk-panel-2) 100%); background-size: 200% 100%; animation: xs-shimmer 1.4s linear infinite; }
