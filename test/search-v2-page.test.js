@@ -126,5 +126,23 @@ const views = require('../server/views/search');
     assert.strictEqual(depthAsks, 1, 'asked once a minute at most');
     ok('each depth says what it cost and took lately, the answer numbers with the switch on; the page never waits for them');
 
+    // Watch for new results (plan AD.34 item 6): under a finished web search, saved on OpenVibe.Search with the person's
+    // own session; the line the page shows says what happened.
+    const watched = views.multiResults(v2, []);
+    assert.match(watched, /<form method="post" action="\/search\/watch" class="xs-watch"><input type="hidden" name="q" value="lantern makers">/);
+    assert.match(watched, /Watch for new results/);
+    assert.ok(!/xs-watch/.test(views.multiResults({ results: [] }, [], { pending: 'searching' })), 'no button while it runs');
+    const { saveWebWatch } = require('../server/http/search');
+    const posts = [];
+    const answering = (status) => async (url, init) => { posts.push({ url, auth: init.headers.Authorization, body: JSON.parse(init.body) }); return new Response('{}', { status }); };
+    const cfg = { searchService: { url: 'https://search.example', timeoutMs: 1000 } };
+    assert.match(await saveWebWatch({ config: cfg, token: 'person-session', q: 'lantern makers', fetchImpl: answering(201) }), /^Watching the web for “lantern makers”/);
+    assert.deepStrictEqual(posts[0], { url: 'https://search.example/api/v1/saved-searches', auth: 'Bearer person-session', body: { q: 'lantern makers', scope: 'web' } }, "the person's own session, scope web");
+    assert.match(await saveWebWatch({ config: cfg, token: 't', q: 'x', fetchImpl: answering(200) }), /already watch the web/);
+    assert.match(await saveWebWatch({ config: cfg, token: 't', q: 'x', fetchImpl: answering(409) }), /most searches allowed \(10\)/);
+    assert.match(await saveWebWatch({ config: cfg, token: 't', q: 'x', fetchImpl: answering(401) }), /Sign out and in again/);
+    assert.match(await saveWebWatch({ config: cfg, token: 't', q: 'x', fetchImpl: async () => { throw new Error('down'); } }), /could not be saved right now/);
+    ok('Watch: under a finished search, saved with the person\'s session, every outcome in words');
+
     console.log(`search-v2-page: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });

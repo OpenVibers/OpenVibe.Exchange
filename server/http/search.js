@@ -172,6 +172,31 @@ async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) 
     }
 }
 
+/**
+ * Watch for new results: a web watch on OpenVibe.Search (a saved search with scope web) for these words, saved with the
+ * person's own Network session (never a service token). Search runs it once a day and notifies them of results not
+ * shown before. Answers the line the page shows.
+ */
+async function saveWebWatch({ config, token, q, fetchImpl = globalThis.fetch }) {
+    const svc = config.searchService || { url: 'https://search.openvibe.network', timeoutMs: 10_000 };
+    try {
+        const r = await fetchImpl(`${svc.url}/api/v1/saved-searches`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ q, scope: 'web' }),
+            signal: AbortSignal.timeout(svc.timeoutMs || 10_000),
+        });
+        if (r.status === 201) return `Watching the web for “${q.slice(0, 120)}”: once a day you will be told about results not shown before.`;
+        if (r.status === 200) return `You already watch the web for “${q.slice(0, 120)}”.`;
+        if (r.status === 409) return 'You already watch the most searches allowed (10). Remove one on OpenVibe.Search first.';
+        if (r.status === 401 || r.status === 403) return 'Your sign-in could not save the watch. Sign out and in again.';
+        return 'The watch could not be saved right now. Try again in a moment.';
+    } catch (err) {
+        console.warn('[exchange] search watch', (err && err.message) || err);
+        return 'The watch could not be saved right now. Try again in a moment.';
+    }
+}
+
 function createSearchRoutes({ config, ai }) {
     const r = express.Router();
     r.use(express.urlencoded({ extended: false, limit: '8kb' }));
@@ -228,6 +253,16 @@ function createSearchRoutes({ config, ai }) {
         await streamSearch({ ai, token: req.viewer.token, body, engines, apiBase: config.api && config.api.publicUrl, dive, write });
         res.end();
     });
+    // Watch for new results: a web watch on OpenVibe.Search (a saved search with scope web) for these words, saved with
+    // the person's own Network session. Search runs it once a day and notifies them of results not shown before.
+    r.post('/search/watch', async (req, res) => {
+        if (req.viewer?.kind !== 'user') return res.redirect(303, '/auth/login?next=%2Fsearch');
+        if (!sameOrigin(req, config.baseUrl)) return res.sendStatus(403);
+        const q = one(req.body && req.body.q, 300).trim();
+        if (!q) return res.redirect(303, '/search');
+        const note = await saveWebWatch({ config, token: req.viewer.token, q });
+        res.redirect(303, `/search?q=${encodeURIComponent(q)}&note=${encodeURIComponent(note)}`);
+    });
     // A person choosing an Unsplash picture is the moment for its required download event, not search.
     r.post('/search/unsplash', async (req, res) => {
         if (req.viewer?.kind !== 'user')
@@ -244,4 +279,4 @@ function createSearchRoutes({ config, ai }) {
     });
     return r;
 }
-module.exports = { createSearchRoutes, selectedEngines, runSearch, streamSearch, filterBody, v2Body, DEPTHS };
+module.exports = { createSearchRoutes, selectedEngines, runSearch, streamSearch, saveWebWatch, filterBody, v2Body, DEPTHS };
