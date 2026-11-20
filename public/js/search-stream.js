@@ -100,6 +100,13 @@
         }
     }
 
+    // The depths show what they cost and took lately: the answer's numbers while the answer switch is on.
+    const deep = document.querySelector('.xs-deep');
+    const answerSwitch = document.querySelector('input[name="answer"][form="xs-form"]');
+    if (deep && answerSwitch && typeof answerSwitch.addEventListener === 'function') {
+        answerSwitch.addEventListener('change', () => deep.classList.toggle('is-answer', answerSwitch.checked));
+    }
+
     // Capture on window: before exchange.js's document-level "Searching…" handler, which then sees the default prevented.
     window.addEventListener('submit', (e) => {
         if (e.target !== form || bypass) { bypass = false; return; }

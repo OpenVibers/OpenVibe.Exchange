@@ -749,6 +749,9 @@ html[data-ov-motion=reduced] .xp-q::details-content { transition-duration: .2s; 
 .xs-depths span { display: grid; gap: 1px; width: 100%; min-height: 44px; padding: 6px 10px; border-radius: 10px; align-content: center; transition: background .15s, transform .15s; }
 .xs-depths b { font-size: .9rem; }
 .xs-depths small { font-size: .74rem; color: var(--ovk-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* What the depth cost and took lately (AI's measurements): the list's numbers, or with the answer switch on, the answer's. */
+.xs-dm { font-style: normal; font-size: .72rem; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--ovk-accent) 70%, var(--ovk-text, currentColor)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xs-deep:not(.is-answer) .xs-dm-a, .xs-deep.is-answer .xs-dm:not(.xs-dm-a) { display: none; }
 .xs-depths input:checked + span { background: color-mix(in srgb, var(--ovk-accent) 20%, transparent); }
 .xs-depths input:focus-visible + span { outline: 2px solid var(--ovk-accent); outline-offset: 1px; }
 .xs-depths label:active span { transform: scale(calc(1 - .03 * var(--ov-move, 1))); }

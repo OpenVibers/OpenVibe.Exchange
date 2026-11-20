@@ -44,6 +44,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
     let usageHit = new Map();
     let communityHit = { at: 0, value: null };
     let enginesHit = { at: 0, value: null };
+    let searchDepthsHit = { at: 0, value: null };
     let warnedAt = 0;
 
     // Warm from disk (2026-11-15, the owner: "openvibe.exchange is failing to load": after a deploy restarted Exchange
@@ -190,6 +191,19 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
 
     /** AI's search engines (GET /api/v1/exchange/search/engines, public): ids, kinds, prices, availability. */
     // Kept as { engines } (served() marks a stale value by spreading it, which an array would not survive).
+    /**
+     * What each search depth really cost and took lately (AI's GET /api/v1/exchange/search/depths, plan AD.34 item 5).
+     * Never waited for: the page draws with what is known, and a stale answer is refreshed behind it.
+     */
+    function searchDepths() {
+        if (!searchDepthsHit.at || now() - searchDepthsHit.at > 60_000) {
+            searchDepthsHit = { at: now(), value: searchDepthsHit.value };
+            get('/api/v1/exchange/search/depths', 'search depths')
+                .then((body) => { searchDepthsHit = { at: now(), value: Array.isArray(body && body.depths) ? body.depths : [] }; })
+                .catch((err) => warned('search depths', err));
+        }
+        return searchDepthsHit.value || [];
+    }
     async function searchEngines() { const v = await served(enginesHit, CATALOG_MS, 'engines', loadEngines); return v && Array.isArray(v.engines) ? v.engines : []; }
     async function loadEngines() {
         try {
@@ -565,7 +579,7 @@ function createAi({ config, fetchImpl = globalThis.fetch, log = console, now = (
         return createCredentialsClient(client, { baseUrl: config.ai.url });
     }
 
-    return { catalog, directory, modelEvents, searchEngines, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, meStream, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveList, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
+    return { catalog, directory, modelEvents, searchEngines, searchDepths, usage, communityOffers, chat, presetsFor, setKeyPrivacy, ownedProjects, gpuQuote, ownStatus, ownList, ownCreate, ownStop, adminRequest, meRequest, meStream, credentialsFor, deepDiveDepths, deepDiveCreate, deepDiveGet, deepDiveList, deepDiveState, deepDiveSites, deepDiveCancel, deepDiveShot, configured: Boolean(tokens) };
 }
 
 /**
