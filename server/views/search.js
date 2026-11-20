@@ -323,7 +323,7 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         }).join('')}</fieldset>`
             + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label></div>` : '')
         + `<div id="xs-working" class="xs-working"></div>`
-        + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
+        + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? (query.noteOk ? `<p class="xs-note is-ok" role="status">${kit.icon('check')}<span>${esc(query.note)}</span></p>` : `<p class="xs-note">${esc(query.note)}</p>`) : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
         + (kind === 'web' ? `<div id="xs-code">${codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase)}</div>` : '')
         + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working" data-stream="/search/stream">`
         + (kind === 'web' ? `<script src="${asset('js/search-stream.js')}" defer></script>` : '')

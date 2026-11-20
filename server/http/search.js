@@ -175,7 +175,7 @@ async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) 
 /**
  * Watch for new results: a web watch on OpenVibe.Search (a saved search with scope web) for these words, saved with the
  * person's own Network session (never a service token). Search runs it once a day and notifies them of results not
- * shown before. Answers the line the page shows.
+ * shown before. Answers { ok, text }: whether it is watching, and the line the page shows.
  */
 async function saveWebWatch({ config, token, q, fetchImpl = globalThis.fetch }) {
     const svc = config.searchService || { url: 'https://search.openvibe.network', timeoutMs: 10_000 };
@@ -186,14 +186,14 @@ async function saveWebWatch({ config, token, q, fetchImpl = globalThis.fetch }) 
             body: JSON.stringify({ q, scope: 'web' }),
             signal: AbortSignal.timeout(svc.timeoutMs || 10_000),
         });
-        if (r.status === 201) return `Watching the web for “${q.slice(0, 120)}”: once a day you will be told about results not shown before.`;
-        if (r.status === 200) return `You already watch the web for “${q.slice(0, 120)}”.`;
-        if (r.status === 409) return 'You already watch the most searches allowed (10). Remove one on OpenVibe.Search first.';
-        if (r.status === 401 || r.status === 403) return 'Your sign-in could not save the watch. Sign out and in again.';
-        return 'The watch could not be saved right now. Try again in a moment.';
+        if (r.status === 201) return { ok: true, text: `Watching the web for “${q.slice(0, 120)}”: once a day you will be told about results not shown before.` };
+        if (r.status === 200) return { ok: true, text: `You already watch the web for “${q.slice(0, 120)}”.` };
+        if (r.status === 409) return { ok: false, text: 'You already watch the most searches allowed (10). Remove one at search.openvibe.network/saved first.' };
+        if (r.status === 401 || r.status === 403) return { ok: false, text: 'Your sign-in could not save the watch. Sign out and in again.' };
+        return { ok: false, text: 'The watch could not be saved right now. Try again in a moment.' };
     } catch (err) {
         console.warn('[exchange] search watch', (err && err.message) || err);
-        return 'The watch could not be saved right now. Try again in a moment.';
+        return { ok: false, text: 'The watch could not be saved right now. Try again in a moment.' };
     }
 }
 
@@ -217,6 +217,7 @@ function createSearchRoutes({ config, ai }) {
             engine: one(req.query.engine), first: one(req.query.first), second: one(req.query.second), third: one(req.query.third),
             max_cost_usd: req.query.max_cost_usd == null ? '' : one(req.query.max_cost_usd, 30),
             note: req.query.chosen === '1' ? 'The Unsplash download event was recorded once for that picture.' : one(req.query.note, 240),
+            noteOk: req.query.ok === '1',
         }).catch((err) => res.status(500).end(String((err && err.message) || err)));
     });
     r.post('/search', async (req, res) => {
@@ -261,7 +262,7 @@ function createSearchRoutes({ config, ai }) {
         const q = one(req.body && req.body.q, 300).trim();
         if (!q) return res.redirect(303, '/search');
         const note = await saveWebWatch({ config, token: req.viewer.token, q });
-        res.redirect(303, `/search?q=${encodeURIComponent(q)}&note=${encodeURIComponent(note)}`);
+        res.redirect(303, `/search?q=${encodeURIComponent(q)}&note=${encodeURIComponent(note.text)}${note.ok ? '&ok=1' : ''}`);
     });
     // A person choosing an Unsplash picture is the moment for its required download event, not search.
     r.post('/search/unsplash', async (req, res) => {
