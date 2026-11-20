@@ -135,6 +135,63 @@ function resultRows(list, engines, query) {
     }).join('')}</div>`;
 }
 
+// Search v2's depths (AI #669), in the words the page shows: what each does, and its usual cost.
+const DEPTHS = [
+    ['instant', 'Instant', 'One engine'],
+    ['fast', 'Fast', 'Two engines, merged'],
+    ['standard', 'Standard', 'Three engines, rewrites, pages read'],
+    ['deep', 'Deep', 'A second round for what is missing'],
+];
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+/** An answer's text with its [n] markers as links to the numbered sources below it. */
+const cited = (text) => esc(text).replace(/\[(\d{1,2})\]/g, (m, n) => `<a class="xs-cite" href="#xs-r${n}">[${n}]</a>`);
+
+/**
+ * One search v2 answer (AI #669): the sourced answer first when asked, then one list, every engine's results merged and
+ * deduplicated, each saying which engines found it and, read from the page, the passage that answers the question.
+ * One line says what it cost and what was folded away; the receipt (every call, read and model step) folds below.
+ */
+function multiResults(out, engines) {
+    if (!out) return '';
+    const rec = out.receipt || {};
+    const names = (ids) => (ids || []).map((id) => nameOf({ id })).join(', ');
+    const cost = Number(rec.cost_usd) || 0;
+    const line = [`${(out.results || []).length} results from ${names(rec.engines) || 'the engines'}`,
+        rec.duplicates_removed ? `${rec.duplicates_removed} duplicate${rec.duplicates_removed === 1 ? '' : 's'} folded` : '',
+        cost > 0 ? `${money(cost)}` : 'No provider fee', `${(Number(rec.time_ms) / 1000).toFixed(1)} s`].filter(Boolean).join(' · ');
+    const q = out.queries || {};
+    const also = [...(q.variants || []), ...(q.follow_ups || [])];
+    const answer = out.answer && out.answer.text
+        ? `<section class="xs-answer" aria-labelledby="xs-answer-h"><h3 id="xs-answer-h">${kit.icon('spark')}<span>Answer</span></h3><p>${cited(out.answer.text)}</p>`
+            + ((out.answer.citations || []).length ? `<ol class="xs-cites">${out.answer.citations.map((c) => `<li value="${Number(c.n)}"><a href="${esc(c.url)}" rel="noopener noreferrer">${esc(c.title || c.url)}</a> <span>${esc(hostOf(c.url))}</span></li>`).join('')}</ol>` : '')
+            + '</section>'
+        : (out.answer === null ? '<p class="xs-note">The sources did not give an answer this time; the results are below.</p>' : '');
+    const rows = (out.results || []).map((r, i) => `<li id="xs-r${i + 1}" class="xs-hit"><a href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.title || r.url)}</a>`
+        + `<span class="xs-hit-meta">${esc(hostOf(r.url))}${r.published ? ` · ${esc(String(r.published).slice(0, 10))}` : ''}</span>`
+        + (r.excerpt ? `<blockquote class="xs-excerpt">${esc(r.excerpt)}</blockquote>` : r.snippet ? `<p>${esc(r.snippet)}</p>` : '')
+        + `<span class="xs-found">${(r.engines || [r.engine]).map((id) => `<b>${esc(nameOf({ id }))}</b>`).join('')}${(r.engines || []).length > 1 ? '<em>agree</em>' : ''}</span></li>`).join('');
+    const calls = (rec.calls || []).map((c) => `<li>${esc(nameOf({ id: c.engine }))}: “${esc(c.query)}” · ${esc(c.status)}${c.reason ? ` (${esc(c.reason)})` : ''} · ${Number(c.results) || 0} results${Number(c.cost_usd) ? ` · ${money(c.cost_usd)}` : ''} · ${Number(c.time_ms) || 0} ms${c.cache ? ' · kept answer' : ''}</li>`).join('');
+    const reads = (rec.reads || []).map((x) => `<li>Read ${esc(hostOf(x.url))} · ${esc(x.status)}${x.reason ? ` (${esc(x.reason)})` : ''}</li>`).join('');
+    const steps = (rec.steps || []).map((x) => `<li>${esc({ variants: 'Rewrote the question', follow_ups: 'Planned a second round', answer: 'Wrote the answer', structured: 'Filled the shape' }[x.step] || x.step)} · ${esc(x.status)}${x.model ? ` · ${esc(x.model)}` : ''}${Number(x.cost_usd) ? ` · ${money(x.cost_usd)}` : ''}</li>`).join('');
+    return `<div class="xs-multi">${answer}<p class="xs-receipt">${esc(line)}</p>`
+        + (also.length ? `<p class="xs-also"><span>Also searched</span>${also.map((x) => `<em>${esc(x)}</em>`).join('')}</p>` : '')
+        + (rows ? `<ol class="xs-hits">${rows}</ol>` : '<p class="xs-note">Nothing found.</p>')
+        + `<details class="xs-attempts"><summary>Every call, read and step</summary><ul>${calls}${reads}${steps}</ul></details></div>`;
+}
+
+/** The same search from code: three lines (the owner sent Linkup's "3 lines of code" ad, 11-20). */
+function codeCard(q, depth, answer, apiBase) {
+    const base = String(apiBase || 'https://api.openvibe.exchange').replace(/\/+$/, '');
+    const body = { q: q || 'who raised a Series A this week?', depth: depth || 'standard', ...(answer ? { output: 'answer' } : {}) };
+    const json = JSON.stringify(body);
+    const curl = `curl ${base}/v1/search -H "Authorization: Bearer $OPENVIBE_KEY" \\\n  -H "Content-Type: application/json" -d '${json.replace(/'/g, "'\\''")}'`;
+    const js = `const r = await fetch('${base}/v1/search', { method: 'POST',\n  headers: { Authorization: \`Bearer \${key}\`, 'Content-Type': 'application/json' },\n  body: JSON.stringify(${json}) });`;
+    const py = `import requests\nr = requests.post("${base}/v1/search", headers={"Authorization": f"Bearer {key}"},\n  json=${json.replace(/true/g, 'True').replace(/false/g, 'False')})`;
+    return `<details class="xs-code"><summary>${kit.icon('code')}<span>Use it in code</span><small>three lines, your Exchange key</small></summary>`
+        + `<div class="xs-code-body"><p class="xs-note">One call for people and agents. Leave everything but q out for one quick engine; add depth (instant, fast, standard, deep), queries (up to five at once), output (results, answer, structured with a JSON schema), include_domains, exclude_domains or from. Every answer has a receipt. <a href="/keys">Get a key</a> · <a href="/api">The API</a></p>`
+        + `<p class="xs-code-k">curl</p><pre><code>${esc(curl)}</code></pre><p class="xs-code-k">JavaScript</p><pre><code>${esc(js)}</code></pre><p class="xs-code-k">Python</p><pre><code>${esc(py)}</code></pre></div></details>`;
+}
+
 /**
  * Deep dive this (11-15, the owner: Exchange's search was meant to "deep dive any query in a general sense"): under
  * any question, the way to the general deep dive, its three depths and their prices. It reads the best pages in full
@@ -149,7 +206,7 @@ function diveCard(q, depths) {
         + `${kit.button({ label: 'Deep dive', type: 'submit', icon: 'spark' })}</form></section>`;
 }
 
-function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) {
+function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null } = {}) {
     const kind = KINDS.some(([k]) => k === query.kind) ? query.kind : 'web';
     const mode = query.mode === 'compare' ? 'compare' : 'single';
     const forKind = engines.filter((e) => Array.isArray(e.kinds) && e.kinds.includes(kind));
@@ -183,8 +240,13 @@ function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) 
         : kind === 'icons'
             ? field('set', 'Icon set', 'text', 'placeholder="lucide"') + select('style', 'Style', [['any', 'Any'], ['line', 'Line'], ['solid', 'Solid']]) + field('license', 'Licence')
             : select('freshness', 'Freshness', [['day', 'Past day'], ['month', 'Past month'], ['year', 'Past year']])
-                + `<label class="xs-check"><input type="checkbox" name="safe_search" value="strict"${query.safe_search ? ' checked' : ''}><span>Strict safe search only</span></label>`;
-    const filterCount = Object.keys(FILTERS[kind].reduce((a, [key]) => ({ ...a, [key]: query[key] }), {})).filter((key) => query[key]).length;
+                + `<label class="xs-check"><input type="checkbox" name="safe_search" value="strict"${query.safe_search ? ' checked' : ''}><span>Strict safe search only</span></label>`
+                + field('from', 'Published after', 'date')
+                + field('include', 'Only these sites', 'text', 'placeholder="example.com, docs.example.org" autocomplete="off"')
+                + field('exclude', 'Never these sites', 'text', 'placeholder="pinterest.com" autocomplete="off"')
+                + `<label class="xs-field xs-more-q"><span>More searches at once</span><textarea name="more" rows="3" maxlength="2600" placeholder="One per line, up to five: searched with the box above and merged into one list">${esc(query.more || '')}</textarea></label>`;
+    const filterCount = Object.keys(FILTERS[kind].reduce((a, [key]) => ({ ...a, [key]: query[key] }), {})).filter((key) => query[key]).length
+        + (kind === 'web' ? ['from', 'include', 'exclude', 'more'].filter((k) => query[k]).length : 0);
 
     const groups = GROUPS.map(([groupKind, label]) => {
         const rows = engines.filter((e) => Array.isArray(e.kinds) && e.kinds.includes(groupKind));
@@ -193,7 +255,8 @@ function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) 
     const single = `<div class="xs-single">${enginePick('engine', 'Engine', forKind, singleDefault, true)}</div>`;
     const compare = `<div class="xs-compare">${enginePick('first', 'First engine', forKind, compareDefaults[0])}${enginePick('second', 'Second engine', forKind, compareDefaults[1])}${enginePick('third', 'Third engine (optional)', forKind, compareDefaults[2], false, true)}</div>`;
     const capSet = query.max_cost_usd != null && query.max_cost_usd !== '';
-    const searched = found.length > 0 || query.spent != null;   // a search ran (the cost line shows even when nothing came back)
+    const searched = found.length > 0 || query.spent != null || !!multi;   // a search ran (the cost line shows even when nothing came back)
+    const depth = DEPTHS.some(([d]) => d === query.depth) ? query.depth : 'fast';
     const resultHead = !searched ? ''
         : mode === 'compare'
             ? `<p class="xs-receipt">One combined cap ${capSet ? money(query.max_cost_usd) : 'not set'} · spent ${money(query.spent || 0)}</p>`
@@ -214,10 +277,14 @@ function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) 
         + `<div class="xs-q"><input ${F} name="q" type="search" required maxlength="500" enterkeyhint="search" placeholder="What are you looking for?" value="${esc(query.q || '')}" aria-label="Search for">`
         + `${kit.button({ label: 'Search', type: 'submit', icon: 'search', attrs: { form: 'xs-form' } })}</div>`
         + `<fieldset class="xs-kinds"><legend class="ex-sr">What to find</legend>${KINDS.map(([k, l]) => `<label><input ${F} type="radio" name="kind" value="${k}"${k === kind ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`
+        // How deep, and whether to write an answer (web, one search): the two choices that matter most, always in view.
+        + (kind === 'web' && mode === 'single' ? `<div class="xs-deep"><fieldset class="xs-depths"><legend class="ex-sr">How deep</legend>${DEPTHS.map(([d, l, hint]) => `<label title="${esc(hint)}"><input ${F} type="radio" name="depth" value="${d}"${d === depth ? ' checked' : ''}><span><b>${l}</b><small>${esc(hint)}</small></span></label>`).join('')}</fieldset>`
+            + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label></div>` : '')
         + `</div>`
         + `<div id="xs-working" class="xs-working"></div>`
         + (query.q && kind === 'web' ? diveCard(query.q, dive && dive.depths) : '')
-        + (searched || query.note ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${resultHead}${resultRows(found, engines, query)}</section>` : '')
+        + (searched || query.note ? `<section class="xs-out" aria-labelledby="xs-out-h"><h2 id="xs-out-h" class="ex-sr">Results</h2>${query.note ? `<p class="xs-note">${esc(query.note)}</p>` : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}</section>` : '')
+        + (kind === 'web' ? codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase) : '')
         + `<form id="xs-form" method="post" action="/search" class="xs-form" data-working-in="#xs-working">`
         + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`
         + `<fieldset class="xs-modes"><legend class="ex-sr">How many engines</legend><label><input type="radio" name="mode" value="single"${mode === 'single' ? ' checked' : ''}><span>One engine</span></label><label><input type="radio" name="mode" value="compare"${mode === 'compare' ? ' checked' : ''}><span>Compare 2 or 3 engines</span></label></fieldset>`
@@ -231,4 +298,4 @@ function searchPage({ engines = [], found = [], query = {}, dive = null } = {}) 
         + `<p class="xs-note">The words matter: “No provider fee” is open data; “Your instance” is a SearXNG you run; “Included allowance” is a provider free tier; “Your key” is your own key and the provider may charge. Nothing here is labelled free. Pictures come with their licence and author: keep the attribution line with each one.</p></div>`;
 }
 
-module.exports = { searchPage, ENGINES };
+module.exports = { searchPage, ENGINES, multiResults, codeCard, DEPTHS };
