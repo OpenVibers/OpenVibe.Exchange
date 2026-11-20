@@ -57,5 +57,48 @@ const views = require('../server/views/search');
     assert.ok(!/name="depth"/.test(pictures) && !/Use it in code/.test(pictures), 'pictures keep their own controls');
     ok('the page: how deep and the answer switch in view, more searches and sites in the fold, the same search as code');
 
+    // Streamed (plan AD.34 item 4): the page fills in as the search goes, each step HTML from the same views.
+    const { streamSearch } = require('../server/http/search');
+    const sent = [];
+    let asked = null;
+    const streamingAi = { meStream: async (token, path, opts) => {
+        asked = { token, path, body: opts.body, timeoutMs: opts.timeoutMs };
+        const r1 = { ...v2.results[0], excerpt: undefined };
+        opts.onEvent('results', { stage: 'first', results: [r1], queries: { asked: ['lantern makers'] } });
+        opts.onEvent('results', { stage: 'merged', results: [r1, { title: 'Second', url: 'https://second.example/x', snippet: 's2', engines: ['brave'], engine: 'brave' }], queries: { asked: ['lantern makers'], variants: ['Lisbon lantern workshops'] } });
+        opts.onEvent('results', { stage: 'read', results: v2.results });
+        opts.onEvent('answer', { answer: v2.answer });
+        opts.onEvent('done', v2);
+    } };
+    await streamSearch({ ai: streamingAi, token: 'person-token', body: { q: 'lantern makers', depth: 'standard', answer: 'true', max_cost_usd: '0.05' }, engines: [{ id: 'brave' }], apiBase: 'https://api.openvibe.exchange', dive: null, write: (event, data) => sent.push([event, data]) });
+    assert.deepStrictEqual(asked && [asked.token, asked.path, asked.body.stream, asked.body.depth, asked.body.output, asked.body.max_cost_usd], ['person-token', '/v1/search', true, 'standard', 'answer', 0.05]);
+    assert.ok(asked.timeoutMs >= 45000, 'a standard search is waited for');
+    assert.deepStrictEqual(sent.map(([e]) => e), ['html', 'html', 'html', 'html', 'html', 'done']);
+    assert.match(sent[0][1].live, /searching several engines at once/, 'something is on the page before any engine answers');
+    assert.match(sent[0][1].live, /xs-answer is-pending/, "the answer's place is kept");
+    assert.match(sent[0][1].code, /curl https:\/\/api\.openvibe\.exchange\/v1\/search/, 'the code card follows the new question');
+    assert.match(sent[1][1].live, /1 results so far · searching the question from other angles/);
+    assert.match(sent[2][1].live, /2 results so far · reading the top pages/);
+    assert.match(sent[3][1].live, /writing the answer/);
+    assert.match(sent[3][1].live, /<blockquote class="xs-excerpt">/, 'the passages arrive before the answer');
+    assert.match(sent[4][1].live, /<a class="xs-cite" href="#xs-r1">\[1\]<\/a>/);
+    assert.ok(!/is-pending/.test(sent[4][1].live), 'the answer replaced its place');
+    assert.match(sent[5][1].live, /3 duplicates folded/, 'the end has the whole receipt');
+    assert.strictEqual(sent[5][1].spent, 0.012);
+    const failed = [];
+    await streamSearch({ ai: { meStream: async (t, p, o) => { o.onEvent('results', { stage: 'merged', results: v2.results }); o.onEvent('error', { status: 503, detail: 'No engine answered this search' }); } }, token: 't', body: { q: 'x' }, engines: [], apiBase: null, dive: null, write: (event, data) => failed.push([event, data]) });
+    assert.strictEqual(failed[failed.length - 1][0], 'failed');
+    assert.match(failed[failed.length - 1][1].live, /No engine answered this search/);
+    assert.match(failed[failed.length - 1][1].live, /Lantern makers in Lisbon/, 'what was found is kept');
+    const refused = [];
+    await streamSearch({ ai: { meStream: async () => { throw Object.assign(new Error('x'), { status: 429 }); } }, token: 't', body: { q: 'x' }, engines: [], apiBase: null, dive: null, write: (event, data) => refused.push([event, data]) });
+    assert.match(refused[refused.length - 1][1].live, /Too many searches/);
+    const streamedPage = views.searchPage({ engines: [], query: { q: 'lanterns', kind: 'web' } });
+    assert.match(streamedPage, /<div id="xs-live">/);
+    assert.match(streamedPage, /<div id="xs-code">/);
+    assert.match(streamedPage, /data-stream="\/search\/stream"/);
+    assert.match(streamedPage, /search-stream[^"]*\.js/);
+    ok('streamed: something at once, results as the engines answer, the passages, the answer in its kept place, the receipt; failures in words');
+
     console.log(`search-v2-page: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });
