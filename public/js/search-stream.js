@@ -61,8 +61,47 @@
         const depth = data.get('depth');
         if (depth && depth !== 'fast') u.set('depth', depth);
         if (data.get('answer')) u.set('answer', '1');
+        if (data.get('free_only')) u.set('free', '1');
+        if (data.get('time_limit')) u.set('time', String(data.get('time_limit')));
         u.set('run', '1');
         try { history.replaceState(null, '', `${location.pathname}?${u.toString()}`); } catch { /* the address stays */ }
+    }
+
+    /**
+     * Stop, while the search runs (the owner, 11-21: "searches can be cancelled or stopped to save on cost"): it asks the
+     * server to end the search, which still finishes with what it found and what it cost; if that cannot be asked, the
+     * connection is dropped, which stops it too.
+     */
+    function showStop(id, ctl) {
+        const working = document.getElementById('xs-working');
+        if (!working || typeof document.createElement !== 'function') return;
+        const row = document.createElement('div');
+        row.className = 'xs-stop-row';
+        const words = document.createElement('span');
+        words.textContent = 'Found enough? Stop here and pay only for what ran.';
+        const stop = document.createElement('button');
+        stop.type = 'button';
+        stop.className = 'xs-stop';
+        stop.textContent = 'Stop';
+        stop.addEventListener('click', async () => {
+            stop.disabled = true;
+            stop.textContent = 'Stopping…';
+            try {
+                const res = await fetch('/search/stop', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                if (!res.ok && res.status !== 404) throw new Error('not stopped');
+            } catch {
+                // The stop could not be asked: dropping the connection stops the search too; the results stay.
+                ctl.abort();
+                const out = live.querySelector('.xs-out');
+                if (out) { const note = document.createElement('p'); note.className = 'xs-note is-ok'; note.setAttribute('role', 'status'); note.textContent = 'Stopped: these are the results so far, and only what ran was charged.'; out.prepend(note); }
+            }
+        });
+        row.append(words, stop);
+        working.replaceChildren(row);
+    }
+    function hideStop() {
+        const working = document.getElementById('xs-working');
+        if (working && working.querySelector && working.querySelector('.xs-stop-row')) working.replaceChildren();
     }
 
     async function run(data, button) {
@@ -91,9 +130,10 @@
                 if (!raw) return;
                 let value;
                 try { value = JSON.parse(raw); } catch { return; }
+                if (event === 'started' && typeof value.id === 'string') showStop(value.id, ctl);
                 if (value.live != null) put(value.live, seen());
                 if (value.code != null) { const code = document.getElementById('xs-code'); if (code) code.innerHTML = value.code; }
-                if (event === 'done' || event === 'failed') finished = true;
+                if (event === 'done' || event === 'failed') { finished = true; hideStop(); }
             };
             for (;;) {
                 const { value, done } = await reader.read();
@@ -111,6 +151,7 @@
             const out = live.querySelector('.xs-out');
             if (out) { const note = document.createElement('p'); note.className = 'xs-note'; note.textContent = 'The connection dropped before the search finished; these are the results so far.'; out.prepend(note); }
         } finally {
+            hideStop();
             if (running === ctl) { running = null; busy(false, button); }
         }
     }

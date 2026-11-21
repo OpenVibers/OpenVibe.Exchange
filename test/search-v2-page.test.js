@@ -100,6 +100,36 @@ const views = require('../server/views/search');
     assert.match(streamedPage, /search-stream[^"]*\.js/);
     ok('streamed: something at once, results as the engines answer, the passages, the answer in its kept place, the receipt; failures in words');
 
+    // Stopping early and spending less (the owner, 11-21): the search's id reaches the page for its Stop, a stopped
+    // search says so with what it cost, and the page's free-only switch and time limit go to AI as free_only and
+    // max_time_ms; the page leaving stops the search on AI (the signal).
+    const stopSent = [];
+    let stopAsked = null;
+    const stoppingAi = { meStream: async (token, path, opts) => {
+        stopAsked = { body: opts.body, signal: opts.signal };
+        opts.onEvent('started', { id: 'srch_abcdefgh123' });
+        opts.onEvent('results', { stage: 'merged', results: v2.results });
+        opts.onEvent('done', { ...v2, receipt: { ...v2.receipt, stopped: 'stopped', cost_usd: 0.0021 } });
+    } };
+    const leaving = new AbortController();
+    await streamSearch({ ai: stoppingAi, token: 't', body: { q: 'lantern makers', depth: 'standard', free_only: 'true', time_limit: '15' }, engines: [], apiBase: null, dive: null, write: (event, data) => stopSent.push([event, data]), signal: leaving.signal });
+    assert.strictEqual(stopAsked.body.free_only, true);
+    assert.strictEqual(stopAsked.body.max_time_ms, 15000);
+    assert.strictEqual(stopAsked.signal, leaving.signal, 'the page leaving stops the search on AI');
+    assert.deepStrictEqual(stopSent.find(([e]) => e === 'started'), ['started', { id: 'srch_abcdefgh123' }]);
+    const stoppedEnd = stopSent[stopSent.length - 1];
+    assert.strictEqual(stoppedEnd[0], 'done');
+    assert.match(stoppedEnd[1].live, /Stopped early: these are the results so far, and only what ran was charged \(\$0\.0021\)/);
+    await streamSearch({ ai: stoppingAi, token: 't', body: { q: 'x', time_limit: '7', free_only: 'no' }, engines: [], apiBase: null, dive: null, write: () => {} });
+    assert.ok(!('max_time_ms' in stopAsked.body) && !('free_only' in stopAsked.body), 'only the offered limits, only a real yes');
+    const saver = views.searchPage({ engines: [], query: { q: 'x', kind: 'web', free_only: true, time_limit: 15 } });
+    assert.match(saver, /name="free_only" value="true" role="switch" checked/);
+    assert.match(saver, /<input type="radio" name="time_limit" value="15" checked><span>15 s<\/span>/);
+    assert.match(saver, /free engines only · no cap · 15 s limit/, 'the folded settings say so');
+    assert.match(saver, /<details class="xs-opts" open>/, 'and open when set');
+    assert.ok(!/name="free_only"/.test(views.searchPage({ engines: [], query: { q: 'x', kind: 'images' } })), 'pictures keep their own controls');
+    ok('stopping early: the id for Stop, a stopped search says so and what it cost; free engines only and a time limit');
+
     // What each depth cost and took lately (AI's measurements, plan AD.34 item 5): words under each depth, the list's
     // numbers or the answer's with the switch on; nothing until a handful were measured.
     assert.strictEqual(views.measuredWords({ n: 40, cost_usd: { p50: 0.00075, p90: 0.001 }, time_ms: { p50: 1240, p90: 2100 } }), '~1.2 s · $0.0008');
