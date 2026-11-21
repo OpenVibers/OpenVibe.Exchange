@@ -87,7 +87,8 @@
             stop.disabled = true;
             stop.textContent = 'Stopping…';
             try {
-                const res = await fetch('/search/stop', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+                // A form body: the search routes read forms (a JSON body arrived empty, 11-21, and Stop fell back to hanging up).
+                const res = await fetch('/search/stop', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ id }) });
                 if (!res.ok && res.status !== 404) throw new Error('not stopped');
             } catch {
                 // The stop could not be asked: dropping the connection stops the search too; the results stay.
