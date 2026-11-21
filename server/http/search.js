@@ -167,7 +167,8 @@ async function streamSearch({ ai, token, body, engines, apiBase, dive, write, si
                     ended = true;
                     const stopped = data.receipt && data.receipt.stopped;
                     const spent = Number(data.receipt && data.receipt.cost_usd) || 0;
-                    const note = stopped ? `<p class="xs-note is-ok" role="status">${esc(stopped === 'time' ? 'Stopped at your time limit' : 'Stopped early')}: these are the results so far, and only what ran was charged (${spent ? `$${spent.toFixed(4)}` : 'nothing'}).</p>` : '';
+                    // What it cost is on the receipt line just below, exactly; the note says why the list is short.
+                    const note = stopped ? `<p class="xs-note is-ok" role="status">${esc(stopped === 'time' ? 'Stopped at your time limit' : 'Stopped early')}: these are the results so far, and only what ran was charged.</p>` : '';
                     write('done', { live: live(note + views.multiResults(data, engines)), spent });
                 } else if (event === 'error') {
                     ended = true;

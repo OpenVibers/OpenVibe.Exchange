@@ -176,7 +176,8 @@ function multiResults(out, engines, { pending = null, answering = false } = {}) 
         : answering
             // Streaming: the answer's place is kept at the top while the model writes it from the sources below.
             ? `<section class="xs-answer is-pending" aria-labelledby="xs-answer-h" aria-busy="true"><h3 id="xs-answer-h">${kit.icon('spark')}<span>Answer</span></h3><p class="xs-pending"><span></span><span></span><span></span></p></section>`
-            : (out.answer === null ? '<p class="xs-note">The sources did not give an answer this time; the results are below.</p>' : '');
+            // A stopped search never wrote its answer: that is the stop, not the sources (11-21).
+            : (out.answer === null && !(out.receipt && out.receipt.stopped) ? '<p class="xs-note">The sources did not give an answer this time; the results are below.</p>' : '');
     const rows = (out.results || []).map((r, i) => `<li id="xs-r${i + 1}" class="xs-hit"><a href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.title || r.url)}</a>`
         + `<span class="xs-hit-meta">${esc(hostOf(r.url))}${r.published ? ` · ${esc(String(r.published).slice(0, 10))}` : ''}</span>`
         + (r.excerpt ? `<blockquote class="xs-excerpt">${esc(r.excerpt)}</blockquote>` : r.snippet ? `<p>${esc(r.snippet)}</p>` : '')
