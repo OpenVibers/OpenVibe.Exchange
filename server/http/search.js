@@ -36,6 +36,19 @@ const SITE = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}
 /** The page's form as a search v2 request (web only): depth, the answer, more searches, sites in and out, a date. */
 // The time limits the page offers, in seconds (search v2's max_time_ms).
 const TIME_LIMITS = [5, 15, 30];
+// A depth's steps the page can change (search v2's steps): the field, the request's name, and the values offered.
+const STEPS = [['rewrites', 'rewrites', [0, 1, 2, 3]], ['second', 'second_round', [0, 2, 3]], ['pages', 'pages_read', [0, 3, 6, 10]]];
+/** The steps the person changed, as search v2's `steps`, or null when every one is the depth's own. */
+function stepsOf(source) {
+    const out = {};
+    for (const [field, name, values] of STEPS) {
+        const raw = source && source[field];
+        if (raw == null || raw === '') continue;
+        const n = Number(raw);
+        if (values.includes(n)) out[name] = n;
+    }
+    return Object.keys(out).length ? out : null;
+}
 const yes = (x) => x === 'true' || x === 'on' || x === '1' || x === true;
 function v2Body(body, filters) {
     const depth = DEPTHS.includes(body.depth) ? body.depth : 'fast';
@@ -52,6 +65,7 @@ function v2Body(body, filters) {
         ...(engine ? { engines: [engine] } : {}), ...filters,
         ...(yes(body.free_only) ? { free_only: true } : {}),
         ...(TIME_LIMITS.includes(Number(body.time_limit)) ? { max_time_ms: Number(body.time_limit) * 1000 } : {}),
+        ...(stepsOf(body) ? { steps: stepsOf(body) } : {}),
     };
 }
 /** One engine by default; compare is explicit and runs two or three distinct engines. */
@@ -229,6 +243,7 @@ function createSearchRoutes({ config, ai }) {
             engine: one(req.query.engine), first: one(req.query.first), second: one(req.query.second), third: one(req.query.third),
             max_cost_usd: req.query.max_cost_usd == null ? '' : one(req.query.max_cost_usd, 30),
             free_only: req.query.free === '1', time_limit: TIME_LIMITS.includes(Number(req.query.time)) ? Number(req.query.time) : null,
+            steps: stepsOf(req.query),
             note: req.query.chosen === '1' ? 'The Unsplash download event was recorded once for that picture.' : one(req.query.note, 240),
             noteOk: req.query.ok === '1',
             // A linked web search runs itself for a signed-in person (the stream script reads data-autorun); a crawler
@@ -250,6 +265,7 @@ function createSearchRoutes({ config, ai }) {
             engine: one(body.engine), first: one(body.first), second: one(body.second), third: one(body.third),
             max_cost_usd: capOf(body.max_cost_usd) == null ? '' : String(capOf(body.max_cost_usd)),
             free_only: yes(body.free_only), time_limit: TIME_LIMITS.includes(Number(body.time_limit)) ? Number(body.time_limit) : null,
+            steps: stepsOf(body),
             spent: out.spent, note: out.note,
             ...Object.fromEntries(Object.entries(filterBody(body, kind)).map(([key, value]) => [key, String(value)])),
         });
@@ -313,4 +329,4 @@ function createSearchRoutes({ config, ai }) {
     });
     return r;
 }
-module.exports = { createSearchRoutes, selectedEngines, runSearch, streamSearch, saveWebWatch, filterBody, v2Body, DEPTHS };
+module.exports = { stepsOf, createSearchRoutes, selectedEngines, runSearch, streamSearch, saveWebWatch, filterBody, v2Body, DEPTHS };

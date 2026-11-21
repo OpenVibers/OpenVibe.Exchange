@@ -131,6 +131,21 @@ const views = require('../server/views/search');
     assert.ok(!/name="free_only"/.test(views.searchPage({ engines: [], query: { q: 'x', kind: 'images' } })), 'pictures keep their own controls');
     ok('stopping early: the id for Stop, a stopped search says so and what it cost; free engines only and a time limit');
 
+    // A depth's steps, changed for one search: only the offered values, only the ones changed.
+    const { stepsOf } = require('../server/http/search');
+    assert.deepStrictEqual(stepsOf({ rewrites: '0', second: '', pages: '6' }), { rewrites: 0, pages_read: 6 });
+    assert.strictEqual(stepsOf({ rewrites: '', second: '', pages: '' }), null, 'the depth\'s own');
+    assert.deepStrictEqual(stepsOf({ rewrites: '9', pages: '4' }), null, 'only the values offered');
+    let stepAsked = null;
+    await streamSearch({ ai: { meStream: async (t, p, o) => { stepAsked = o.body; o.onEvent('done', v2); } }, token: 't', body: { q: 'x', depth: 'standard', rewrites: '0', pages: '10' }, engines: [], apiBase: null, dive: null, write: () => {} });
+    assert.deepStrictEqual(stepAsked.steps, { rewrites: 0, pages_read: 10 });
+    const tuned = views.searchPage({ engines: [], query: { q: 'x', kind: 'web', steps: { pages_read: 6 } } });
+    assert.match(tuned, /<details class="xs-steps" open><summary>Steps<small>pages read 6<\/small>/);
+    assert.match(tuned, /name="pages" value="6" checked/);
+    assert.match(tuned, /name="rewrites" value="" checked><span>Depth<\/span>/);
+    assert.match(views.searchPage({ engines: [], query: { q: 'x', kind: 'web' } }), /<details class="xs-steps"><summary>Steps<small>the depth&#39;s own<\/small>|<details class="xs-steps"><summary>Steps<small>the depth's own<\/small>/);
+    ok("a depth's steps can be changed for one search: rewrites, a second round, pages read; each the depth's own until changed");
+
     // What each depth cost and took lately (AI's measurements, plan AD.34 item 5): words under each depth, the list's
     // numbers or the answer's with the switch on; nothing until a handful were measured.
     assert.strictEqual(views.measuredWords({ n: 40, cost_usd: { p50: 0.00075, p90: 0.001 }, time_ms: { p50: 1240, p90: 2100 } }), '~1.2 s · $0.0008');
