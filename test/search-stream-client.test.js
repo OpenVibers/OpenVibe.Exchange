@@ -53,7 +53,7 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
     const requests = [];
     const stops = [];
     const fetch = async (url, init) => {
-        if (url === '/search/stop') { stops.push(JSON.parse(init.body)); return { ok: true, status: 200 }; }
+        if (url === '/search/stop') { assert.match(init.headers['Content-Type'], /x-www-form-urlencoded/, 'a form body, as the search routes read'); stops.push(Object.fromEntries(new URLSearchParams(String(init.body)))); return { ok: true, status: 200 }; }
         requests.push({ url, body: String(init.body), accept: init.headers.Accept });
         const enc = new TextEncoder();
         const body = new ReadableStream({ start(c) { for (const ch of chunks) c.enqueue(enc.encode(ch)); c.close(); } });
