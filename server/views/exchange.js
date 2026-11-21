@@ -231,7 +231,7 @@ ${lineCard({ href: '/code', name: 'Code', text: 'GitHub repositories trending to
 ${lineCard({ href: '/uncensored', name: 'Uncensored (18+)', text: 'Abliterated models for adults, with the floor that holds on every request.', icon: 'shield', tone: 'warn' })}
 ${lineCard({ href: '/why', name: 'Why this model', text: 'Every answer carries its receipt: the objective, the candidates, their cost and latency, and why the others did not answer.', icon: 'help', tone: 'accent' })}
 ${lineCard({ href: '/start', name: 'Start building', text: 'One key, one endpoint and the SDK you already use; four steps from a key to a receipt.', icon: 'code', tone: 'accent' })}
-${lineCard({ href: '/sell', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Link, labelled on every answer.', icon: 'computer', tone: 'accent' })}
+${lineCard({ href: 'https://openvibe.link/', name: 'Run on people’s machines', text: 'Community GPUs through OpenVibe Link, labelled on every answer.', icon: 'computer', tone: 'accent' })}
 ${lineCard({ href: '/api', name: 'Bring your own key, 0% fee', text: 'Your provider key pays the provider directly; the router never adds a fee on it.', icon: 'key', tone: 'accent' })}
 ${lineCard({ href: '/own', name: 'Your own endpoint', text: 'A private GPU for one model or your own weights: only you reach it, and it scales to zero when idle.', icon: 'server', tone: 'accent' })}
 </div>
@@ -291,11 +291,11 @@ function lineCard({ href, name, text, icon, tone = 'accent' }) {
 function productsSummary(usage) {
     const products = usage.by_product || [];
     if (usage.unavailable) return kit.notice({ kind: 'info', text: 'Product usage is read from OpenVibe.AI and is not available right now.' });
-    if (!products.length) return kit.empty({ icon: 'code', title: 'No product has run a model yet', text: 'When one does, its models and daily cost show here and on <a href="/ai">AI in OpenVibe</a>.' });
+    if (!products.length) return kit.empty({ icon: 'code', title: 'No product has run a model yet', text: 'When one does, its models and daily cost show here and on <a href="https://openvibe.report/ai/exchange">AI in OpenVibe</a>.' });
     const rows = products.slice(0, 5).map((p) => {
         const prod = product(p.product);
         const top = [...new Set((p.models || []).slice(0, 3).map((m) => modelLabel(m.model || m.provider)).filter(Boolean))].slice(0, 2).join(', ');
-        return `<li class="ex-product-row"><a href="/ai">${productMark(p.product, { size: 28 })}<span><b>${esc(prod.name)}</b><small>${top ? `runs ${esc(top)}` : 'runs models through OpenVibe.AI'}</small></span><span class="ex-trail"><b>${count(p.requests)}</b><small>requests</small></span></a></li>`;
+        return `<li class="ex-product-row"><a href="https://openvibe.report/ai/exchange">${productMark(p.product, { size: 28 })}<span><b>${esc(prod.name)}</b><small>${top ? `runs ${esc(top)}` : 'runs models through OpenVibe.AI'}</small></span><span class="ex-trail"><b>${count(p.requests)}</b><small>requests</small></span></a></li>`;
     }).join('');
     return `<ul class="ex-product-list">${rows}</ul>`;
 }

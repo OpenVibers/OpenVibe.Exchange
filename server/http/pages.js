@@ -238,8 +238,8 @@ function createPageRoutes(ctx) {
                 { href: '/models', label: 'Models', icon: 'spark' },
                 { href: '/arena', label: 'The Arena', icon: 'spark' },
                 { href: '/rankings', label: 'Rankings', icon: 'trophy' },
-                { href: '/api', label: 'API', icon: 'code' },
-                { href: '/ai', label: 'AI in OpenVibe', icon: 'gear' },
+                { href: '/api/', label: 'API', icon: 'code' },
+                { href: 'https://openvibe.report/ai/exchange', label: 'AI in OpenVibe', icon: 'gear' },
             ],
         });
     }
