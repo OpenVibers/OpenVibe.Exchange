@@ -767,6 +767,12 @@ html[data-ov-motion=reduced] .xp-q::details-content { transition-duration: .2s; 
 .xs-free-sw > span:last-child { display: grid; gap: 2px; min-width: 0; }
 .xs-free-sw small, .xs-time small { color: var(--ovk-muted); font-size: .8rem; }
 .xs-time { display: grid; gap: 6px; }
+.xs-steps { min-width: 0; }
+.xs-steps > summary { display: flex; align-items: baseline; gap: 8px; min-height: 44px; align-items: center; cursor: pointer; font-size: .92rem; font-weight: 650; list-style: none; }
+.xs-steps > summary::-webkit-details-marker { display: none; }
+.xs-steps > summary small { color: var(--ovk-muted); font-weight: 400; font-size: .8rem; }
+.xs-steps-body { display: grid; gap: 14px; padding-top: 4px; }
+.xs-time .xs-modes { flex-wrap: wrap; max-width: 100%; }
 .xs-time > span { font-size: .92rem; }
 /* Stop, while a search runs: it ends the search with what was found, charged only what ran. */
 .xs-stop-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 12px; background: var(--ovk-panel); color: var(--ovk-muted); font-size: .9rem; animation: xs-stop-in .22s ease-out; }

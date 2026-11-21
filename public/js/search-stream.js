@@ -63,6 +63,7 @@
         if (data.get('answer')) u.set('answer', '1');
         if (data.get('free_only')) u.set('free', '1');
         if (data.get('time_limit')) u.set('time', String(data.get('time_limit')));
+        for (const k of ['rewrites', 'second', 'pages']) if (data.get(k) != null && data.get(k) !== '') u.set(k, String(data.get(k)));
         u.set('run', '1');
         try { history.replaceState(null, '', `${location.pathname}?${u.toString()}`); } catch { /* the address stays */ }
     }

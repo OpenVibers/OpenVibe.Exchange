@@ -145,6 +145,23 @@ const DEPTHS = [
     ['deep', 'Deep', 'A second round for what is missing'],
 ];
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return ''; } };
+// A depth's steps, changed for one search (search v2's steps; the owner, 11-21: "more configurable"): each defaults to
+// the chosen depth's own, so nobody has to touch them.
+const STEP_ROWS = [
+    ['rewrites', 'rewrites', 'Rewritten queries', [0, 1, 2, 3], 'The question asked again in other words.'],
+    ['second', 'second_round', 'Second round', [0, 2, 3], 'Searches for what the first round missed.'],
+    ['pages', 'pages_read', 'Pages read', [0, 3, 6, 10], 'Top pages read for the passage that answers.'],
+];
+function stepsBlock(steps) {
+    const set = steps && typeof steps === 'object' ? steps : {};
+    const changed = STEP_ROWS.filter(([, name]) => set[name] != null);
+    const words = changed.length ? changed.map(([, name, label]) => `${label.toLowerCase()} ${set[name]}`).join(' · ') : "the depth's own";
+    return `<details class="xs-steps"${changed.length ? ' open' : ''}><summary>Steps<small>${esc(words)}</small></summary><div class="xs-steps-body">`
+        + STEP_ROWS.map(([field, name, label, values, hint]) => `<div class="xs-field xs-time"><span id="xs-st-${field}">${label}</span><fieldset class="xs-modes" aria-labelledby="xs-st-${field}">`
+            + [['', 'Depth'], ...values.map((n) => [String(n), String(n)])].map(([v, l]) => `<label><input type="radio" name="${field}" value="${v}"${String(set[name] == null ? '' : set[name]) === v ? ' checked' : ''}><span>${l}</span></label>`).join('')
+            + `</fieldset><small>${esc(hint)}</small></div>`).join('')
+        + '</div></details>';
+}
 // What the search box suggests while it is empty (openvibe-shared ov-trending's data-ov-trending-items): questions that
 // show what a web search here does. Without a list of its own the box suggested the page's headings, and one came out as
 // "The engines35" (the heading with its count badge, 11-20).
@@ -306,13 +323,14 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
     const engineWords = mode === 'compare'
         ? `Compare ${compareDefaults.filter(Boolean).map((id) => nameOf({ id })).join(', ')}`
         : singleDefault === 'auto' ? "The router's pick" : nameOf({ id: singleDefault });
-    const optsWords = [engineWords, query.free_only ? 'free engines only' : '', capSet ? `cap ${money(query.max_cost_usd)}` : 'no cap', query.time_limit ? `${query.time_limit} s limit` : '', filterCount ? `${filterCount} filter${filterCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
-    const optsOpen = mode === 'compare' || capSet || filterCount > 0 || !!query.free_only || !!query.time_limit;
+    const optsWords = [engineWords, query.free_only ? 'free engines only' : '', capSet ? `cap ${money(query.max_cost_usd)}` : 'no cap', query.time_limit ? `${query.time_limit} s limit` : '', query.steps ? 'own steps' : '', filterCount ? `${filterCount} filter${filterCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    const optsOpen = mode === 'compare' || capSet || filterCount > 0 || !!query.free_only || !!query.time_limit || !!query.steps;
     // Spending less (web, one search): only what costs nothing, and a time after which the search answers with what it
     // has. Both are search v2's (free_only, max_time_ms); the Stop button while it runs is the third way.
     const saving = kind === 'web' && mode === 'single'
         ? `<label class="xs-answer-sw xs-free-sw"><input type="checkbox" name="free_only" value="true" role="switch"${query.free_only ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Free engines only<small>OpenVibe's own index, Wikipedia and the metasearch: the search itself costs nothing.</small></span></label>`
             + `<div class="xs-field xs-time"><span id="xs-time-l">Time limit</span><fieldset class="xs-modes" aria-labelledby="xs-time-l">${[['', 'None'], ...[5, 15, 30].map((n) => [String(n), `${n} s`])].map(([v, l]) => `<label><input type="radio" name="time_limit" value="${v}"${String(query.time_limit || '') === v ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset><small>When it runs out, you get the results found so far and pay only for what ran.</small></div>`
+            + stepsBlock(query.steps)
         : '';
     // 11-15 (the owner: "nothing happens upon search attempt … the search bar fixed float top when you scroll down"):
     // the box, its button and the kind ride at the top while the page scrolls; the answer (results, or why there are
