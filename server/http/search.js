@@ -34,6 +34,9 @@ const DEPTH_WAIT_MS = { instant: 15_000, fast: 20_000, standard: 45_000, deep: 5
 const listOf = (value, max, re) => String(value == null ? '' : value).split(/[\s,]+/).map((x) => x.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')).filter((x) => x && re.test(x)).slice(0, max);
 const SITE = /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 /** The page's form as a search v2 request (web only): depth, the answer, more searches, sites in and out, a date. */
+// The time limits the page offers, in seconds (search v2's max_time_ms).
+const TIME_LIMITS = [5, 15, 30];
+const yes = (x) => x === 'true' || x === 'on' || x === '1' || x === true;
 function v2Body(body, filters) {
     const depth = DEPTHS.includes(body.depth) ? body.depth : 'fast';
     const more = String(body.more || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean).map((x) => x.slice(0, 500)).slice(0, 5);
@@ -47,6 +50,8 @@ function v2Body(body, filters) {
         ...(more.length ? { queries: more } : {}), ...(include.length ? { include_domains: include } : {}),
         ...(exclude.length ? { exclude_domains: exclude } : {}), ...(from ? { from } : {}),
         ...(engine ? { engines: [engine] } : {}), ...filters,
+        ...(yes(body.free_only) ? { free_only: true } : {}),
+        ...(TIME_LIMITS.includes(Number(body.time_limit)) ? { max_time_ms: Number(body.time_limit) * 1000 } : {}),
     };
 }
 /** One engine by default; compare is explicit and runs two or three distinct engines. */
@@ -126,7 +131,7 @@ async function runSearch({ ai, token, body, kind, engines = [], timeoutMs = null
  * then `done` with the final view, or `failed` with the reason in words. Without the script the form posts to /search
  * as before.
  */
-async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) {
+async function streamSearch({ ai, token, body, engines, apiBase, dive, write, signal = null }) {
     const filters = filterBody(body, 'web');
     const payload = { ...v2Body(body, filters), stream: true };
     const cap = capOf(body.max_cost_usd);
@@ -146,9 +151,12 @@ async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) 
     let ended = false;
     try {
         await ai.meStream(token, '/v1/search', {
-            body: payload, timeoutMs: DEPTH_WAIT_MS[payload.depth],
+            body: payload, timeoutMs: DEPTH_WAIT_MS[payload.depth], signal,
             onEvent: (event, data) => {
-                if (event === 'results' && data && Array.isArray(data.results)) {
+                if (event === 'started' && data && typeof data.id === 'string') {
+                    // The search's id, so the page's Stop ends it (POST /search/stop) and still gets what it found.
+                    write('started', { id: data.id });
+                } else if (event === 'results' && data && Array.isArray(data.results)) {
                     state.results = data.results;
                     if (data.queries) state.queries = { ...state.queries, ...data.queries };
                     write('html', { live: live(views.multiResults(state, engines, { pending: pendingWords(data.stage), answering: wantsAnswer })) });
@@ -157,7 +165,10 @@ async function streamSearch({ ai, token, body, engines, apiBase, dive, write }) 
                     write('html', { live: live(views.multiResults(state, engines, { pending: 'finishing', answering: false })) });
                 } else if (event === 'done' && data) {
                     ended = true;
-                    write('done', { live: live(views.multiResults(data, engines)), spent: Number(data.receipt && data.receipt.cost_usd) || 0 });
+                    const stopped = data.receipt && data.receipt.stopped;
+                    const spent = Number(data.receipt && data.receipt.cost_usd) || 0;
+                    const note = stopped ? `<p class="xs-note is-ok" role="status">${esc(stopped === 'time' ? 'Stopped at your time limit' : 'Stopped early')}: these are the results so far, and only what ran was charged (${spent ? `$${spent.toFixed(4)}` : 'nothing'}).</p>` : '';
+                    write('done', { live: live(note + views.multiResults(data, engines)), spent });
                 } else if (event === 'error') {
                     ended = true;
                     const note = why({ status: data && data.status, message: data && data.detail });
@@ -216,6 +227,7 @@ function createSearchRoutes({ config, ai }) {
             depth: DEPTHS.includes(req.query.depth) ? req.query.depth : 'fast', answer: req.query.answer === '1',
             engine: one(req.query.engine), first: one(req.query.first), second: one(req.query.second), third: one(req.query.third),
             max_cost_usd: req.query.max_cost_usd == null ? '' : one(req.query.max_cost_usd, 30),
+            free_only: req.query.free === '1', time_limit: TIME_LIMITS.includes(Number(req.query.time)) ? Number(req.query.time) : null,
             note: req.query.chosen === '1' ? 'The Unsplash download event was recorded once for that picture.' : one(req.query.note, 240),
             noteOk: req.query.ok === '1',
             // A linked web search runs itself for a signed-in person (the stream script reads data-autorun); a crawler
@@ -236,6 +248,7 @@ function createSearchRoutes({ config, ai }) {
             more: String(body.more || '').slice(0, 2600), include: one(body.include, 600), exclude: one(body.exclude, 600), from: one(body.from, 10),
             engine: one(body.engine), first: one(body.first), second: one(body.second), third: one(body.third),
             max_cost_usd: capOf(body.max_cost_usd) == null ? '' : String(capOf(body.max_cost_usd)),
+            free_only: yes(body.free_only), time_limit: TIME_LIMITS.includes(Number(body.time_limit)) ? Number(body.time_limit) : null,
             spent: out.spent, note: out.note,
             ...Object.fromEntries(Object.entries(filterBody(body, kind)).map(([key, value]) => [key, String(value)])),
         });
@@ -252,10 +265,26 @@ function createSearchRoutes({ config, ai }) {
         res.status(200).set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' });
         res.flushHeaders();
         let open = true;
-        res.on('close', () => { open = false; });
+        // The page closed or its Stop dropped the connection: the search on AI stops too, and is charged only what ran.
+        const gone = new AbortController();
+        res.on('close', () => { open = false; if (!res.writableFinished) gone.abort(); });
         const write = (event, data) => { if (open && !res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
-        await streamSearch({ ai, token: req.viewer.token, body, engines, apiBase: config.api && config.api.publicUrl, dive, write });
+        await streamSearch({ ai, token: req.viewer.token, body, engines, apiBase: config.api && config.api.publicUrl, dive, write, signal: gone.signal });
         res.end();
+    });
+    // Stop: ends the person's running search early (AI's POST /v1/search/stop with their session). The stream still
+    // finishes, with what it found and what it cost.
+    r.post('/search/stop', async (req, res) => {
+        if (req.viewer?.kind !== 'user') return res.status(401).json({ error: 'Sign in to search' });
+        if (!sameOrigin(req, config.baseUrl)) return res.sendStatus(403);
+        const id = one(req.body && req.body.id, 64);
+        if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) return res.status(400).json({ error: 'No search named' });
+        try {
+            await ai.meRequest(req.viewer.token, '/v1/search/stop', { method: 'POST', body: { id } });
+            return res.json({ stopped: true });
+        } catch (err) {
+            return res.status(err && err.status === 404 ? 404 : 502).json({ error: err && err.status === 404 ? 'That search has already finished' : 'The search could not be stopped' });
+        }
     });
     // Watch for new results: a web watch on OpenVibe.Search (a saved search with scope web) for these words, saved with
     // the person's own Network session. Search runs it once a day and notifies them of results not shown before.

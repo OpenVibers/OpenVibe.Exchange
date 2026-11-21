@@ -305,8 +305,14 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
     const engineWords = mode === 'compare'
         ? `Compare ${compareDefaults.filter(Boolean).map((id) => nameOf({ id })).join(', ')}`
         : singleDefault === 'auto' ? "The router's pick" : nameOf({ id: singleDefault });
-    const optsWords = [engineWords, capSet ? `cap ${money(query.max_cost_usd)}` : 'no cap', filterCount ? `${filterCount} filter${filterCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
-    const optsOpen = mode === 'compare' || capSet || filterCount > 0;
+    const optsWords = [engineWords, query.free_only ? 'free engines only' : '', capSet ? `cap ${money(query.max_cost_usd)}` : 'no cap', query.time_limit ? `${query.time_limit} s limit` : '', filterCount ? `${filterCount} filter${filterCount === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+    const optsOpen = mode === 'compare' || capSet || filterCount > 0 || !!query.free_only || !!query.time_limit;
+    // Spending less (web, one search): only what costs nothing, and a time after which the search answers with what it
+    // has. Both are search v2's (free_only, max_time_ms); the Stop button while it runs is the third way.
+    const saving = kind === 'web' && mode === 'single'
+        ? `<label class="xs-answer-sw xs-free-sw"><input type="checkbox" name="free_only" value="true" role="switch"${query.free_only ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Free engines only<small>OpenVibe's own index, Wikipedia and the metasearch: the search itself costs nothing.</small></span></label>`
+            + `<div class="xs-field xs-time"><span id="xs-time-l">Time limit</span><fieldset class="xs-modes" aria-labelledby="xs-time-l">${[['', 'None'], ...[5, 15, 30].map((n) => [String(n), `${n} s`])].map(([v, l]) => `<label><input type="radio" name="time_limit" value="${v}"${String(query.time_limit || '') === v ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset><small>When it runs out, you get the results found so far and pay only for what ran.</small></div>`
+        : '';
     // 11-15 (the owner: "nothing happens upon search attempt … the search bar fixed float top when you scroll down"):
     // the box, its button and the kind ride at the top while the page scrolls; the answer (results, or why there are
     // none) comes straight under them; the engine, the cap and the filters fold below, closed until they matter. The
@@ -335,7 +341,7 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
         + (kind === 'web' ? `<script src="${asset('js/search-stream.js')}" defer></script>` : '')
         + `<details class="xs-opts"${optsOpen ? ' open' : ''}><summary><span>Engine, cap and filters</span><small>${esc(optsWords)}</small></summary><div class="xs-opts-body">`
         + `<fieldset class="xs-modes"><legend class="ex-sr">How many engines</legend><label><input type="radio" name="mode" value="single"${mode === 'single' ? ' checked' : ''}><span>One engine</span></label><label><input type="radio" name="mode" value="compare"${mode === 'compare' ? ' checked' : ''}><span>Compare 2 or 3 engines</span></label></fieldset>`
-        + `${single}${compare}`
+        + `${single}${compare}${saving}`
         + `<label class="xs-field xs-cap"><span>Spending cap, USD</span><input name="max_cost_usd" type="number" min="0" step="0.001" inputmode="decimal" placeholder="No cap" value="${query.max_cost_usd != null ? esc(query.max_cost_usd) : ''}"><small>${mode === 'compare' ? 'One combined cap for every engine in this comparison. The search stops before it is exceeded.' : 'The most this search may spend with the provider.'}</small></label>`
         + `<details class="xs-more"${filterCount ? ' open' : ''}><summary>Filters${filterCount ? `<span class="ovk-count">${filterCount}</span>` : ''}<small>for ${esc((KINDS.find(([k]) => k === kind) || [])[1] || 'Web')}</small></summary><div class="xs-more-body">${filters}</div></details>`
         + `<details class="xs-support"><summary>What the chosen ${mode === 'compare' ? 'engines' : 'engine'} can filter</summary>${support || '<p class="xs-note">Choose an engine to see what it can honour.</p>'}<p class="xs-note">A filter the chosen engine cannot honour is refused before the search, never dropped.</p></details>`

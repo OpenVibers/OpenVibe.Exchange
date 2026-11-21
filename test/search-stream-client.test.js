@@ -32,10 +32,18 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
     const history = { replaceState: (a, b, url) => urls.push(url) };
     const location = { pathname: '/search' };
     const code = { innerHTML: '' };
+    // Elements the Stop row is made of: what they hold and what listens to them.
+    const el = (tag) => {
+        const n = { tag, children: [], listeners: {}, attrs: {}, className: '', textContent: '', disabled: false,
+            append(...c) { n.children.push(...c); }, prepend(...c) { n.children.unshift(...c); },
+            addEventListener(type, fn) { n.listeners[type] = fn; }, setAttribute(k, v) { n.attrs[k] = v; } };
+        return n;
+    };
+    const working = { children: [], replaceChildren(...c) { this.children = c; }, querySelector(sel) { return sel === '.xs-stop-row' ? this.children.find((c) => c.className === 'xs-stop-row') || null : null; } };
     const document = {
-        getElementById: (id) => ({ 'xs-form': form, 'xs-live': live, 'xs-code': code, 'xs-working': { replaceChildren() {} } }[id] || null),
+        getElementById: (id) => ({ 'xs-form': form, 'xs-live': live, 'xs-code': code, 'xs-working': working }[id] || null),
         querySelector: () => null,
-        createElement: () => ({}),
+        createElement: el,
     };
     class FormDataStub {
         constructor() { this.map = new Map(Object.entries(fields)); }
@@ -43,7 +51,9 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
         [Symbol.iterator]() { return this.map[Symbol.iterator](); }
     }
     const requests = [];
+    const stops = [];
     const fetch = async (url, init) => {
+        if (url === '/search/stop') { stops.push(JSON.parse(init.body)); return { ok: true, status: 200 }; }
         requests.push({ url, body: String(init.body), accept: init.headers.Accept });
         const enc = new TextEncoder();
         const body = new ReadableStream({ start(c) { for (const ch of chunks) c.enqueue(enc.encode(ch)); c.close(); } });
@@ -59,7 +69,7 @@ function harness({ fields, chunks, contentType = 'text/event-stream; charset=utf
         for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
         return prevented;
     };
-    return { listeners, writes, live, code, requests, submit, hits, submitted: () => submitted, urls, settle };
+    return { listeners, writes, live, code, requests, submit, hits, submitted: () => submitted, urls, settle, working, stops };
 }
 
 const hit = (n, url) => `<li id="xs-r${n}" class="xs-hit"><a href="${url}">t</a></li>`;
@@ -110,6 +120,25 @@ const ev = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
     await quiet.settle();
     assert.strictEqual(quiet.requests.length, 0, 'without data-autorun nothing runs by itself');
     ok('a search is linkable: in the address, rerun when linked, a success line kept above it');
+
+    // Stop (the owner, 11-21: "searches can be cancelled or stopped to save on cost"): the search's id shows a Stop
+    // that asks the server to end it; the row goes once the search is done.
+    const shown = [];
+    const stopStream = ev('started', { id: 'srch_abcdefgh123' }) + ev('html', { live: first }) + ev('done', { live: second, spent: 0.0004 });
+    const st = harness({ fields: { q: 'lanterns', kind: 'web', mode: 'single', free_only: 'true', time_limit: '15' }, chunks: [stopStream] });
+    const replace = st.working.replaceChildren.bind(st.working);
+    st.working.replaceChildren = (...c) => { if (c.length) shown.push(c[0]); replace(...c); };
+    await st.submit();
+    const row = shown.find((c) => c.className === 'xs-stop-row');
+    assert.ok(row, 'a Stop row showed while the search ran');
+    const button = row.children.find((c) => c.className === 'xs-stop');
+    assert.strictEqual(button.textContent, 'Stop');
+    assert.match(row.children[0].textContent, /pay only for what ran/);
+    assert.strictEqual(st.working.children.length, 0, 'gone once the search is done');
+    await button.listeners.click();
+    assert.deepStrictEqual(st.stops, [{ id: 'srch_abcdefgh123' }], 'Stop asks the server to end that search');
+    assert.deepStrictEqual(st.urls, ['/search?q=lanterns&free=1&time=15&run=1'], 'the free-only switch and the time limit are in the address');
+    ok('Stop: shown while a search runs, it ends that search; the saving settings are linkable');
 
     console.log(`search-stream-client: ${pass} checks passed`);
 })().catch((e) => { console.error(e); process.exit(1); });
