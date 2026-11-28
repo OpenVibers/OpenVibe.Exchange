@@ -47,9 +47,9 @@ function createConsoleRoutes({ config, ai }) {
     // Owner defaults are OpenVibe supply only, so each picker lists the network's offers for the task's kind: the
     // chat (or code, vision) models, and for an image task its image models too. A failed read leaves that task's
     // pickers empty rather than the page; the saved values still render from the defaults.
-    const networkModels = async (task) => {
+    const networkModels = async (task, token) => {
         try {
-            const view = await ai.meRequest(req.viewer.token, `/api/v1/choices?task=${encodeURIComponent(task.name)}`);
+            const view = await ai.meRequest(token, `/api/v1/choices?task=${encodeURIComponent(task.name)}`);
             const list = ((view.options && view.options.openvibe) || []).filter((m) => !m.adult);
             const models = list.map(({ model, source, name, price_estimate_usd }) => ({ model, source, name, price_estimate_usd }));
             // A model task's two dynamic picks come first: "let OpenVibe choose" is the built-in every task starts
@@ -63,7 +63,7 @@ function createConsoleRoutes({ config, ai }) {
         try {
             const data = await ai.meRequest(req.viewer.token, '/api/v1/admin/task-defaults');
             const optionsByTask = {};
-            for (const task of data.tasks || []) optionsByTask[task.name] = await networkModels(task);
+            for (const task of data.tasks || []) optionsByTask[task.name] = await networkModels(task, req.viewer.token);
             return send(res, 200, { viewer: req.viewer, config, path: req.originalUrl, index: false, title: 'AI defaults', head: DEFAULTS_HEAD, body: raw(defaultsPage({ ...data, optionsByTask })) });
         } catch (err) { return page(req, res, 'defaults', {}, err.message, err.status || 502); }
     });
