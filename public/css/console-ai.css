@@ -57,7 +57,7 @@
 
 .exc-model-prices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}
 .exc-model-prices>span{display:grid;gap:2px;padding:10px 12px;border-radius:12px;background:var(--ovk-panel-2,color-mix(in srgb,var(--ovk-text) 4%,transparent));font-size:.9rem}
-.exc-model-prices em{font-style:normal;font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ovk-muted)}
+.exc-model-prices em{font-style:normal;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ovk-muted)}
 .exc-model-prices b{font-variant-numeric:tabular-nums}
 .exc-model-prices small{color:var(--ovk-muted);font-size:.76rem}
 .exc-model-prices .is-override{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ovk-accent) 45%,transparent)}
@@ -83,7 +83,7 @@
 .exc-pb-name a{color:var(--ovk-muted);font-size:.78rem}
 .exc-pb-prices{grid-area:prices;display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;font-size:.86rem;font-variant-numeric:tabular-nums}
 .exc-pb-price{display:inline-flex;align-items:baseline;gap:5px}
-.exc-pb-price em{font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ovk-muted)}
+.exc-pb-price em{font-style:normal;font-size:.75rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ovk-muted)}
 .exc-pb-price s{color:var(--ovk-muted)}
 .exc-pb-price i{font-style:normal;font-weight:700;font-size:.78rem}
 .exc-pb-price.is-up i{color:color-mix(in srgb,var(--ovk-bad) 60%,var(--ovk-text))}
