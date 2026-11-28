@@ -1000,3 +1000,27 @@ html[data-ov-motion="off"] .rs-answer, html[data-ov-motion="off"] .rs-points li,
 html[data-ov-motion="off"] .rs-cite { transition: none; }
 @media (max-width: 640px) { .rs-answer { padding: 14px 14px 14px 18px; } .rs-summary { font-size: 1rem; } .rs-src { grid-template-columns: 28px minmax(0, 1fr); padding: 10px; } }
 .dd-moved { margin: 8px 0 12px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); font-size: .92rem; line-height: 1.5; }
+
+/* /search/accuracy (views/search-accuracy.js): how often search's answer is right, by depth. */
+.xa section { margin-top: 28px; }
+.xa-table th small, .xa-table td small { display: block; margin-top: 2px; font-weight: 400; font-size: .8rem; color: var(--ovk-muted); }
+.xa-table td strong { font-size: 1.15rem; }
+.xa-right { color: var(--ovk-ok); font-weight: 700; }
+.xa-miss { color: var(--ovk-muted); }
+.xa-note { margin: 10px 0 0; max-width: 62ch; color: var(--ovk-muted); font-size: .88rem; line-height: 1.5; }
+.xa-list { max-width: 70ch; padding-left: 1.2em; line-height: 1.6; }
+.xa-all { margin-top: 28px; }
+.xa-all > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-weight: 700; }
+.xa-qs td:first-child { min-width: 16rem; }
+.xa-table th, .xa-table td { overflow-wrap: normal; word-break: normal; }
+/* A phone: each depth is a block of four labelled figures, not five squeezed columns (words broke mid-word). */
+@media (max-width: 640px) {
+    .xa-depths thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .xa-depths, .xa-depths tbody { display: block; }
+    .xa-depths tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 14px 0; border-bottom: 1px solid var(--ovk-line); }
+    .xa-depths th[scope="row"], .xa-depths td { display: block; padding: 0; border: 0; }
+    .xa-depths th[scope="row"] { grid-column: 1 / -1; }
+    .xa-depths td::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ovk-muted); }
+}
+.xs-acc { display: inline-flex; align-items: center; min-height: 44px; font-size: .85rem; color: var(--ovk-muted); }
+.xs-acc:hover { color: var(--ovk-accent); }
