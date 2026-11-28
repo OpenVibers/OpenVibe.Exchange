@@ -47,6 +47,7 @@ function accuracyPage(run) {
         + '<div class="exc-scroll"><table class="ovk-table xa-table xa-depths"><thead><tr><th scope="col">Depth</th><th scope="col">Right</th><th scope="col">Answer in the sources</th><th scope="col">Typical time</th><th scope="col">Typical cost</th></tr></thead>'
         + `<tbody>${summary}</tbody></table></div>`
         + '<p class="xa-note">"Answer in the sources" is how often the right answer was somewhere in what the search found, whether or not the written answer used it: the room left for a better answer.</p>'
+        + (Array.isArray(run.notes) ? run.notes.filter((n) => typeof n === 'string' && n).slice(0, 4).map((n) => `<p class="xa-note">${esc(n)}</p>`).join('') : '')
         + (empties ? `<p class="xa-note">Some misses are answers left empty: the search found sources and wrote nothing (${esc(empties)}). They count as missed.</p>` : '')
         + '</section>'
         + '<section aria-labelledby="xa-how"><h2 id="xa-how">How it was measured</h2><ul class="xa-list">'

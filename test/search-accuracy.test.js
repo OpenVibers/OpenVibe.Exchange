@@ -49,6 +49,8 @@ const run = (measured, fastRight) => ({
         assert.ok(html.includes('Who won &lt;the&gt; prize?') && html.includes('Ada &amp; Bo'), 'escaped');
         assert.ok(!html.includes('<the>'));
         assert.match(html, /class="xa-miss">missed<\/td>/);
+        const noted = accuracyPage({ ...run('2026-11-28', 1), notes: ['Deep measured again <after> a fix.'] });
+        assert.ok(noted.includes('<p class="xa-note">Deep measured again &lt;after&gt; a fix.</p>'), 'a run\'s notes show, escaped');
     });
 
     const t = await boot({ ai: createFakeAi() });
