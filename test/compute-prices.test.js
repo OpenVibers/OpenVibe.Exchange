@@ -12,7 +12,7 @@ const {createFakeAi}=require('./helpers/ai');
   assert.equal(data.prices.find(p=>p.id==='daytona-4090-preemptible').interruptible,true);
   for(const p of data.prices){assert.ok(p.hourly>0);assert.ok(p.expires_at>Date.parse(p.checked_at));assert.ok(p.source.startsWith('https://'));assert.equal(p.per_second,p.hourly/3600);}
   // The book says where each price was read and when, and it is not yet past its review date.
-  assert.equal(data.checked_at,'2026-11-18T00:00:00Z');   // re-read from each provider's page on 2026-11-18
+  assert.equal(data.checked_at,'2026-11-28T00:00:00Z');   // re-read from each provider's page on 2026-11-28
   assert.ok(data.prices.every(p=>p.expires_at>Date.now()),'the refreshed book is not expired');
   for(const p of data.prices){assert.equal(p.checked_at,data.checked_at);assert.equal(p.source,{'baseten':'https://www.baseten.co/pricing','daytona':'https://www.daytona.io/pricing','e2b':'https://e2b.dev/pricing','fly':'https://docs.fly.io/about/pricing','runpod':'https://www.runpod.io/pricing'}[p.provider]);}
   const page=await t.get('/compute');assert.equal(page.status,200);assert.match(page.text,/Compute prices/);assert.match(page.text,/Model prices/);
