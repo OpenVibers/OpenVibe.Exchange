@@ -8,6 +8,7 @@ const arenaViews = require('./views/arena');
 const { CATEGORIES } = require('./arena/category');
 const { ARENA_KIND } = require('./bench');
 const { raw } = require('./render/html');
+const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const { renderPage } = require('./render/layout');
 const { homeJsonLd } = require('./http/discovery');
 
@@ -107,6 +108,13 @@ function createAgentPages(ctx) {
                 })),
             });
         }
+        // Search, measured: the same page /search/accuracy draws, from the latest run on disk.
+        if (p === '/search/accuracy') {
+            const run = require('./search-accuracy').latest();
+            if (!run) return null;
+            return page(p, { index: true, title: 'How accurate is search?', description: `Exchange search measured on ${run.questions.length} SimpleQA questions at each depth (${run.measured}).`,
+                body: raw(require('./views/search-accuracy').accuracyPage(run)) });
+        }
         if (p === '/privacy/keys') {
             // Signed out, /privacy/keys only sends a person to sign in; the twin says that and nothing of an
             // account, a credential or a key.
@@ -115,6 +123,15 @@ function createAgentPages(ctx) {
                 description: 'Sign in to manage your own provider keys and supported browser session cookies.',
                 body: raw('<div class="ex-wrap ex-narrow"><header class="ex-companions-head"><h1>Your keys and accounts</h1><p class="ex-lede">Sign in to manage your own provider keys and supported browser session cookies.</p><p class="ex-head-actions"><a class="ovk-btn ovk-btn--primary" href="/auth/login?next=%2Fprivacy%2Fkeys">Sign in with OpenVibe</a></p></header></div>'),
             });
+        }
+        // Every other page llms.txt and the sitemap name (http/discovery.js PUBLIC_PAGES) answers with what that list says
+        // of it and the page's own address, not a 404: an agent following llms.txt to /code.md, /compute.md or
+        // /decisions.md found nothing (11-28, tools/llms-check.js). A page with a full twin above keeps it.
+        const listed = require('./http/discovery').PUBLIC_PAGES.find((x) => x.path === p);
+        if (listed && listed.title) {
+            const href = `${String(config.baseUrl || 'https://openvibe.exchange').replace(/\/+$/, '')}${p}`;
+            return page(p, { index: true, title: listed.title, description: listed.text || listed.title,
+                body: raw(`<div class="ex-wrap ex-narrow"><h1>${escapeHtml(listed.title)}</h1><p>${escapeHtml(listed.text || '')}</p><p><a href="${escapeHtml(href)}">Open ${escapeHtml(listed.title)} on OpenVibe.Exchange</a></p></div>`) });
         }
         return null;
     }

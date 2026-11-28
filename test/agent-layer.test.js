@@ -57,6 +57,17 @@ const { createFakeAi } = require('./helpers/ai');
             assert.ok(r.text.includes('no training'));
             assert.strictEqual((await t.get('/chat.md')).status, 404);
             assert.strictEqual((await t.get('/no-such-page.md')).status, 404);
+            // Every page llms.txt names has a twin (11-28: /code.md, /compute.md, /decisions.md and /search/accuracy.md
+            // answered 404 to agents following llms.txt): a full one, or what the page list says of it.
+            const acc = await t.get('/search/accuracy.md');
+            assert.strictEqual(acc.status, 200);
+            assert.ok(acc.text.includes('How accurate is search?'), 'the accuracy page itself');
+            for (const [path, title] of [['/code.md', 'Code'], ['/compute.md', 'Compute prices'], ['/decisions.md', 'Decisions']]) {
+                const r = await t.get(path);
+                assert.strictEqual(r.status, 200, path);
+                assert.match(r.headers.get('content-type'), /^text\/markdown/);
+                assert.ok(r.text.includes(`# ${title}`), `${path} names its page`);
+            }
         });
 
         await check('the companions and privacy/keys twins answer Markdown with their headings', async () => {
