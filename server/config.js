@@ -65,7 +65,7 @@ function load(env = process.env) {
         // for a person. The token is the service's own client-credentials grant (ai.run.create, ns ai.complete);
         // the person's Network subject rides on the run as on_behalf_of, so their own allowance and limits apply.
         ai: {
-            url: trim(env.OV_AI_URL || 'https://ai.openvibe.services'),
+            url: trim(env.OV_AI_URL || (nodeEnv === 'test' ? 'http://127.0.0.1:9' : 'https://ai.openvibe.services')),   // tests never reach production (11-28)
             audience: env.OV_AI_AUDIENCE || 'openvibe.ai',
             // Only what Network grants Exchange. Asking for ai.run.read too (#222) made Network refuse the whole token
             // (invalid_scope), so chat, Try it, presets and the deep dive's service calls failed; AI's deep-dive reads
