@@ -264,7 +264,7 @@ function measuredWords(m) {
     return `~${s < 10 ? s.toFixed(1) : Math.round(s)} s · ${cost}`;
 }
 
-function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null, depths = [] } = {}) {
+function searchPage({ engines = [], found = [], query = {}, dive = null, multi = null, apiBase = null, depths = [], accuracy = false } = {}) {
     const kind = KINDS.some(([k]) => k === query.kind) ? query.kind : 'web';
     const mode = query.mode === 'compare' ? 'compare' : 'single';
     const forKind = engines.filter((e) => Array.isArray(e.kinds) && e.kinds.includes(kind));
@@ -352,7 +352,7 @@ function searchPage({ engines = [], found = [], query = {}, dive = null, multi =
             const lately = list || answered ? `<em class="xs-dm"${list ? '' : ' hidden'}>${esc(list)}</em><em class="xs-dm xs-dm-a">${esc(answered || list)}</em>` : '';
             return `<label title="${esc(hint)}"><input ${F} type="radio" name="depth" value="${d}"${d === depth ? ' checked' : ''}><span><b>${l}</b><small>${esc(hint)}</small>${lately}</span></label>`;
         }).join('')}</fieldset>`
-            + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label></div>` : '')
+            + `<label class="xs-answer-sw"><input ${F} type="checkbox" name="answer" value="true" role="switch"${query.answer ? ' checked' : ''}><span class="xs-sw" aria-hidden="true"></span><span>Answer with sources</span></label>${accuracy ? '<a class="xs-acc" href="/search/accuracy">How accurate is each depth?</a>' : ''}</div>` : '')
         + `<div id="xs-working" class="xs-working"></div>`
         + `<div id="xs-live">${liveBlock({ q: query.q, kind, dive, out: searched || query.note ? `${query.note ? (query.noteOk ? `<p class="xs-note is-ok" role="status">${kit.icon('check')}<span>${esc(query.note)}</span></p>` : `<p class="xs-note">${esc(query.note)}</p>`) : ''}${multi ? multiResults(multi, engines) : resultHead + resultRows(found, engines, query)}` : '' })}</div>`
         + (kind === 'web' ? `<div id="xs-code">${codeCard(query.q, depth === 'instant' ? 'fast' : depth, !!query.answer, apiBase)}</div>` : '')

@@ -1,6 +1,8 @@
 'use strict';
 const express = require('express');
 const views = require('../views/search');
+const accuracyView = require('../views/search-accuracy');
+const searchAccuracy = require('../search-accuracy');
 const { raw, esc } = require('../render/html');
 const { send } = require('../render/layout');
 const { sameOrigin } = require('./principal');
@@ -233,8 +235,24 @@ function createSearchRoutes({ config, ai }) {
             path: req.originalUrl,
             title: 'Search',
             description: 'One search API for people and agents: set how deep, run several searches at once, get every engine\'s answers merged and deduplicated, or a sourced answer. One key, a receipt with every answer.',
-            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null, multi: query.multi || null, apiBase: config.api && config.api.publicUrl, depths: typeof ai.searchDepths === 'function' ? ai.searchDepths() : [] })),
+            body: raw(views.searchPage({ engines: await ai.searchEngines(), found, query, dive: typeof ai.deepDiveDepths === 'function' ? await ai.deepDiveDepths('research').catch(() => null) : null, multi: query.multi || null, apiBase: config.api && config.api.publicUrl, depths: typeof ai.searchDepths === 'function' ? ai.searchDepths() : [], accuracy: Boolean(searchAccuracy.latest()) })),
         });
+    // Search, measured (plan AD.34 next 2): the latest accuracy run, and its data for anyone to check.
+    r.get('/search/accuracy', (req, res) => {
+        const run = searchAccuracy.latest();
+        if (!run) return res.status(404).end('No accuracy run yet');
+        return send(res, 200, {
+            viewer: req.viewer, config, path: req.originalUrl, index: true,
+            title: 'How accurate is search?',
+            description: `Exchange search measured on ${run.questions.length} SimpleQA questions at each depth (${run.measured}): how often the sourced answer is right, how often the answer was in the sources, the typical time and cost. Strictly graded; the data is public.`,
+            body: raw(accuracyView.accuracyPage(run)),
+        });
+    });
+    r.get('/search/accuracy.json', (req, res) => {
+        const run = searchAccuracy.latest();
+        if (!run) return res.status(404).json({ error: 'No accuracy run yet' });
+        res.set({ 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' }).json(run);
+    });
     r.get('/search', (req, res) => {
         const kind = ['web', 'images', 'icons'].includes(req.query.kind) ? req.query.kind : 'web';
         return render(req, res, [], {
